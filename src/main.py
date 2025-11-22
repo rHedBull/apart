@@ -1,4 +1,6 @@
 import argparse
+import sys
+import traceback
 from pathlib import Path
 from orchestrator import Orchestrator
 
@@ -25,8 +27,33 @@ def main():
     scenario_path = args.scenario
     scenario_name = Path(scenario_path).stem
 
-    orchestrator = Orchestrator(scenario_path, scenario_name, args.save_frequency)
-    orchestrator.run()
+    try:
+        # Validate scenario file exists
+        if not Path(scenario_path).exists():
+            print(f"Error: Scenario file not found: {scenario_path}", file=sys.stderr)
+            sys.exit(1)
+
+        # Initialize and run orchestrator
+        orchestrator = Orchestrator(scenario_path, scenario_name, args.save_frequency)
+        orchestrator.run()
+
+    except FileNotFoundError as e:
+        print(f"Error: Required file not found: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    except ValueError as e:
+        print(f"Configuration Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    except KeyboardInterrupt:
+        print("\n\nSimulation interrupted by user", file=sys.stderr)
+        sys.exit(130)  # Standard exit code for SIGINT
+
+    except Exception as e:
+        print(f"\nFatal Error: {e}", file=sys.stderr)
+        print("\nFull traceback:", file=sys.stderr)
+        traceback.print_exc()
+        sys.exit(1)
 
 
 if __name__ == "__main__":
