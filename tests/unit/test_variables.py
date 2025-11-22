@@ -5,7 +5,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 import pytest
-from variables import VariableDefinition, VariableSet
+from utils.variables import VariableDefinition, VariableSet
 
 
 class TestVariableDefinition:

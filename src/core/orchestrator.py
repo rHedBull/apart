@@ -1,16 +1,21 @@
 import sys
 import yaml
 from pathlib import Path
-from agent import Agent
-from game_engine import GameEngine
-from persistence import RunPersistence
-from logging_config import MessageCode, PerformanceTimer
+from dotenv import load_dotenv
+from core.agent import Agent
+from core.game_engine import GameEngine
+from utils.persistence import RunPersistence
+from utils.logging_config import MessageCode, PerformanceTimer
+from llm.providers import GeminiProvider
 
 
 class Orchestrator:
     """Orchestrator that manages multi-step simulation with agents."""
 
     def __init__(self, config_path: str, scenario_name: str, save_frequency: int):
+        # Load environment variables from .env file
+        load_dotenv()
+
         self.config = self._load_config(config_path)
         self.max_steps = self.config.get("max_steps", 5)
         self.persistence = RunPersistence(scenario_name, save_frequency)
@@ -37,12 +42,39 @@ class Orchestrator:
         """Initialize agents from configuration."""
         agents = []
         for agent_config in self.config.get("agents", []):
+            # Check if agent uses LLM
+            llm_config = agent_config.get("llm")
+            llm_provider = None
+
+            if llm_config:
+                provider_type = llm_config.get("provider", "gemini").lower()
+
+                if provider_type == "gemini":
+                    model_name = llm_config.get("model", "gemini-1.5-flash")
+                    llm_provider = GeminiProvider(model_name=model_name)
+
+                    if not llm_provider.is_available():
+                        self.logger.warning(
+                            MessageCode.AGT001,
+                            f"Gemini provider not available for agent {agent_config['name']}. Check GEMINI_API_KEY.",
+                            agent_name=agent_config["name"]
+                        )
+                # Add support for other providers here (ollama, etc.)
+
             agent = Agent(
                 name=agent_config["name"],
-                response_template=agent_config["response_template"]
+                response_template=agent_config.get("response_template"),
+                llm_provider=llm_provider,
+                system_prompt=agent_config.get("system_prompt")
             )
             agents.append(agent)
-            self.logger.info(MessageCode.AGT001, "Agent initialized", agent_name=agent.name)
+
+            agent_type = "LLM-powered" if llm_provider else "template-based"
+            self.logger.info(
+                MessageCode.AGT001,
+                f"{agent_type} agent initialized",
+                agent_name=agent.name
+            )
         return agents
 
     def run(self):

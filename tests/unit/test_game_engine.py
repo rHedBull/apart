@@ -5,8 +5,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 import pytest
-from game_engine import GameEngine
-from state import GameState
+from core.game_engine import GameEngine
+from core.state import GameState
 
 
 class TestGameEngine:

@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field
 from typing import Any
-from variables import VariableSet
+from utils.variables import VariableSet
 
 
 class AgentState(BaseModel):

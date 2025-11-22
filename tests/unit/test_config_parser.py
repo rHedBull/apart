@@ -5,7 +5,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 import pytest
-from config_parser import (
+from utils.config_parser import (
     parse_variable_definitions,
     create_variable_set,
     create_variable_set_with_overrides,

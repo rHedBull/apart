@@ -7,8 +7,8 @@ from datetime import datetime
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from persistence import RunPersistence
-from logging_config import LogLevel, MessageCode
+from utils.persistence import RunPersistence
+from utils.logging_config import LogLevel, MessageCode
 
 
 class TestRunPersistence:

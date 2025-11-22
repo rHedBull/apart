@@ -7,8 +7,8 @@ from tempfile import TemporaryDirectory
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
-from orchestrator import Orchestrator
-from logging_config import MessageCode
+from core.orchestrator import Orchestrator
+from utils.logging_config import MessageCode
 
 
 @pytest.fixture

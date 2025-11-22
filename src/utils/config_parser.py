@@ -1,5 +1,5 @@
 from typing import Any
-from variables import VariableDefinition, VariableSet
+from utils.variables import VariableDefinition, VariableSet
 
 
 def parse_variable_definitions(var_config: dict[str, Any]) -> dict[str, VariableDefinition]:

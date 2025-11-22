@@ -1,5 +1,5 @@
-from state import GameState
-from config_parser import create_variable_set, create_variable_set_with_overrides, validate_config
+from core.state import GameState
+from utils.config_parser import create_variable_set, create_variable_set_with_overrides, validate_config
 
 
 class GameEngine:

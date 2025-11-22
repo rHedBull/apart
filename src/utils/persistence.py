@@ -2,7 +2,7 @@ import json
 from pathlib import Path
 from datetime import datetime
 from typing import Any
-from logging_config import StructuredLogger, LogLevel
+from utils.logging_config import StructuredLogger, LogLevel
 
 
 class RunPersistence:
@@ -47,7 +47,7 @@ class RunPersistence:
 
     def _create_run_directory(self) -> Path:
         """Create unique run directory under results/."""
-        from logging_config import MessageCode
+        from utils.logging_config import MessageCode
 
         results_dir = Path("results")
         results_dir.mkdir(exist_ok=True)
@@ -91,7 +91,7 @@ class RunPersistence:
 
     def _write_state(self, data: dict[str, Any]):
         """Write state to file atomically."""
-        from logging_config import MessageCode
+        from utils.logging_config import MessageCode
 
         # Write to temp file first, then rename for atomicity
         temp_file = self.state_file.with_suffix(".json.tmp")
@@ -119,7 +119,7 @@ class RunPersistence:
         messages: list[dict]
     ):
         """Append snapshot to state.json."""
-        from logging_config import MessageCode, PerformanceTimer
+        from utils.logging_config import MessageCode, PerformanceTimer
 
         with PerformanceTimer(self.logger, MessageCode.PRF001, "Save snapshot", step=step):
             state = self._read_state()
@@ -145,7 +145,7 @@ class RunPersistence:
         messages: list[dict]
     ):
         """Always save final state regardless of frequency."""
-        from logging_config import MessageCode
+        from utils.logging_config import MessageCode
 
         self.save_snapshot(step, game_state, global_vars, agent_vars, messages)
         self.logger.info(MessageCode.PER003, "Final state saved", step=step)
