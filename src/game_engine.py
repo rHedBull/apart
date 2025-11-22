@@ -74,3 +74,23 @@ class GameEngine:
         # For now, just relies on max_steps in orchestrator
         # Can add custom end conditions here later
         return False
+
+    def get_state_snapshot(self) -> dict:
+        """Get a snapshot of the current state for persistence."""
+        game_state = {
+            "resources": self.state.resources,
+            "difficulty": self.state.difficulty,
+            "round": self.state.round
+        }
+
+        global_vars = self.state.variables.to_dict()
+
+        agent_vars = {}
+        for agent_name, agent_state in self.state.agents.items():
+            agent_vars[agent_name] = agent_state.variables.to_dict()
+
+        return {
+            "game_state": game_state,
+            "global_vars": global_vars,
+            "agent_vars": agent_vars
+        }
