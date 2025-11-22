@@ -37,12 +37,34 @@ Edit `scenarios/config.yaml` to customize:
 
 Each simulation run creates a unique directory in `results/` with the format `run_<scenario>_<timestamp>/`.
 
-The `state.json` file captures:
+### Output Files
+
+**`state.json`** - Simulation snapshots:
 - Game state (resources, difficulty, round)
 - Global and per-agent variable values
 - All orchestrator-agent messages
+
+**`simulation.jsonl`** - Structured logs:
+- Human-readable console output with colors
+- Machine-readable JSONL for analysis
+- Predefined message codes (SIM001, AGT002, etc.)
+- Performance metrics and timing data
 
 Control save frequency with `--save-frequency N`:
 - `N=0`: Save only final state
 - `N=1`: Save after every step (default)
 - `N=k`: Save every k steps
+
+### Analyzing Logs
+
+Filter by message code:
+```bash
+# All agent responses
+grep "AGT003" results/run_*/simulation.jsonl | jq .
+
+# Persistence operations
+grep "PER00" results/run_*/simulation.jsonl | jq .
+
+# Performance metrics
+grep "PRF001" results/run_*/simulation.jsonl | jq .
+```
