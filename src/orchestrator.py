@@ -1,6 +1,7 @@
 import yaml
 from pathlib import Path
 from agent import Agent
+from game_engine import GameEngine
 
 
 class Orchestrator:
@@ -9,8 +10,8 @@ class Orchestrator:
     def __init__(self, config_path: str):
         self.config = self._load_config(config_path)
         self.max_steps = self.config.get("max_steps", 5)
-        self.orchestrator_message = self.config.get("orchestrator_message", "Continue")
         self.agents = self._initialize_agents()
+        self.game_engine = GameEngine(self.config)
 
     def _load_config(self, config_path: str) -> dict:
         """Load configuration from YAML file."""
@@ -35,11 +36,22 @@ class Orchestrator:
         for step in range(1, self.max_steps + 1):
             print(f"=== Step {step}/{self.max_steps} ===")
 
+            # Process each agent in turn
             for agent in self.agents:
-                print(f"Orchestrator -> {agent.name}: {self.orchestrator_message}")
-                response = agent.respond(self.orchestrator_message)
+                # Game engine generates the message based on current state
+                message = self.game_engine.get_message_for_agent(agent.name)
+                print(f"Orchestrator -> {agent.name}: {message}")
+
+                # Agent responds
+                response = agent.respond(message)
                 print(f"{agent.name} -> Orchestrator: {response}")
 
+                # Game engine processes the response and updates state
+                self.game_engine.process_agent_response(agent.name, response)
+
+            # Advance to next round
+            self.game_engine.advance_round()
             print()
 
         print("Simulation completed.")
+        print(f"\nFinal game state: {self.game_engine.get_state()}")
