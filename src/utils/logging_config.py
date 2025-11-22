@@ -51,6 +51,20 @@ class MessageCode(str, Enum):
     # Performance (PRF)
     PRF001 = "PRF001"  # Operation timing
 
+    # Engine operations (ENG)
+    ENG001 = "ENG001"  # SimulatorAgent initialized
+    ENG002 = "ENG002"  # Processing step N
+    ENG003 = "ENG003"  # Calling LLM
+    ENG004 = "ENG004"  # LLM response received
+    ENG005 = "ENG005"  # Validation successful
+    ENG006 = "ENG006"  # Validation failed, retrying
+    ENG007 = "ENG007"  # Retry attempt N
+    ENG008 = "ENG008"  # Fatal error, stopping simulation
+    ENG009 = "ENG009"  # Constraint hit (variable clamped)
+    ENG010 = "ENG010"  # State updates applied
+    ENG011 = "ENG011"  # Event generated
+    ENG012 = "ENG012"  # Scripted event triggered
+
 
 class LogMessage(BaseModel):
     """Base structure for all log messages."""

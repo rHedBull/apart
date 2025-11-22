@@ -1,19 +1,20 @@
+from typing import Any, Dict, Optional
 from core.state import GameState
 from utils.config_parser import create_variable_set, create_variable_set_with_overrides, validate_config
 
 
 class GameEngine:
-    """Manages game state and generates messages for agents."""
+    """Manages game state - pure state management, no simulation logic."""
 
     def __init__(self, config: dict):
         # Validate config before using it
         validate_config(config)
 
         self.config = config
-        self.agent_var_definitions = create_variable_set(config.get("agent_vars"))
+        self.global_var_definitions = config.get("global_vars", {})
+        self.agent_var_definitions = config.get("agent_vars", {})
         self.agent_configs = {agent["name"]: agent for agent in config.get("agents", [])}
         self.state = self._initialize_state()
-        self.current_step = 0
 
     def _initialize_state(self) -> GameState:
         """Initialize the game state from configuration."""
@@ -28,55 +29,82 @@ class GameEngine:
             variables=global_vars,
         )
 
-    def get_message_for_agent(self, agent_name: str) -> str:
-        """Generate a context-aware message for a specific agent based on current game state."""
-        self.current_step += 1
+    def initialize_agent(self, agent_name: str, variable_overrides: Optional[Dict[str, Any]] = None):
+        """Initialize an agent's state with variables."""
+        if self.state.get_agent(agent_name) is not None:
+            return  # Already initialized
 
-        # Add event to state
-        event = f"Step {self.current_step}: Request to {agent_name}"
-        self.state.add_event(event)
+        agent_config = self.agent_configs.get(agent_name, {})
+        overrides = variable_overrides or agent_config.get("variables")
 
-        # Generate message based on game state
-        base_message = self.config.get("orchestrator_message", "Continue")
-        state_info = f"[Round {self.state.round}, Total events: {len(self.state.events)}]"
+        self.state.add_agent(
+            agent_name,
+            variables=create_variable_set_with_overrides(
+                self.config.get("agent_vars"),
+                overrides
+            )
+        )
 
-        return f"{base_message} {state_info}"
+    def get_global_var(self, var_name: str) -> Any:
+        """Get global variable value."""
+        return self.state.get_var(var_name)
 
-    def process_agent_response(self, agent_name: str, response: str):
-        """Process agent response and update game state."""
+    def set_global_var(self, var_name: str, value: Any):
+        """Set global variable with type validation."""
+        self.state.set_var(var_name, value)
+
+    def get_agent_var(self, agent_name: str, var_name: str) -> Any:
+        """Get agent variable value."""
         agent_state = self.state.get_agent(agent_name)
         if agent_state is None:
-            # Initialize agent with variable definitions from config
-            # Check for per-agent variable overrides
-            agent_config = self.agent_configs.get(agent_name, {})
-            variable_overrides = agent_config.get("variables")
+            raise ValueError(f"Agent '{agent_name}' not initialized")
+        return agent_state.get_var(var_name)
 
-            agent_state = self.state.add_agent(
-                agent_name,
-                variables=create_variable_set_with_overrides(
-                    self.config.get("agent_vars"),
-                    variable_overrides
-                )
-            )
+    def set_agent_var(self, agent_name: str, var_name: str, value: Any):
+        """Set agent variable with type validation."""
+        agent_state = self.state.get_agent(agent_name)
+        if agent_state is None:
+            raise ValueError(f"Agent '{agent_name}' not initialized")
+        agent_state.set_var(var_name, value)
 
-        agent_state.add_response(response)
+    def apply_state_updates(self, updates: Dict[str, Any]):
+        """Apply state updates from SimulatorAgent."""
+        # Apply global variable updates
+        for var_name, value in updates.get("global_vars", {}).items():
+            self.set_global_var(var_name, value)
 
-    def advance_round(self):
-        """Advance to the next round of the game."""
-        self.state.advance_round()
+        # Apply agent variable updates
+        for agent_name, vars_dict in updates.get("agent_vars", {}).items():
+            # Ensure agent is initialized
+            if self.state.get_agent(agent_name) is None:
+                self.initialize_agent(agent_name)
+
+            for var_name, value in vars_dict.items():
+                self.set_agent_var(agent_name, var_name, value)
+
+    def get_current_state(self) -> Dict[str, Any]:
+        """Get current state snapshot."""
+        global_vars = self.state.variables.to_dict()
+
+        agent_vars = {}
+        for agent_name, agent_state in self.state.agents.items():
+            agent_vars[agent_name] = agent_state.variables.to_dict()
+
+        return {
+            "global_vars": global_vars,
+            "agent_vars": agent_vars
+        }
 
     def get_state(self) -> GameState:
-        """Get the current game state."""
+        """Get the full GameState object."""
         return self.state
 
-    def is_game_over(self) -> bool:
-        """Check if the game/simulation should end."""
-        # For now, just relies on max_steps in orchestrator
-        # Can add custom end conditions here later
-        return False
+    def advance_round(self):
+        """Advance to the next round."""
+        self.state.advance_round()
 
     def get_state_snapshot(self) -> dict:
-        """Get a snapshot of the current state for persistence."""
+        """Get a snapshot for persistence (backward compatibility)."""
         game_state = {
             "resources": self.state.resources,
             "difficulty": self.state.difficulty,
