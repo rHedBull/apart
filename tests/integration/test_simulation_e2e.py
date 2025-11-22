@@ -128,17 +128,17 @@ class TestEndToEndSimulation:
         # Should have messages for both agents (4 total: 2 to agents, 2 from agents)
         assert len(messages) >= 4
 
-        # Verify message structure
-        orchestrator_messages = [m for m in messages if m["from"] == "Orchestrator"]
-        agent_messages = [m for m in messages if m["from"] != "Orchestrator"]
+        # Verify message structure (v2.0: SimulatorAgent manages agent communication)
+        simulator_messages = [m for m in messages if m["from"] == "SimulatorAgent"]
+        agent_messages = [m for m in messages if m["from"] != "SimulatorAgent"]
 
-        assert len(orchestrator_messages) >= 2  # One per agent
+        assert len(simulator_messages) >= 2  # One per agent
         assert len(agent_messages) >= 2  # One from each agent
 
         # Verify agents respond correctly
         for agent_msg in agent_messages:
             assert "to" in agent_msg
-            assert agent_msg["to"] == "Orchestrator"
+            assert agent_msg["to"] == "SimulatorAgent"
             assert "content" in agent_msg
             assert len(agent_msg["content"]) > 0
 

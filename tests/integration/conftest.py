@@ -28,23 +28,41 @@ class DynamicMockEngineProvider(LLMProvider):
         self.call_count += 1
 
         # Extract agent names from the prompt
-        # Look for "agents": ["Name1", "Name2", ...] pattern first
-        agents_array_pattern = r'"agents":\s*\[(.*?)\]'
-        array_match = re.search(agents_array_pattern, prompt, re.DOTALL)
         agent_names = []
 
-        if array_match:
-            names_str = array_match.group(1)
-            agent_names = re.findall(r'"([^"]+)"', names_str)
+        # Strategy 1: Look for "Agents: Name1, Name2, ..." pattern (initialization prompt)
+        agents_pattern = r'Agents:\s*([^\n]+)'
+        match = re.search(agents_pattern, prompt)
+        if match:
+            names_str = match.group(1)
+            # Split by comma and clean up
+            agent_names = [n.strip() for n in names_str.split(',')]
 
-        # If no agents array found, look for agent names in other contexts
+        # Strategy 2: Look for "Agent Responses from previous step:" section (step prompt)
         if not agent_names:
-            # Try to find agent names after "Agent names:" or similar patterns
-            agent_list_pattern = r'(?:Agent names?|Agents?):\s*\[([^\]]+)\]'
-            list_match = re.search(agent_list_pattern, prompt, re.IGNORECASE)
-            if list_match:
-                names_str = list_match.group(1)
-                agent_names = [n.strip().strip('"\'') for n in names_str.split(',')]
+            # Find section like:
+            # Agent Responses from previous step:
+            #   Agent A: "..."
+            #   Agent B: "..."
+            response_section = re.search(
+                r'Agent Responses from previous step:(.*?)(?=Return JSON format:|$)',
+                prompt,
+                re.DOTALL
+            )
+            if response_section:
+                section_text = response_section.group(1)
+                # Extract agent names from lines like "  Agent Name: "response""
+                agent_names = re.findall(r'^\s+([^:]+):', section_text, re.MULTILINE)
+                # Clean up names
+                agent_names = [n.strip() for n in agent_names if n.strip()]
+
+        # Strategy 3: Fallback to JSON pattern
+        if not agent_names:
+            agents_array_pattern = r'"agents":\s*\[(.*?)\]'
+            array_match = re.search(agents_array_pattern, prompt, re.DOTALL)
+            if array_match:
+                names_str = array_match.group(1)
+                agent_names = re.findall(r'"([^"]+)"', names_str)
 
         # Create response with agent_messages for each agent
         agent_messages = {name: f"Proceeding with step" for name in agent_names}

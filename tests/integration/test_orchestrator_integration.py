@@ -151,15 +151,15 @@ class TestOrchestratorIntegration:
         # Should have 4 messages (2 agents × 2 messages each)
         assert len(messages) == 4
 
-        # Verify message structure
-        assert messages[0]["from"] == "Orchestrator"
+        # Verify message structure (v2.0: SimulatorAgent manages agent communication)
+        assert messages[0]["from"] == "SimulatorAgent"
         assert messages[0]["to"] == "Agent A"
         assert messages[1]["from"] == "Agent A"
-        assert messages[1]["to"] == "Orchestrator"
-        assert messages[2]["from"] == "Orchestrator"
+        assert messages[1]["to"] == "SimulatorAgent"
+        assert messages[2]["from"] == "SimulatorAgent"
         assert messages[2]["to"] == "Agent B"
         assert messages[3]["from"] == "Agent B"
-        assert messages[3]["to"] == "Orchestrator"
+        assert messages[3]["to"] == "SimulatorAgent"
 
     def test_orchestrator_state_evolution(self, test_config_file, tmp_path, monkeypatch, mock_engine_llm_provider):
         """Test that game state evolves across steps."""
