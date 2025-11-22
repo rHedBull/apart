@@ -178,29 +178,6 @@ agents:
 - Validates agent variable overrides
 - Fails fast with descriptive errors
 
-## Extension Points
-
-### Adding Agent Intelligence
-Extend `Agent` class to integrate:
-- LLM APIs (OpenAI, Anthropic, etc.)
-- Custom decision-making logic
-- Memory systems
-- Tool use
-
-### Custom Game Logic
-Extend `GameEngine` to add:
-- Win/loss conditions in `is_game_over()`
-- Custom message generation in `get_message_for_agent()`
-- Complex state updates in `process_agent_response()`
-- Turn-based mechanics in `advance_round()`
-
-### New Variable Types
-Extend `VariableDefinition` to support:
-- String enumerations
-- Complex types (lists, dicts)
-- Cross-variable constraints
-- Computed/derived values
-
 ## Testing Strategy
 
 - **Unit tests**: Individual components (state, variables, config parser)

@@ -92,6 +92,16 @@ agent_vars:
     type: bool
     default: false
     description: "Defensive role flag"
+
+  inventory:
+    type: list
+    default: []
+    description: "Items in agent's inventory"
+
+  stats:
+    type: dict
+    default: {}
+    description: "Agent statistics and attributes"
 ```
 
 **Important:**
@@ -105,6 +115,8 @@ agent_vars:
 - `int`: Integer values only
 - `float`: Numeric values (int automatically converted)
 - `bool`: Boolean values (true/false)
+- `list`: List/array values (can contain any elements)
+- `dict`: Dictionary/object values (key-value pairs)
 
 **Range Constraints (int/float only):**
 - `min`: Minimum allowed value (inclusive)
@@ -113,9 +125,9 @@ agent_vars:
 
 **Validation Rules:**
 - Default must match type
-- Default must be within min/max range
-- min must be ≤ max
-- Bool cannot have min/max constraints
+- Default must be within min/max range (numeric types only)
+- min must be ≤ max (numeric types only)
+- Bool, list, and dict cannot have min/max constraints
 
 ## Agent Configuration
 
@@ -138,14 +150,18 @@ agents:
     variables:
       health: 150        # Override: higher than default 100
       coins: 100.0       # Override: more starting currency
+      inventory: ["sword", "shield"]  # Override: starting items
       # is_defender uses default: false
+      # stats uses default: {}
 
   - name: "Weak Agent"
     response_template: "I defend"
     variables:
       health: 50         # Override: lower health
       is_defender: true  # Override: defensive role
+      stats: {"armor": 10, "speed": 5}  # Override: custom stats
       # coins uses default: 50.0
+      # inventory uses default: []
 
   - name: "Default Agent"
     response_template: "I wait"

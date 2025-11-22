@@ -33,6 +33,18 @@ class TestVariableDefinition:
         assert var_def.type == "bool"
         assert var_def.default is True
 
+    def test_list_variable(self):
+        """Test list variable definition."""
+        var_def = VariableDefinition(type="list", default=[1, 2, 3])
+        assert var_def.type == "list"
+        assert var_def.default == [1, 2, 3]
+
+    def test_dict_variable(self):
+        """Test dict variable definition."""
+        var_def = VariableDefinition(type="dict", default={"key": "value"})
+        assert var_def.type == "dict"
+        assert var_def.default == {"key": "value"}
+
     def test_bool_with_min_max_fails(self):
         """Test that bool cannot have min/max constraints."""
         with pytest.raises(ValueError, match="min constraint not supported for bool"):
@@ -40,6 +52,22 @@ class TestVariableDefinition:
 
         with pytest.raises(ValueError, match="max constraint not supported for bool"):
             VariableDefinition(type="bool", default=False, max=1)
+
+    def test_list_with_min_max_fails(self):
+        """Test that list cannot have min/max constraints."""
+        with pytest.raises(ValueError, match="min constraint not supported for list"):
+            VariableDefinition(type="list", default=[], min=0)
+
+        with pytest.raises(ValueError, match="max constraint not supported for list"):
+            VariableDefinition(type="list", default=[], max=10)
+
+    def test_dict_with_min_max_fails(self):
+        """Test that dict cannot have min/max constraints."""
+        with pytest.raises(ValueError, match="min constraint not supported for dict"):
+            VariableDefinition(type="dict", default={}, min=0)
+
+        with pytest.raises(ValueError, match="max constraint not supported for dict"):
+            VariableDefinition(type="dict", default={}, max=10)
 
     def test_default_below_min_fails(self):
         """Test that default cannot be below min."""
@@ -103,6 +131,34 @@ class TestVariableDefinition:
 
         with pytest.raises(ValueError, match="Expected bool"):
             var_def.validate_value(1)
+
+    def test_validate_value_list(self):
+        """Test validating list values."""
+        var_def = VariableDefinition(type="list", default=[])
+
+        assert var_def.validate_value([1, 2, 3]) == [1, 2, 3]
+        assert var_def.validate_value([]) == []
+        assert var_def.validate_value(["a", "b"]) == ["a", "b"]
+
+        with pytest.raises(ValueError, match="Expected list"):
+            var_def.validate_value("not a list")
+
+        with pytest.raises(ValueError, match="Expected list"):
+            var_def.validate_value({"key": "value"})
+
+    def test_validate_value_dict(self):
+        """Test validating dict values."""
+        var_def = VariableDefinition(type="dict", default={})
+
+        assert var_def.validate_value({"key": "value"}) == {"key": "value"}
+        assert var_def.validate_value({}) == {}
+        assert var_def.validate_value({"a": 1, "b": 2}) == {"a": 1, "b": 2}
+
+        with pytest.raises(ValueError, match="Expected dict"):
+            var_def.validate_value("not a dict")
+
+        with pytest.raises(ValueError, match="Expected dict"):
+            var_def.validate_value([1, 2, 3])
 
 
 class TestVariableSet:
