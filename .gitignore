@@ -43,4 +43,4 @@ Thumbs.db
 results/
 
 # dev notes
-dev
+dev.coverage
