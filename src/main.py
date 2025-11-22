@@ -2,7 +2,7 @@ import argparse
 import sys
 import traceback
 from pathlib import Path
-from orchestrator import Orchestrator
+from core.orchestrator import Orchestrator
 
 
 def main():

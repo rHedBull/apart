@@ -1,16 +1,21 @@
 import sys
 import yaml
 from pathlib import Path
-from agent import Agent
-from game_engine import GameEngine
-from persistence import RunPersistence
-from logging_config import MessageCode, PerformanceTimer
+from dotenv import load_dotenv
+from core.agent import Agent
+from core.game_engine import GameEngine
+from utils.persistence import RunPersistence
+from utils.logging_config import MessageCode, PerformanceTimer
+from llm.providers import GeminiProvider, OllamaProvider
 
 
 class Orchestrator:
     """Orchestrator that manages multi-step simulation with agents."""
 
     def __init__(self, config_path: str, scenario_name: str, save_frequency: int):
+        # Load environment variables from .env file
+        load_dotenv()
+
         self.config = self._load_config(config_path)
         self.max_steps = self.config.get("max_steps", 5)
         self.persistence = RunPersistence(scenario_name, save_frequency)
@@ -37,12 +42,82 @@ class Orchestrator:
         """Initialize agents from configuration."""
         agents = []
         for agent_config in self.config.get("agents", []):
+            # Check if agent uses LLM
+            llm_config = agent_config.get("llm")
+            llm_provider = None
+
+            if llm_config:
+                provider_type = llm_config.get("provider", "gemini").lower()
+
+                if provider_type == "gemini":
+                    model_name = llm_config.get("model", "gemini-1.5-flash")
+                    llm_provider = GeminiProvider(model_name=model_name)
+                    provider_display = f"Google Gemini ({model_name})"
+                    setup_instructions = (
+                        "  1. Copy .env.example to .env\n"
+                        "  2. Add your API key: GEMINI_API_KEY=your_key_here\n"
+                        "  3. Get a free key at: https://makersuite.google.com/app/apikey\n"
+                    )
+
+                elif provider_type == "ollama":
+                    model_name = llm_config.get("model", "llama2")
+                    base_url = llm_config.get("base_url")
+                    llm_provider = OllamaProvider(model=model_name, base_url=base_url)
+                    provider_display = f"Ollama ({model_name})"
+                    setup_instructions = (
+                        "  1. Install Ollama: https://ollama.ai\n"
+                        "  2. Pull the model: ollama pull {model}\n"
+                        "  3. Start Ollama server: ollama serve\n"
+                    ).format(model=model_name)
+
+                else:
+                    raise ValueError(f"Unknown LLM provider: {provider_type}")
+
+                # Check if provider is available
+                if llm_provider and not llm_provider.is_available():
+                    # If agent has no fallback template, fail immediately with clear error
+                    if not agent_config.get("response_template"):
+                        error_msg = (
+                            f"\n{'='*70}\n"
+                            f"ERROR: LLM Provider Not Available\n"
+                            f"{'='*70}\n"
+                            f"Agent: {agent_config['name']}\n"
+                            f"Provider: {provider_display}\n"
+                            f"\nThe LLM provider is not available. Possible causes:\n"
+                            f"  1. Provider not running or configured\n"
+                            f"  2. Network issues\n"
+                            f"  3. Invalid configuration\n"
+                            f"\nTo fix ({provider_type}):\n"
+                            f"{setup_instructions}"
+                            f"\nAlternatively, add 'response_template' to the agent config as a fallback.\n"
+                            f"{'='*70}\n"
+                        )
+                        print(error_msg, file=sys.stderr)
+                        raise ValueError(
+                            f"LLM provider not available for agent '{agent_config['name']}' and no fallback template provided."
+                        )
+                    else:
+                        # Has fallback template - just warn
+                        self.logger.warning(
+                            MessageCode.AGT001,
+                            f"{provider_display} not available for agent {agent_config['name']}. Using fallback template.",
+                            agent_name=agent_config["name"]
+                        )
+
             agent = Agent(
                 name=agent_config["name"],
-                response_template=agent_config["response_template"]
+                response_template=agent_config.get("response_template"),
+                llm_provider=llm_provider,
+                system_prompt=agent_config.get("system_prompt")
             )
             agents.append(agent)
-            self.logger.info(MessageCode.AGT001, "Agent initialized", agent_name=agent.name)
+
+            agent_type = "LLM-powered" if llm_provider else "template-based"
+            self.logger.info(
+                MessageCode.AGT001,
+                f"{agent_type} agent initialized",
+                agent_name=agent.name
+            )
         return agents
 
     def run(self):
