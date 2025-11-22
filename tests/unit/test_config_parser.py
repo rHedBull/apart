@@ -385,3 +385,63 @@ class TestVariableOverrides:
 
         # Should not raise
         validate_config(config)
+
+
+def test_validate_engine_config():
+    """Test engine configuration validation."""
+    from utils.config_parser import validate_engine_config
+
+    # Valid engine config
+    config = {
+        "engine": {
+            "provider": "gemini",
+            "model": "gemini-1.5-flash",
+            "system_prompt": "Test prompt",
+            "simulation_plan": "Test plan"
+        }
+    }
+    validate_engine_config(config)  # Should not raise
+
+    # Missing required field
+    config_missing = {
+        "engine": {
+            "provider": "gemini"
+            # Missing model, system_prompt, simulation_plan
+        }
+    }
+    with pytest.raises(ValueError, match="missing required field"):
+        validate_engine_config(config_missing)
+
+    # Invalid scripted event
+    config_bad_event = {
+        "engine": {
+            "provider": "gemini",
+            "model": "test",
+            "system_prompt": "Test",
+            "simulation_plan": "Test",
+            "scripted_events": [
+                {"step": "not_an_int", "type": "test", "description": "test"}
+            ]
+        }
+    }
+    with pytest.raises(ValueError):
+        validate_engine_config(config_bad_event)
+
+
+def test_parse_scripted_events():
+    """Test parsing scripted events."""
+    from utils.config_parser import parse_scripted_events
+    from core.engine_models import ScriptedEvent
+
+    events_config = [
+        {"step": 20, "type": "major_war", "description": "War begins"},
+        {"step": 35, "type": "disaster", "description": "Earthquake"}
+    ]
+
+    events = parse_scripted_events(events_config)
+
+    assert len(events) == 2
+    assert isinstance(events[0], ScriptedEvent)
+    assert events[0].step == 20
+    assert events[0].type == "major_war"
+    assert events[1].step == 35

@@ -1,5 +1,6 @@
 from typing import Any
 from utils.variables import VariableDefinition, VariableSet
+from core.engine_models import ScriptedEvent
 
 
 def parse_variable_definitions(var_config: dict[str, Any]) -> dict[str, VariableDefinition]:
@@ -141,6 +142,66 @@ def validate_agent_config(agent_config: dict[str, Any], agent_vars_definitions: 
                     )
 
 
+def parse_scripted_events(events_config: list[dict] | None) -> list[ScriptedEvent]:
+    """
+    Parse scripted events from YAML config.
+
+    Args:
+        events_config: List of event dictionaries
+
+    Returns:
+        List of ScriptedEvent objects
+    """
+    if not events_config:
+        return []
+
+    events = []
+    for event_dict in events_config:
+        if not isinstance(event_dict, dict):
+            raise ValueError("Each scripted event must be a dictionary")
+
+        required_fields = ["step", "type", "description"]
+        for field in required_fields:
+            if field not in event_dict:
+                raise ValueError(f"Scripted event missing required field '{field}'")
+
+        if not isinstance(event_dict["step"], int):
+            raise ValueError("Scripted event 'step' must be an integer")
+
+        events.append(ScriptedEvent(
+            step=event_dict["step"],
+            type=event_dict["type"],
+            description=event_dict["description"]
+        ))
+
+    return events
+
+
+def validate_engine_config(config: dict[str, Any]) -> None:
+    """
+    Validate engine configuration.
+
+    Raises:
+        ValueError: If engine configuration is invalid or missing
+    """
+    if "engine" not in config:
+        raise ValueError("Configuration missing required 'engine' section")
+
+    engine = config["engine"]
+
+    if not isinstance(engine, dict):
+        raise ValueError("'engine' must be a dictionary")
+
+    required_fields = ["provider", "model", "system_prompt", "simulation_plan"]
+    for field in required_fields:
+        if field not in engine:
+            raise ValueError(f"Engine configuration missing required field '{field}'")
+
+    # Validate scripted events if present
+    if "scripted_events" in engine:
+        parse_scripted_events(engine["scripted_events"])
+
+
 def validate_config(config: dict[str, Any]) -> None:
     """
     Validate the entire configuration.
@@ -148,6 +209,7 @@ def validate_config(config: dict[str, Any]) -> None:
     Raises:
         ValueError: If configuration is invalid
     """
+    validate_engine_config(config)
     validate_agent_vars_config(config)
     validate_global_vars_config(config)
 
