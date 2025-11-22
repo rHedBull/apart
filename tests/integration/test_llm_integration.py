@@ -15,12 +15,18 @@ from llm.mock_provider import MockLLMProvider
 class TestLLMScenarioIntegration:
     """Test complete LLM scenario execution."""
 
-    def test_llm_scenario_with_mock_provider(self, tmp_path):
+    def test_llm_scenario_with_mock_provider(self, tmp_path, mock_engine_llm_provider):
         """Test LLM scenario runs successfully with mock provider."""
         # Create a test scenario with LLM agent
         scenario_content = """
 max_steps: 2
 orchestrator_message: "What is your strategy?"
+
+engine:
+  provider: "gemini"
+  model: "gemini-1.5-flash"
+  system_prompt: "Test"
+  simulation_plan: "Test"
 
 game_state:
   initial_resources: 100
@@ -50,7 +56,7 @@ agents:
         scenario_file.write_text(scenario_content)
 
         # Run orchestrator (should use fallback template since no API key)
-        orchestrator = Orchestrator(str(scenario_file), "test_llm_scenario", save_frequency=0)
+        orchestrator = Orchestrator(str(scenario_file), "test_llm_scenario", save_frequency=0, engine_llm_provider=mock_engine_llm_provider)
 
         # Verify agent was created with LLM provider
         assert len(orchestrator.agents) == 1
@@ -70,6 +76,12 @@ agents:
         scenario_content = """
 max_steps: 1
 orchestrator_message: "Test"
+
+engine:
+  provider: "gemini"
+  model: "gemini-1.5-flash"
+  system_prompt: "Test"
+  simulation_plan: "Test"
 
 game_state:
   initial_resources: 100
@@ -143,12 +155,17 @@ class TestLLMExampleScenario:
         with pytest.raises(ValueError, match="LLM provider not available"):
             orchestrator = Orchestrator(scenario_path, "llm_example_test", save_frequency=0)
 
-    def test_llm_example_with_fallback_template(self, tmp_path):
+    def test_llm_example_with_fallback_template(self, tmp_path, mock_engine_llm_provider):
         """Test LLM scenario works with fallback template when no API key."""
         # Create scenario with fallback
         scenario_content = """
 max_steps: 2
 orchestrator_message: "Test"
+engine:
+  provider: "gemini"
+  model: "gemini-1.5-flash"
+  system_prompt: "Test"
+  simulation_plan: "Test"
 game_state:
   initial_resources: 100
 global_vars: {}
@@ -166,7 +183,7 @@ agents:
         scenario_file.write_text(scenario_content)
 
         # Should work with fallback
-        orchestrator = Orchestrator(str(scenario_file), "with_fallback", save_frequency=0)
+        orchestrator = Orchestrator(str(scenario_file), "with_fallback", save_frequency=0, engine_llm_provider=mock_engine_llm_provider)
         assert len(orchestrator.agents) == 1
 
         # Run simulation

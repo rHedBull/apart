@@ -12,14 +12,14 @@ from core.orchestrator import Orchestrator
 class TestEndToEndSimulation:
     """End-to-end simulation tests using real scenario files."""
 
-    def test_default_scenario_runs_successfully(self, tmp_path, monkeypatch):
+    def test_default_scenario_runs_successfully(self, tmp_path, monkeypatch, mock_engine_llm_provider):
         """Test that default scenario runs without errors."""
         monkeypatch.chdir(tmp_path)
 
         # Use the actual project scenario
         scenario_path = Path(__file__).parent.parent.parent / "scenarios" / "config.yaml"
 
-        orchestrator = Orchestrator(str(scenario_path), "config", save_frequency=1)
+        orchestrator = Orchestrator(str(scenario_path), "config", save_frequency=1, engine_llm_provider=mock_engine_llm_provider)
         orchestrator.run()
 
         # Verify results
@@ -34,12 +34,12 @@ class TestEndToEndSimulation:
         assert len(state["snapshots"]) > 0
         assert state["scenario"] == "config"
 
-    def test_simulation_produces_complete_audit_trail(self, tmp_path, monkeypatch):
+    def test_simulation_produces_complete_audit_trail(self, tmp_path, monkeypatch, mock_engine_llm_provider):
         """Test that simulation produces complete audit trail."""
         monkeypatch.chdir(tmp_path)
 
         scenario_path = Path(__file__).parent.parent.parent / "scenarios" / "config.yaml"
-        orchestrator = Orchestrator(str(scenario_path), "config", save_frequency=1)
+        orchestrator = Orchestrator(str(scenario_path), "config", save_frequency=1, engine_llm_provider=mock_engine_llm_provider)
         orchestrator.run()
 
         # Verify state file
@@ -73,12 +73,12 @@ class TestEndToEndSimulation:
             assert "message" in log
             assert "context" in log
 
-    def test_simulation_with_variable_tracking(self, tmp_path, monkeypatch):
+    def test_simulation_with_variable_tracking(self, tmp_path, monkeypatch, mock_engine_llm_provider):
         """Test that variables are properly tracked throughout simulation."""
         monkeypatch.chdir(tmp_path)
 
         scenario_path = Path(__file__).parent.parent.parent / "scenarios" / "config.yaml"
-        orchestrator = Orchestrator(str(scenario_path), "config", save_frequency=1)
+        orchestrator = Orchestrator(str(scenario_path), "config", save_frequency=1, engine_llm_provider=mock_engine_llm_provider)
         orchestrator.run()
 
         # Read state file
@@ -109,12 +109,12 @@ class TestEndToEndSimulation:
         assert agent_beta_vars["economic_strength"] == 1000.0
         assert agent_beta_vars["risk_tolerance"] == 0.5
 
-    def test_simulation_message_flow(self, tmp_path, monkeypatch):
+    def test_simulation_message_flow(self, tmp_path, monkeypatch, mock_engine_llm_provider):
         """Test complete message flow between orchestrator and agents."""
         monkeypatch.chdir(tmp_path)
 
         scenario_path = Path(__file__).parent.parent.parent / "scenarios" / "config.yaml"
-        orchestrator = Orchestrator(str(scenario_path), "config", save_frequency=1)
+        orchestrator = Orchestrator(str(scenario_path), "config", save_frequency=1, engine_llm_provider=mock_engine_llm_provider)
         orchestrator.run()
 
         # Read state file
@@ -146,12 +146,12 @@ class TestEndToEndSimulation:
 class TestSimulationDataIntegrity:
     """Test data integrity across simulation run."""
 
-    def test_round_numbers_increment_correctly(self, tmp_path, monkeypatch):
+    def test_round_numbers_increment_correctly(self, tmp_path, monkeypatch, mock_engine_llm_provider):
         """Test that round numbers increment as expected."""
         monkeypatch.chdir(tmp_path)
 
         scenario_path = Path(__file__).parent.parent.parent / "scenarios" / "config.yaml"
-        orchestrator = Orchestrator(str(scenario_path), "config", save_frequency=1)
+        orchestrator = Orchestrator(str(scenario_path), "config", save_frequency=1, engine_llm_provider=mock_engine_llm_provider)
         orchestrator.run()
 
         with open(orchestrator.persistence.state_file) as f:
@@ -164,12 +164,12 @@ class TestSimulationDataIntegrity:
         for i in range(1, len(rounds)):
             assert rounds[i] >= rounds[i-1]
 
-    def test_step_numbers_are_sequential(self, tmp_path, monkeypatch):
+    def test_step_numbers_are_sequential(self, tmp_path, monkeypatch, mock_engine_llm_provider):
         """Test that step numbers are sequential."""
         monkeypatch.chdir(tmp_path)
 
         scenario_path = Path(__file__).parent.parent.parent / "scenarios" / "config.yaml"
-        orchestrator = Orchestrator(str(scenario_path), "config", save_frequency=1)
+        orchestrator = Orchestrator(str(scenario_path), "config", save_frequency=1, engine_llm_provider=mock_engine_llm_provider)
         orchestrator.run()
 
         with open(orchestrator.persistence.state_file) as f:
@@ -189,12 +189,12 @@ class TestSimulationDataIntegrity:
         if len(steps) > 1:
             assert steps[-1] == steps[-2], f"Final should duplicate last step: {steps}"
 
-    def test_timestamps_are_chronological(self, tmp_path, monkeypatch):
+    def test_timestamps_are_chronological(self, tmp_path, monkeypatch, mock_engine_llm_provider):
         """Test that log timestamps are in chronological order."""
         monkeypatch.chdir(tmp_path)
 
         scenario_path = Path(__file__).parent.parent.parent / "scenarios" / "config.yaml"
-        orchestrator = Orchestrator(str(scenario_path), "config", save_frequency=1)
+        orchestrator = Orchestrator(str(scenario_path), "config", save_frequency=1, engine_llm_provider=mock_engine_llm_provider)
         orchestrator.run()
 
         with open(orchestrator.persistence.log_file) as f:
@@ -210,17 +210,17 @@ class TestSimulationDataIntegrity:
 class TestSimulationReproducibility:
     """Test that simulations are reproducible."""
 
-    def test_same_config_produces_consistent_structure(self, tmp_path, monkeypatch):
+    def test_same_config_produces_consistent_structure(self, tmp_path, monkeypatch, mock_engine_llm_provider):
         """Test that running same config produces consistent structure."""
         monkeypatch.chdir(tmp_path)
 
         scenario_path = Path(__file__).parent.parent.parent / "scenarios" / "config.yaml"
 
         # Run simulation twice
-        orch1 = Orchestrator(str(scenario_path), "config1", save_frequency=1)
+        orch1 = Orchestrator(str(scenario_path), "config1", save_frequency=1, engine_llm_provider=mock_engine_llm_provider)
         orch1.run()
 
-        orch2 = Orchestrator(str(scenario_path), "config2", save_frequency=1)
+        orch2 = Orchestrator(str(scenario_path), "config2", save_frequency=1, engine_llm_provider=mock_engine_llm_provider)
         orch2.run()
 
         # Read both state files
@@ -242,12 +242,12 @@ class TestSimulationReproducibility:
 class TestSimulationOutputFormats:
     """Test simulation output file formats."""
 
-    def test_state_file_is_valid_json(self, tmp_path, monkeypatch):
+    def test_state_file_is_valid_json(self, tmp_path, monkeypatch, mock_engine_llm_provider):
         """Test that state file is valid JSON."""
         monkeypatch.chdir(tmp_path)
 
         scenario_path = Path(__file__).parent.parent.parent / "scenarios" / "config.yaml"
-        orchestrator = Orchestrator(str(scenario_path), "config", save_frequency=1)
+        orchestrator = Orchestrator(str(scenario_path), "config", save_frequency=1, engine_llm_provider=mock_engine_llm_provider)
         orchestrator.run()
 
         # Should be able to parse without errors
@@ -257,12 +257,12 @@ class TestSimulationOutputFormats:
         # Verify it's a dictionary
         assert isinstance(state, dict)
 
-    def test_log_file_is_valid_jsonl(self, tmp_path, monkeypatch):
+    def test_log_file_is_valid_jsonl(self, tmp_path, monkeypatch, mock_engine_llm_provider):
         """Test that log file is valid JSONL."""
         monkeypatch.chdir(tmp_path)
 
         scenario_path = Path(__file__).parent.parent.parent / "scenarios" / "config.yaml"
-        orchestrator = Orchestrator(str(scenario_path), "config", save_frequency=1)
+        orchestrator = Orchestrator(str(scenario_path), "config", save_frequency=1, engine_llm_provider=mock_engine_llm_provider)
         orchestrator.run()
 
         # Each line should be valid JSON

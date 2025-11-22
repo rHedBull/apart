@@ -17,6 +17,12 @@ def test_config_file(tmp_path):
     config = """
 max_steps: 3
 
+engine:
+  provider: "gemini"
+  model: "gemini-1.5-flash"
+  system_prompt: "Test"
+  simulation_plan: "Test"
+
 game_state:
   initial_resources: 100
   difficulty: "easy"
@@ -48,11 +54,11 @@ agents:
 class TestOrchestratorIntegration:
     """Integration tests for Orchestrator."""
 
-    def test_orchestrator_initialization(self, test_config_file, tmp_path, monkeypatch):
+    def test_orchestrator_initialization(self, test_config_file, tmp_path, monkeypatch, mock_engine_llm_provider):
         """Test that orchestrator initializes all components."""
         monkeypatch.chdir(tmp_path)
 
-        orchestrator = Orchestrator(test_config_file, "test", save_frequency=1)
+        orchestrator = Orchestrator(test_config_file, "test", save_frequency=1, engine_llm_provider=mock_engine_llm_provider)
 
         # Verify components initialized
         assert orchestrator.config is not None
@@ -66,11 +72,11 @@ class TestOrchestratorIntegration:
 
         orchestrator.persistence.close()
 
-    def test_orchestrator_full_simulation(self, test_config_file, tmp_path, monkeypatch):
+    def test_orchestrator_full_simulation(self, test_config_file, tmp_path, monkeypatch, mock_engine_llm_provider):
         """Test complete simulation run."""
         monkeypatch.chdir(tmp_path)
 
-        orchestrator = Orchestrator(test_config_file, "test", save_frequency=1)
+        orchestrator = Orchestrator(test_config_file, "test", save_frequency=1, engine_llm_provider=mock_engine_llm_provider)
         orchestrator.run()
 
         # Verify state file exists and has correct structure
@@ -101,11 +107,11 @@ class TestOrchestratorIntegration:
         log_file = orchestrator.persistence.log_file
         assert log_file.exists()
 
-    def test_orchestrator_logs_simulation_lifecycle(self, test_config_file, tmp_path, monkeypatch):
+    def test_orchestrator_logs_simulation_lifecycle(self, test_config_file, tmp_path, monkeypatch, mock_engine_llm_provider):
         """Test that orchestrator logs all lifecycle events."""
         monkeypatch.chdir(tmp_path)
 
-        orchestrator = Orchestrator(test_config_file, "test", save_frequency=1)
+        orchestrator = Orchestrator(test_config_file, "test", save_frequency=1, engine_llm_provider=mock_engine_llm_provider)
         orchestrator.run()
 
         # Read log file
@@ -127,11 +133,11 @@ class TestOrchestratorIntegration:
         assert "PER003" in codes  # Final state saved
         assert "SIM002" in codes  # Simulation completed
 
-    def test_orchestrator_agent_interaction(self, test_config_file, tmp_path, monkeypatch):
+    def test_orchestrator_agent_interaction(self, test_config_file, tmp_path, monkeypatch, mock_engine_llm_provider):
         """Test that agents interact properly with orchestrator."""
         monkeypatch.chdir(tmp_path)
 
-        orchestrator = Orchestrator(test_config_file, "test", save_frequency=1)
+        orchestrator = Orchestrator(test_config_file, "test", save_frequency=1, engine_llm_provider=mock_engine_llm_provider)
         orchestrator.run()
 
         # Read state file
@@ -155,11 +161,11 @@ class TestOrchestratorIntegration:
         assert messages[3]["from"] == "Agent B"
         assert messages[3]["to"] == "Orchestrator"
 
-    def test_orchestrator_state_evolution(self, test_config_file, tmp_path, monkeypatch):
+    def test_orchestrator_state_evolution(self, test_config_file, tmp_path, monkeypatch, mock_engine_llm_provider):
         """Test that game state evolves across steps."""
         monkeypatch.chdir(tmp_path)
 
-        orchestrator = Orchestrator(test_config_file, "test", save_frequency=1)
+        orchestrator = Orchestrator(test_config_file, "test", save_frequency=1, engine_llm_provider=mock_engine_llm_provider)
         orchestrator.run()
 
         # Read state file
@@ -171,11 +177,11 @@ class TestOrchestratorIntegration:
         # Rounds: 0 (start), 1 (after step 1), 2 (after step 2), 3 (final after step 3)
         assert rounds == [0, 1, 2, 3]
 
-    def test_orchestrator_with_save_frequency_zero(self, test_config_file, tmp_path, monkeypatch):
+    def test_orchestrator_with_save_frequency_zero(self, test_config_file, tmp_path, monkeypatch, mock_engine_llm_provider):
         """Test orchestrator with save_frequency=0 (final only)."""
         monkeypatch.chdir(tmp_path)
 
-        orchestrator = Orchestrator(test_config_file, "test", save_frequency=0)
+        orchestrator = Orchestrator(test_config_file, "test", save_frequency=0, engine_llm_provider=mock_engine_llm_provider)
         orchestrator.run()
 
         # Read state file
@@ -186,11 +192,11 @@ class TestOrchestratorIntegration:
         assert len(state["snapshots"]) == 1
         assert state["snapshots"][0]["step"] == 3
 
-    def test_orchestrator_with_save_frequency_two(self, test_config_file, tmp_path, monkeypatch):
+    def test_orchestrator_with_save_frequency_two(self, test_config_file, tmp_path, monkeypatch, mock_engine_llm_provider):
         """Test orchestrator with save_frequency=2."""
         monkeypatch.chdir(tmp_path)
 
-        orchestrator = Orchestrator(test_config_file, "test", save_frequency=2)
+        orchestrator = Orchestrator(test_config_file, "test", save_frequency=2, engine_llm_provider=mock_engine_llm_provider)
         orchestrator.run()
 
         # Read state file
@@ -202,11 +208,11 @@ class TestOrchestratorIntegration:
         steps = [s["step"] for s in state["snapshots"]]
         assert steps == [2, 3]
 
-    def test_orchestrator_logger_cleanup(self, test_config_file, tmp_path, monkeypatch):
+    def test_orchestrator_logger_cleanup(self, test_config_file, tmp_path, monkeypatch, mock_engine_llm_provider):
         """Test that logger is properly closed after simulation."""
         monkeypatch.chdir(tmp_path)
 
-        orchestrator = Orchestrator(test_config_file, "test", save_frequency=1)
+        orchestrator = Orchestrator(test_config_file, "test", save_frequency=1, engine_llm_provider=mock_engine_llm_provider)
         orchestrator.run()
 
         # Logger handle should be closed
@@ -245,6 +251,11 @@ class TestOrchestratorErrorHandling:
         config_file = tmp_path / "bad_config.yaml"
         config_file.write_text("""
 max_steps: 2
+engine:
+  provider: "gemini"
+  model: "gemini-1.5-flash"
+  system_prompt: "Test"
+  simulation_plan: "Test"
 global_vars:
   bad_var:
     type: float
@@ -264,7 +275,7 @@ agents:
 class TestOrchestratorPerformance:
     """Performance and stress tests for orchestrator."""
 
-    def test_orchestrator_with_many_agents(self, tmp_path, monkeypatch):
+    def test_orchestrator_with_many_agents(self, tmp_path, monkeypatch, mock_engine_llm_provider):
         """Test orchestrator with multiple agents."""
         monkeypatch.chdir(tmp_path)
 
@@ -272,6 +283,11 @@ class TestOrchestratorPerformance:
         config_file = tmp_path / "many_agents.yaml"
         config_file.write_text("""
 max_steps: 2
+engine:
+  provider: "gemini"
+  model: "gemini-1.5-flash"
+  system_prompt: "Test"
+  simulation_plan: "Test"
 agents:
   - name: "Agent 1"
     response_template: "Agent 1"
@@ -285,7 +301,7 @@ agents:
     response_template: "Agent 5"
 """)
 
-        orchestrator = Orchestrator(str(config_file), "test", save_frequency=1)
+        orchestrator = Orchestrator(str(config_file), "test", save_frequency=1, engine_llm_provider=mock_engine_llm_provider)
         orchestrator.run()
 
         # Read state file
@@ -296,19 +312,24 @@ agents:
         for snapshot in state["snapshots"]:
             assert len(snapshot["messages"]) == 10
 
-    def test_orchestrator_with_many_steps(self, tmp_path, monkeypatch):
+    def test_orchestrator_with_many_steps(self, tmp_path, monkeypatch, mock_engine_llm_provider):
         """Test orchestrator with many simulation steps."""
         monkeypatch.chdir(tmp_path)
 
         config_file = tmp_path / "many_steps.yaml"
         config_file.write_text("""
 max_steps: 20
+engine:
+  provider: "gemini"
+  model: "gemini-1.5-flash"
+  system_prompt: "Test"
+  simulation_plan: "Test"
 agents:
   - name: "Agent A"
     response_template: "Ready"
 """)
 
-        orchestrator = Orchestrator(str(config_file), "test", save_frequency=5)
+        orchestrator = Orchestrator(str(config_file), "test", save_frequency=5, engine_llm_provider=mock_engine_llm_provider)
         orchestrator.run()
 
         # Read state file

@@ -1,6 +1,13 @@
 max_steps: 3
 orchestrator_message: "Please proceed with the next action"
 
+# Engine configuration
+engine:
+  provider: "gemini"
+  model: "gemini-1.5-flash"
+  system_prompt: "Test"
+  simulation_plan: "Test"
+
 # Game state configuration
 game_state:
   initial_resources: 100

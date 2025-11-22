@@ -14,7 +14,7 @@ from llm.providers import GeminiProvider, OllamaProvider
 class Orchestrator:
     """Orchestrator that manages multi-step simulation with agents."""
 
-    def __init__(self, config_path: str, scenario_name: str, save_frequency: int):
+    def __init__(self, config_path: str, scenario_name: str, save_frequency: int, engine_llm_provider=None):
         # Load environment variables from .env file
         load_dotenv()
 
@@ -27,12 +27,16 @@ class Orchestrator:
 
         # Initialize SimulatorAgent
         engine_config = self.config.get("engine", {})
-        engine_llm_config = {
-            "provider": engine_config.get("provider"),
-            "model": engine_config.get("model")
-        }
 
-        simulator_llm = self._create_llm_provider_for_engine(engine_llm_config)
+        # Use injected provider if provided (for testing), otherwise create one
+        if engine_llm_provider is not None:
+            simulator_llm = engine_llm_provider
+        else:
+            engine_llm_config = {
+                "provider": engine_config.get("provider"),
+                "model": engine_config.get("model")
+            }
+            simulator_llm = self._create_llm_provider_for_engine(engine_llm_config)
 
         self.simulator_agent = SimulatorAgent(
             llm_provider=simulator_llm,
