@@ -2,6 +2,8 @@
 
 Multi-agent orchestration framework for running configurable simulation scenarios.
 
+**Note:** As of v2.0, all scenarios require an LLM-powered simulation engine. See [Design Documentation](docs/plans/2025-11-22-llm-simulation-engine-design.md) for details.
+
 ## Quick Start
 
 Run a simulation:

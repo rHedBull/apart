@@ -8,6 +8,20 @@ Apart is a modular multi-agent simulation framework that separates concerns betw
 
 ## Core Components
 
+### SimulatorAgent (NEW in v2.0)
+
+**Responsibility:** LLM-powered simulation orchestration
+
+- Interprets agent responses into realistic state changes
+- Generates personalized agent messages
+- Creates emergent and scripted events
+- Enforces constraints through clamping with feedback
+- Maintains sliding history window for context
+
+**Key Methods:**
+- `initialize_simulation(agent_names)`: Generate initial agent messages
+- `process_step(step_number, agent_responses)`: Process step and return next messages
+
 ### 1. Orchestrator (`src/orchestrator.py`)
 
 **Responsibility:** Coordination and flow control
