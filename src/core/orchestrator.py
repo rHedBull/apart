@@ -4,8 +4,10 @@ from pathlib import Path
 from dotenv import load_dotenv
 from core.agent import Agent
 from core.game_engine import GameEngine
+from core.simulator_agent import SimulatorAgent, SimulationError
 from utils.persistence import RunPersistence
 from utils.logging_config import MessageCode, PerformanceTimer
+from utils.config_parser import parse_scripted_events
 from llm.providers import GeminiProvider, OllamaProvider
 
 
@@ -22,6 +24,26 @@ class Orchestrator:
         self.logger = self.persistence.logger  # Use the same logger instance
         self.agents = self._initialize_agents()
         self.game_engine = GameEngine(self.config)
+
+        # Initialize SimulatorAgent
+        engine_config = self.config.get("engine", {})
+        engine_llm_config = {
+            "provider": engine_config.get("provider"),
+            "model": engine_config.get("model")
+        }
+
+        simulator_llm = self._create_llm_provider_for_engine(engine_llm_config)
+
+        self.simulator_agent = SimulatorAgent(
+            llm_provider=simulator_llm,
+            game_engine=self.game_engine,
+            system_prompt=engine_config.get("system_prompt", ""),
+            simulation_plan=engine_config.get("simulation_plan", ""),
+            realism_guidelines=engine_config.get("realism_guidelines", ""),
+            scripted_events=parse_scripted_events(engine_config.get("scripted_events")),
+            context_window_size=engine_config.get("context_window_size", 5),
+            logger=self.logger
+        )
 
         self.logger.info(MessageCode.PER001, "Run directory created", run_id=self.persistence.run_id, run_dir=str(self.persistence.run_dir))
 
@@ -120,8 +142,39 @@ class Orchestrator:
             )
         return agents
 
+    def _create_llm_provider_for_engine(self, llm_config: dict):
+        """Create LLM provider for SimulatorAgent (engine)."""
+        provider_type = llm_config.get("provider", "gemini").lower()
+
+        if provider_type == "gemini":
+            model_name = llm_config.get("model", "gemini-1.5-flash")
+            provider = GeminiProvider(model_name=model_name)
+        elif provider_type == "ollama":
+            model_name = llm_config.get("model", "llama2")
+            base_url = llm_config.get("base_url")
+            provider = OllamaProvider(model=model_name, base_url=base_url)
+        else:
+            raise ValueError(f"Unknown engine LLM provider: {provider_type}")
+
+        # Engine LLM MUST be available
+        if not provider.is_available():
+            error_msg = (
+                f"\n{'='*70}\n"
+                f"ERROR: Engine LLM Provider Not Available\n"
+                f"{'='*70}\n"
+                f"Provider: {provider_type}\n"
+                f"Model: {llm_config.get('model')}\n"
+                f"\nThe simulation engine requires an LLM to run.\n"
+                f"Please ensure the provider is configured and available.\n"
+                f"{'='*70}\n"
+            )
+            print(error_msg, file=sys.stderr)
+            raise ValueError("Engine LLM provider not available. Simulation cannot run.")
+
+        return provider
+
     def run(self):
-        """Run the simulation loop."""
+        """Run the simulation loop with SimulatorAgent."""
         self.logger.info(
             MessageCode.SIM001,
             "Simulation started",
@@ -133,20 +186,32 @@ class Orchestrator:
         print(f"Results will be saved to: {self.persistence.run_dir}\n")
 
         try:
+            # Step 0: Initialize simulation
+            print("=== Step 0: Initialization ===")
+            agent_names = [agent.name for agent in self.agents]
+
+            try:
+                agent_messages = self.simulator_agent.initialize_simulation(agent_names)
+                print("SimulatorAgent initialized simulation")
+            except SimulationError as e:
+                self.logger.critical(MessageCode.SIM002, "Initialization failed", error=str(e))
+                print(f"\nERROR: Simulation initialization failed:\n{e}", file=sys.stderr)
+                raise
+
+            # Main simulation loop
             for step in range(1, self.max_steps + 1):
                 with PerformanceTimer(self.logger, MessageCode.PRF001, f"Step {step}", step=step):
                     self.logger.info(MessageCode.SIM003, "Step started", step=step, max_steps=self.max_steps)
-                    print(f"=== Step {step}/{self.max_steps} ===")
+                    print(f"\n=== Step {step}/{self.max_steps} ===")
 
-                    # Collect messages for this step
-                    messages = []
+                    # Collect agent responses
+                    agent_responses = {}
+                    step_messages = []
 
-                    # Process each agent in turn
                     for agent in self.agents:
                         try:
-                            # Game engine generates the message based on current state
-                            message = self.game_engine.get_message_for_agent(agent.name)
-                            print(f"Orchestrator -> {agent.name}: {message}")
+                            message = agent_messages[agent.name]
+                            print(f"SimulatorAgent -> {agent.name}: {message}")
 
                             self.logger.info(
                                 MessageCode.AGT002,
@@ -156,29 +221,15 @@ class Orchestrator:
                                 content=message
                             )
 
-                            messages.append({
-                                "from": "Orchestrator",
+                            step_messages.append({
+                                "from": "SimulatorAgent",
                                 "to": agent.name,
                                 "content": message
                             })
 
-                        except Exception as e:
-                            error_msg = f"Failed to generate message for agent: {e}"
-                            self.logger.error(
-                                MessageCode.AGT005,
-                                error_msg,
-                                agent_name=agent.name,
-                                step=step,
-                                error=str(e)
-                            )
-                            print(f"ERROR: {error_msg}", file=sys.stderr)
-                            # Continue with next agent
-                            continue
-
-                        try:
                             # Agent responds
                             response = agent.respond(message)
-                            print(f"{agent.name} -> Orchestrator: {response}")
+                            print(f"{agent.name} -> SimulatorAgent: {response}")
 
                             self.logger.info(
                                 MessageCode.AGT003,
@@ -188,14 +239,16 @@ class Orchestrator:
                                 response=response
                             )
 
-                            messages.append({
+                            step_messages.append({
                                 "from": agent.name,
-                                "to": "Orchestrator",
+                                "to": "SimulatorAgent",
                                 "content": response
                             })
 
+                            agent_responses[agent.name] = response
+
                         except Exception as e:
-                            error_msg = f"Agent failed to respond: {e}"
+                            error_msg = f"Agent {agent.name} failed: {e}"
                             self.logger.error(
                                 MessageCode.AGT005,
                                 error_msg,
@@ -204,31 +257,21 @@ class Orchestrator:
                                 error=str(e)
                             )
                             print(f"ERROR: {error_msg}", file=sys.stderr)
-                            # Log error response
-                            messages.append({
-                                "from": agent.name,
-                                "to": "Orchestrator",
-                                "content": f"ERROR: {str(e)}"
-                            })
-                            # Continue with next agent
-                            continue
+                            agent_responses[agent.name] = f"ERROR: {str(e)}"
 
-                        try:
-                            # Game engine processes the response and updates state
-                            self.game_engine.process_agent_response(agent.name, response)
-                            self.logger.debug(MessageCode.AGT004, "Agent state updated", agent_name=agent.name, step=step)
-
-                        except Exception as e:
-                            error_msg = f"Failed to process agent response: {e}"
-                            self.logger.error(
-                                MessageCode.GME004,
-                                error_msg,
-                                agent_name=agent.name,
-                                step=step,
-                                error=str(e)
-                            )
-                            print(f"ERROR: {error_msg}", file=sys.stderr)
-                            # Continue with next agent
+                    # SimulatorAgent processes responses and generates next messages
+                    try:
+                        agent_messages = self.simulator_agent.process_step(step, agent_responses)
+                        print(f"[SimulatorAgent processed step {step}]")
+                    except SimulationError as e:
+                        self.logger.critical(
+                            MessageCode.SIM002,
+                            "Simulation failed",
+                            step=step,
+                            error=str(e)
+                        )
+                        print(f"\nERROR: Simulation failed at step {step}:\n{e}", file=sys.stderr)
+                        raise
 
                     # Save snapshot if needed
                     if self.persistence.should_save(step):
@@ -239,27 +282,17 @@ class Orchestrator:
                                 snapshot["game_state"],
                                 snapshot["global_vars"],
                                 snapshot["agent_vars"],
-                                messages
+                                step_messages
                             )
                             print(f"[Saved snapshot at step {step}]")
                         except Exception as e:
                             error_msg = f"Failed to save snapshot: {e}"
                             self.logger.error(MessageCode.PER004, error_msg, step=step, error=str(e))
                             print(f"WARNING: {error_msg}", file=sys.stderr)
-                            # Continue simulation despite save failure
 
-                    # Advance to next round
-                    try:
-                        self.game_engine.advance_round()
-                        self.logger.debug(MessageCode.SIM005, "Round advanced", round=self.game_engine.state.round)
-                    except Exception as e:
-                        error_msg = f"Failed to advance round: {e}"
-                        self.logger.error(MessageCode.GME004, error_msg, step=step, error=str(e))
-                        print(f"WARNING: {error_msg}", file=sys.stderr)
-                        # Continue anyway
-
+                    # Advance round
+                    self.game_engine.advance_round()
                     self.logger.info(MessageCode.SIM004, "Step completed", step=step)
-                    print()
 
             # Save final state
             try:
@@ -269,28 +302,30 @@ class Orchestrator:
                     snapshot["game_state"],
                     snapshot["global_vars"],
                     snapshot["agent_vars"],
-                    messages
+                    step_messages
                 )
             except Exception as e:
                 error_msg = f"Failed to save final state: {e}"
                 self.logger.critical(MessageCode.PER004, error_msg, error=str(e))
                 print(f"ERROR: {error_msg}", file=sys.stderr)
-                # Don't raise - we want to show simulation summary
 
             self.logger.info(MessageCode.SIM002, "Simulation completed", total_steps=self.max_steps)
-            print("Simulation completed.")
+            print("\nSimulation completed.")
             print(f"Final game state: {self.game_engine.get_state()}")
             print(f"\nResults saved to: {self.persistence.run_dir}")
 
         except KeyboardInterrupt:
             self.logger.warning(MessageCode.SIM002, "Simulation interrupted by user")
             print("\n\nSimulation interrupted by user")
-            raise  # Re-raise to be caught by main()
+            raise
+
+        except SimulationError:
+            # Already logged, just re-raise
+            raise
 
         except Exception as e:
             self.logger.critical(MessageCode.SIM002, "Simulation failed with unhandled exception", error=str(e))
-            raise  # Re-raise to be caught by main()
+            raise
 
         finally:
-            # Always close logger
             self.persistence.close()
