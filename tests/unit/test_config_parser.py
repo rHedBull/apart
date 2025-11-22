@@ -151,6 +151,12 @@ class TestValidateConfig:
     def test_validate_valid_agent_vars(self):
         """Test that valid agent_vars passes validation."""
         config = {
+            "engine": {
+                "provider": "gemini",
+                "model": "test",
+                "system_prompt": "test",
+                "simulation_plan": "test"
+            },
             "agent_vars": {
                 "economic_strength": {
                     "type": "float",
@@ -167,6 +173,12 @@ class TestValidateConfig:
     def test_validate_valid_global_vars(self):
         """Test that valid global_vars passes validation."""
         config = {
+            "engine": {
+                "provider": "gemini",
+                "model": "test",
+                "system_prompt": "test",
+                "simulation_plan": "test"
+            },
             "global_vars": {
                 "interest_rate": {
                     "type": "float",
@@ -182,6 +194,12 @@ class TestValidateConfig:
     def test_validate_both_vars(self):
         """Test that both agent and global vars can be validated."""
         config = {
+            "engine": {
+                "provider": "gemini",
+                "model": "test",
+                "system_prompt": "test",
+                "simulation_plan": "test"
+            },
             "agent_vars": {
                 "health": {
                     "type": "int",
@@ -360,6 +378,12 @@ class TestVariableOverrides:
     def test_validate_full_config_with_agent_overrides(self):
         """Test full config validation with agent variable overrides."""
         config = {
+            "engine": {
+                "provider": "gemini",
+                "model": "test",
+                "system_prompt": "test",
+                "simulation_plan": "test"
+            },
             "agent_vars": {
                 "economic_strength": {
                     "type": "float",
