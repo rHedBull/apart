@@ -9,6 +9,16 @@ from core.game_engine import GameEngine
 from llm.llm_provider import LLMProvider
 
 
+def _minimal_engine_config():
+    """Helper to provide minimal engine config for tests."""
+    return {
+        "provider": "mock",
+        "model": "test",
+        "system_prompt": "Test",
+        "simulation_plan": "Test"
+    }
+
+
 class MockSimulatorLLM(LLMProvider):
     """Mock LLM for testing SimulatorAgent."""
 
@@ -33,6 +43,7 @@ class TestSimulatorAgent:
     def test_initialization(self):
         """Test SimulatorAgent initialization."""
         config = {
+            "engine": _minimal_engine_config(),
             "global_vars": {},
             "agent_vars": {},
             "agents": []
@@ -58,6 +69,7 @@ class TestSimulatorAgent:
     def test_initialize_simulation(self):
         """Test simulation initialization."""
         config = {
+            "engine": _minimal_engine_config(),
             "global_vars": {},
             "agent_vars": {},
             "agents": [{"name": "Agent A"}, {"name": "Agent B"}]
@@ -94,6 +106,7 @@ class TestSimulatorAgent:
     def test_process_step_basic(self):
         """Test processing a single step."""
         config = {
+            "engine": _minimal_engine_config(),
             "global_vars": {
                 "tension": {"type": "float", "default": 0.5, "min": 0.0, "max": 1.0}
             },
@@ -136,6 +149,7 @@ class TestSimulatorAgent:
     def test_context_window_limiting(self):
         """Test that history is limited to window size."""
         config = {
+            "engine": _minimal_engine_config(),
             "global_vars": {},
             "agent_vars": {},
             "agents": [{"name": "Agent A"}]

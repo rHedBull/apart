@@ -6,12 +6,23 @@ import pytest
 from core.game_engine import GameEngine
 
 
+def _minimal_engine_config():
+    """Helper to provide minimal engine config for tests."""
+    return {
+        "provider": "mock",
+        "model": "test",
+        "system_prompt": "Test",
+        "simulation_plan": "Test"
+    }
+
+
 class TestGameEngine:
     """Tests for simplified GameEngine (state management only)."""
 
     def test_initialization_default(self):
         """Test game engine initialization with minimal config."""
         config = {
+            "engine": _minimal_engine_config(),
             "global_vars": {},
             "agent_vars": {}
         }
@@ -22,6 +33,7 @@ class TestGameEngine:
     def test_get_global_var(self):
         """Test getting global variable."""
         config = {
+            "engine": _minimal_engine_config(),
             "global_vars": {
                 "tension": {"type": "float", "default": 0.5, "min": 0.0, "max": 1.0}
             },
@@ -33,6 +45,7 @@ class TestGameEngine:
     def test_set_global_var(self):
         """Test setting global variable."""
         config = {
+            "engine": _minimal_engine_config(),
             "global_vars": {
                 "tension": {"type": "float", "default": 0.5, "min": 0.0, "max": 1.0}
             },
@@ -45,6 +58,7 @@ class TestGameEngine:
     def test_get_agent_var(self):
         """Test getting agent variable."""
         config = {
+            "engine": _minimal_engine_config(),
             "global_vars": {},
             "agent_vars": {
                 "health": {"type": "int", "default": 100, "min": 0, "max": 100}
@@ -59,6 +73,7 @@ class TestGameEngine:
     def test_set_agent_var(self):
         """Test setting agent variable."""
         config = {
+            "engine": _minimal_engine_config(),
             "global_vars": {},
             "agent_vars": {
                 "health": {"type": "int", "default": 100, "min": 0, "max": 100}
@@ -73,6 +88,7 @@ class TestGameEngine:
     def test_apply_state_updates(self):
         """Test applying state updates from SimulatorAgent."""
         config = {
+            "engine": _minimal_engine_config(),
             "global_vars": {
                 "tension": {"type": "float", "default": 0.5, "min": 0.0, "max": 1.0}
             },
@@ -97,6 +113,7 @@ class TestGameEngine:
     def test_get_current_state(self):
         """Test getting current state snapshot."""
         config = {
+            "engine": _minimal_engine_config(),
             "global_vars": {
                 "tension": {"type": "float", "default": 0.5}
             },
