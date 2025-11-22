@@ -1,5 +1,5 @@
 from state import GameState
-from config_parser import create_variable_set, validate_config
+from config_parser import create_variable_set, create_variable_set_with_overrides, validate_config
 
 
 class GameEngine:
@@ -11,6 +11,7 @@ class GameEngine:
 
         self.config = config
         self.agent_var_definitions = create_variable_set(config.get("agent_vars"))
+        self.agent_configs = {agent["name"]: agent for agent in config.get("agents", [])}
         self.state = self._initialize_state()
         self.current_step = 0
 
@@ -46,9 +47,16 @@ class GameEngine:
         agent_state = self.state.get_agent(agent_name)
         if agent_state is None:
             # Initialize agent with variable definitions from config
+            # Check for per-agent variable overrides
+            agent_config = self.agent_configs.get(agent_name, {})
+            variable_overrides = agent_config.get("variables")
+
             agent_state = self.state.add_agent(
                 agent_name,
-                variables=create_variable_set(self.config.get("agent_vars"))
+                variables=create_variable_set_with_overrides(
+                    self.config.get("agent_vars"),
+                    variable_overrides
+                )
             )
 
         agent_state.add_response(response)

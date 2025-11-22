@@ -8,6 +8,8 @@ import pytest
 from config_parser import (
     parse_variable_definitions,
     create_variable_set,
+    create_variable_set_with_overrides,
+    validate_agent_config,
     validate_agent_vars_config,
     validate_global_vars_config,
     validate_config,
@@ -228,3 +230,158 @@ class TestValidateConfig:
 
         with pytest.raises(ValueError):
             validate_config(config)
+
+
+class TestVariableOverrides:
+    """Tests for agent variable overrides."""
+
+    def test_create_with_valid_overrides(self):
+        """Test creating variable set with valid overrides."""
+        var_defs = {
+            "health": {
+                "type": "int",
+                "default": 100,
+                "min": 0,
+                "max": 100,
+            },
+            "speed": {
+                "type": "float",
+                "default": 1.0,
+            },
+        }
+        overrides = {
+            "health": 75,
+            "speed": 1.5,
+        }
+
+        var_set = create_variable_set_with_overrides(var_defs, overrides)
+
+        assert var_set.get("health") == 75
+        assert var_set.get("speed") == 1.5
+
+    def test_create_with_partial_overrides(self):
+        """Test that non-overridden variables use defaults."""
+        var_defs = {
+            "health": {
+                "type": "int",
+                "default": 100,
+            },
+            "speed": {
+                "type": "float",
+                "default": 1.0,
+            },
+        }
+        overrides = {
+            "health": 50,
+        }
+
+        var_set = create_variable_set_with_overrides(var_defs, overrides)
+
+        assert var_set.get("health") == 50
+        assert var_set.get("speed") == 1.0  # uses default
+
+    def test_override_undefined_variable_fails(self):
+        """Test that overriding undefined variable fails."""
+        var_defs = {
+            "health": {
+                "type": "int",
+                "default": 100,
+            }
+        }
+        overrides = {
+            "undefined_var": 50,
+        }
+
+        with pytest.raises(ValueError, match="Cannot override undefined variable"):
+            create_variable_set_with_overrides(var_defs, overrides)
+
+    def test_override_with_invalid_value_fails(self):
+        """Test that invalid override value fails validation."""
+        var_defs = {
+            "health": {
+                "type": "int",
+                "default": 100,
+                "min": 0,
+                "max": 100,
+            }
+        }
+        overrides = {
+            "health": 150,  # exceeds max
+        }
+
+        with pytest.raises(ValueError, match="Invalid override value"):
+            create_variable_set_with_overrides(var_defs, overrides)
+
+    def test_override_with_no_definitions_fails(self):
+        """Test that overrides fail when no definitions exist."""
+        overrides = {
+            "health": 100,
+        }
+
+        with pytest.raises(ValueError, match="Cannot override variables when no variable definitions exist"):
+            create_variable_set_with_overrides(None, overrides)
+
+    def test_validate_agent_config_with_valid_overrides(self):
+        """Test validating agent config with valid variable overrides."""
+        agent_config = {
+            "name": "TestAgent",
+            "variables": {
+                "health": 75,
+            }
+        }
+        agent_vars_defs = {
+            "health": {
+                "type": "int",
+                "default": 100,
+            }
+        }
+
+        # Should not raise
+        validate_agent_config(agent_config, agent_vars_defs)
+
+    def test_validate_agent_config_with_undefined_variable_fails(self):
+        """Test that agent config with undefined variable override fails."""
+        agent_config = {
+            "name": "TestAgent",
+            "variables": {
+                "undefined_var": 50,
+            }
+        }
+        agent_vars_defs = {
+            "health": {
+                "type": "int",
+                "default": 100,
+            }
+        }
+
+        with pytest.raises(ValueError, match="undefined variable.*in overrides"):
+            validate_agent_config(agent_config, agent_vars_defs)
+
+    def test_validate_full_config_with_agent_overrides(self):
+        """Test full config validation with agent variable overrides."""
+        config = {
+            "agent_vars": {
+                "economic_strength": {
+                    "type": "float",
+                    "default": 1000.0,
+                    "min": 0.0,
+                }
+            },
+            "agents": [
+                {
+                    "name": "Agent Alpha",
+                    "response_template": "OK",
+                    "variables": {
+                        "economic_strength": 500.0,
+                    }
+                },
+                {
+                    "name": "Agent Beta",
+                    "response_template": "OK",
+                    # No overrides, uses defaults
+                }
+            ]
+        }
+
+        # Should not raise
+        validate_config(config)

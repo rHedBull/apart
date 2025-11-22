@@ -49,7 +49,13 @@ agent_vars:
     description: "Number of actions taken by agent"
 
 agents:
+  # Agent with custom variable overrides
   - name: "Agent Alpha"
     response_template: "Acknowledged, processing task"
+    variables:
+      economic_strength: 2500.0  # Override: stronger than default
+      risk_tolerance: 0.8         # Override: more risk-seeking
+
+  # Agent using all default values (no overrides)
   - name: "Agent Beta"
     response_template: "Ready for next instruction"
