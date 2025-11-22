@@ -76,6 +76,19 @@ agents:
       risk_tolerance: 0.6
 ```
 
+**Important:** LLM agents require a valid API key. If the provider is unavailable (missing/invalid API key, network issues), the simulation will fail with a clear error message explaining the issue and how to fix it.
+
+**Optional:** Add `response_template` to provide a fallback if you want the simulation to continue even when the LLM is unavailable:
+```yaml
+agents:
+  - name: "AI Strategist"
+    llm:
+      provider: "gemini"
+      model: "gemini-1.5-flash"
+    system_prompt: "You are a strategic advisor."
+    response_template: "Analyzing situation"  # Optional fallback
+```
+
 ### Mix LLM and Template Agents
 
 You can have both types in the same simulation:

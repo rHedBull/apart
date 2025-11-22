@@ -62,11 +62,98 @@ class GeminiProvider(LLMProvider):
             raise Exception(f"Gemini API error: {str(e)}") from e
 
 
-# Placeholder for future providers
-# class OllamaProvider(LLMProvider):
-#     """Ollama local LLM provider implementation."""
-#     pass
+class OllamaProvider(LLMProvider):
+    """Ollama local LLM provider implementation."""
 
+    def __init__(
+        self,
+        model: str = "llama2",
+        base_url: Optional[str] = None
+    ):
+        """
+        Initialize Ollama provider.
+
+        Args:
+            model: Ollama model to use (e.g., llama2, mistral, codellama)
+            base_url: Ollama server URL. If None, uses OLLAMA_BASE_URL env var or default localhost
+        """
+        self.model = model
+        self.base_url = base_url or os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
+
+    def is_available(self) -> bool:
+        """Check if Ollama server is running and accessible."""
+        try:
+            import requests
+            response = requests.get(f"{self.base_url}/api/tags", timeout=2)
+            return response.status_code == 200
+        except Exception:
+            return False
+
+    def generate_response(self, prompt: str, system_prompt: Optional[str] = None) -> str:
+        """
+        Generate a response using Ollama.
+
+        Args:
+            prompt: The user prompt/message
+            system_prompt: Optional system instruction
+
+        Returns:
+            The generated response text
+
+        Raises:
+            ValueError: If Ollama is not available
+            Exception: If the API request fails
+        """
+        if not self.is_available():
+            raise ValueError(
+                f"Ollama server not available at {self.base_url}. "
+                f"Make sure Ollama is running (ollama serve)."
+            )
+
+        try:
+            import requests
+
+            # Build messages for Ollama API
+            messages = []
+            if system_prompt:
+                messages.append({"role": "system", "content": system_prompt})
+            messages.append({"role": "user", "content": prompt})
+
+            # Call Ollama API
+            response = requests.post(
+                f"{self.base_url}/api/chat",
+                json={
+                    "model": self.model,
+                    "messages": messages,
+                    "stream": False
+                },
+                timeout=30
+            )
+
+            # Handle model not found error specifically
+            if response.status_code == 404:
+                raise Exception(
+                    f"Model '{self.model}' not found in Ollama. "
+                    f"Pull it first with: ollama pull {self.model}"
+                )
+
+            response.raise_for_status()
+
+            result = response.json()
+            return result["message"]["content"]
+
+        except ImportError:
+            raise Exception(
+                "requests library not installed. Install with: pip install requests"
+            )
+        except Exception as e:
+            # Re-raise if already formatted
+            if "not found in Ollama" in str(e):
+                raise
+            raise Exception(f"Ollama API error: {str(e)}") from e
+
+
+# Placeholder for future providers
 # class OpenAIProvider(LLMProvider):
 #     """OpenAI API provider implementation."""
 #     pass

@@ -131,12 +131,82 @@ agent_vars:
 
 ## Agent Configuration
 
-### Basic Agent
+### Basic Template Agent
 
 ```yaml
 agents:
   - name: "Agent Name"
     response_template: "Agent's response"
+```
+
+### LLM-Powered Agent
+
+Configure agents to use Large Language Models (LLMs) for dynamic, intelligent responses:
+
+```yaml
+agents:
+  - name: "AI Strategist"
+    llm:
+      provider: "gemini"           # LLM provider: gemini, ollama
+      model: "gemini-1.5-flash"    # Model name
+    system_prompt: |                # Agent personality/instructions
+      You are a strategic advisor in an economic simulation.
+      Keep responses concise (1-2 sentences) and action-oriented.
+    variables:
+      risk_tolerance: 0.7
+```
+
+**Available LLM Providers:**
+
+1. **Google Gemini** (Cloud-based, requires API key)
+```yaml
+llm:
+  provider: "gemini"
+  model: "gemini-1.5-flash"  # Free tier model
+```
+
+2. **Ollama** (Local models, no API key needed)
+```yaml
+llm:
+  provider: "ollama"
+  model: "llama2"            # Or: mistral, codellama, etc.
+  base_url: "http://localhost:11434"  # Optional, defaults to localhost
+```
+
+**LLM Configuration Options:**
+- `provider` (required): Which LLM service to use
+- `model` (required): Specific model name
+- `base_url` (optional, Ollama only): Ollama server URL
+- `system_prompt` (recommended): Instructions for the agent's behavior
+- `response_template` (optional): Fallback if LLM unavailable
+
+**Important Notes:**
+- LLM agents require proper setup (API keys for Gemini, running server for Ollama)
+- If LLM is unavailable and no `response_template` provided, simulation will fail with clear error
+- See `.env.example` for API key configuration
+- For local/offline use, Ollama is recommended
+
+### Mixing LLM and Template Agents
+
+You can combine both types in one scenario:
+
+```yaml
+agents:
+  - name: "AI Player"
+    llm:
+      provider: "ollama"
+      model: "mistral"
+    system_prompt: "You are a competitive player."
+
+  - name: "Simple Bot"
+    response_template: "I play conservatively"
+
+  - name: "AI with Fallback"
+    llm:
+      provider: "gemini"
+      model: "gemini-1.5-flash"
+    system_prompt: "You are helpful."
+    response_template: "I help"  # Used if Gemini unavailable
 ```
 
 ### Agent with Variable Overrides

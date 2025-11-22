@@ -1,0 +1,94 @@
+max_steps: 5
+orchestrator_message: "What is your strategic decision for this turn?"
+
+# Game state configuration
+game_state:
+  initial_resources: 200
+  difficulty: "normal"
+
+# Global variables tracked across the entire simulation
+global_vars:
+  interest_rate:
+    type: float
+    default: 0.04
+    min: 0.0
+    max: 1.0
+    description: "Global interest rate affecting all agents"
+
+  market_volatility:
+    type: float
+    default: 0.15
+    min: 0.0
+    max: 1.0
+    description: "Market volatility factor"
+
+  round_number:
+    type: int
+    default: 0
+    min: 0
+    description: "Current round number"
+
+# Per-agent variables tracked for each agent
+agent_vars:
+  capital:
+    type: float
+    default: 1000.0
+    min: 0.0
+    description: "Agent's available capital"
+
+  risk_tolerance:
+    type: float
+    default: 0.5
+    min: 0.0
+    max: 1.0
+    description: "Agent's risk tolerance (0=risk-averse, 1=risk-seeking)"
+
+  decisions_made:
+    type: int
+    default: 0
+    min: 0
+    description: "Number of decisions made by agent"
+
+agents:
+  # Aggressive AI strategist using Mistral
+  - name: "Mistral Strategist"
+    llm:
+      provider: "ollama"
+      model: "mistral:7b"
+      base_url: "http://localhost:11434"  # Optional, this is the default
+    system_prompt: |
+      You are an aggressive AI strategist in an economic simulation.
+      You favor high-risk, high-reward strategies.
+      Keep responses concise (1-2 sentences) describing your strategic decision.
+      Consider the current interest rate and market volatility.
+    variables:
+      capital: 2000.0
+      risk_tolerance: 0.85
+
+  # Balanced AI advisor using Llama
+  - name: "Llama Advisor"
+    llm:
+      provider: "ollama"
+      model: "llama3.1:8b"
+    system_prompt: |
+      You are a balanced financial advisor in an economic simulation.
+      You seek steady growth with calculated risks.
+      Keep responses brief (1-2 sentences) explaining your approach.
+      Factor in market conditions when making decisions.
+    variables:
+      capital: 1500.0
+      risk_tolerance: 0.50
+
+  # Efficient AI player using Gemma
+  - name: "Gemma Analyst"
+    llm:
+      provider: "ollama"
+      model: "gemma3:1b"
+    system_prompt: |
+      You are a quick-thinking analyst in an economic simulation.
+      You make fast, data-driven decisions.
+      Keep responses very short (1 sentence) with your decision.
+      Consider all available market data.
+    variables:
+      capital: 1200.0
+      risk_tolerance: 0.60

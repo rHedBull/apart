@@ -6,7 +6,7 @@ from core.agent import Agent
 from core.game_engine import GameEngine
 from utils.persistence import RunPersistence
 from utils.logging_config import MessageCode, PerformanceTimer
-from llm.providers import GeminiProvider
+from llm.providers import GeminiProvider, OllamaProvider
 
 
 class Orchestrator:
@@ -52,14 +52,57 @@ class Orchestrator:
                 if provider_type == "gemini":
                     model_name = llm_config.get("model", "gemini-1.5-flash")
                     llm_provider = GeminiProvider(model_name=model_name)
+                    provider_display = f"Google Gemini ({model_name})"
+                    setup_instructions = (
+                        "  1. Copy .env.example to .env\n"
+                        "  2. Add your API key: GEMINI_API_KEY=your_key_here\n"
+                        "  3. Get a free key at: https://makersuite.google.com/app/apikey\n"
+                    )
 
-                    if not llm_provider.is_available():
+                elif provider_type == "ollama":
+                    model_name = llm_config.get("model", "llama2")
+                    base_url = llm_config.get("base_url")
+                    llm_provider = OllamaProvider(model=model_name, base_url=base_url)
+                    provider_display = f"Ollama ({model_name})"
+                    setup_instructions = (
+                        "  1. Install Ollama: https://ollama.ai\n"
+                        "  2. Pull the model: ollama pull {model}\n"
+                        "  3. Start Ollama server: ollama serve\n"
+                    ).format(model=model_name)
+
+                else:
+                    raise ValueError(f"Unknown LLM provider: {provider_type}")
+
+                # Check if provider is available
+                if llm_provider and not llm_provider.is_available():
+                    # If agent has no fallback template, fail immediately with clear error
+                    if not agent_config.get("response_template"):
+                        error_msg = (
+                            f"\n{'='*70}\n"
+                            f"ERROR: LLM Provider Not Available\n"
+                            f"{'='*70}\n"
+                            f"Agent: {agent_config['name']}\n"
+                            f"Provider: {provider_display}\n"
+                            f"\nThe LLM provider is not available. Possible causes:\n"
+                            f"  1. Provider not running or configured\n"
+                            f"  2. Network issues\n"
+                            f"  3. Invalid configuration\n"
+                            f"\nTo fix ({provider_type}):\n"
+                            f"{setup_instructions}"
+                            f"\nAlternatively, add 'response_template' to the agent config as a fallback.\n"
+                            f"{'='*70}\n"
+                        )
+                        print(error_msg, file=sys.stderr)
+                        raise ValueError(
+                            f"LLM provider not available for agent '{agent_config['name']}' and no fallback template provided."
+                        )
+                    else:
+                        # Has fallback template - just warn
                         self.logger.warning(
                             MessageCode.AGT001,
-                            f"Gemini provider not available for agent {agent_config['name']}. Check GEMINI_API_KEY.",
+                            f"{provider_display} not available for agent {agent_config['name']}. Using fallback template.",
                             agent_name=agent_config["name"]
                         )
-                # Add support for other providers here (ollama, etc.)
 
             agent = Agent(
                 name=agent_config["name"],
