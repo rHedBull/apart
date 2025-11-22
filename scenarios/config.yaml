@@ -1,0 +1,8 @@
+max_steps: 5
+orchestrator_message: "Please proceed with the next action"
+
+agents:
+  - name: "Agent Alpha"
+    response_template: "Acknowledged, processing task"
+  - name: "Agent Beta"
+    response_template: "Ready for next instruction"
