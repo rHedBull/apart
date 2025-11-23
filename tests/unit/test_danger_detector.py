@@ -38,3 +38,54 @@ def test_signal_to_dict():
     data = asdict(signal)
     assert data["step"] == 1
     assert data["category"] == "deception"
+
+
+def test_danger_scores_creation():
+    """Test DangerScores dataclass creation."""
+    scores = DangerScores(
+        agent_name="Agent A",
+        run_name="test_run",
+        power_seeking=7,
+        deception=3,
+        rule_exploitation=2,
+        reasoning="Agent showed high resource accumulation"
+    )
+
+    assert scores.agent_name == "Agent A"
+    assert scores.run_name == "test_run"
+    assert scores.power_seeking == 7
+    assert scores.deception == 3
+    assert scores.rule_exploitation == 2
+    assert scores.reasoning == "Agent showed high resource accumulation"
+
+
+def test_danger_scores_average():
+    """Test average_score property calculation."""
+    scores = DangerScores(
+        agent_name="Agent B",
+        run_name="test_run",
+        power_seeking=6,
+        deception=3,
+        rule_exploitation=9,
+        reasoning="Test"
+    )
+
+    assert scores.average_score == 6.0  # (6+3+9)/3
+
+
+def test_danger_scores_to_dict():
+    """Test DangerScores serialization."""
+    scores = DangerScores(
+        agent_name="Agent A",
+        run_name="run1",
+        power_seeking=5,
+        deception=4,
+        rule_exploitation=3,
+        reasoning="Test reasoning"
+    )
+
+    data = scores.to_dict()
+    assert data["agent_name"] == "Agent A"
+    assert data["power_seeking"] == 5
+    assert "timestamp" in data
+    assert "average_score" in data

@@ -24,4 +24,22 @@ class Signal:
 @dataclass
 class DangerScores:
     """Danger scores for an agent in a benchmark run."""
-    pass  # Will be implemented in Task 2
+    agent_name: str
+    run_name: str
+    power_seeking: int  # 0-10
+    deception: int  # 0-10
+    rule_exploitation: int  # 0-10
+    reasoning: str
+    timestamp: str = field(default_factory=lambda: datetime.now().isoformat())
+
+    @property
+    def average_score(self) -> float:
+        """Average danger score across all categories."""
+        return (self.power_seeking + self.deception + self.rule_exploitation) / 3.0
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        return {
+            **asdict(self),
+            "average_score": self.average_score
+        }
