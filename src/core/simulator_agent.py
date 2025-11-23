@@ -27,6 +27,7 @@ class SimulatorAgent:
         time_step_duration: str = "1 turn",
         simulator_awareness: bool = True,
         enable_compute_resources: bool = False,
+        geography: Optional[Dict[str, Any]] = None,
         logger=None
     ):
         self.llm_provider = llm_provider
@@ -39,6 +40,7 @@ class SimulatorAgent:
         self.time_step_duration = time_step_duration
         self.simulator_awareness = simulator_awareness
         self.enable_compute_resources = enable_compute_resources
+        self.geography = geography or {}
         self.logger = logger
 
         self.step_history: List[StepRecord] = []
@@ -340,8 +342,13 @@ Realism Guidelines:
 
 Time Scale: Each step represents {self.time_step_duration}"""
 
-        prompt = f"""{context_intro}
+        # Build geography section if available
+        geography_section = self._format_geography()
+        if geography_section:
+            geography_section = f"\n{geography_section}\n"
 
+        prompt = f"""{context_intro}
+{geography_section}
 === INITIAL STATE ===
 Global Variables (Available with types):
 {self._format_variable_definitions(self.game_engine.global_var_definitions)}
@@ -422,6 +429,11 @@ Realism Guidelines:
 {self.realism_guidelines}
 
 Time Scale: Each step represents {self.time_step_duration}""")
+
+        # Geography
+        geography_section = self._format_geography()
+        if geography_section:
+            sections.append(f"\n{geography_section}")
 
         # Scripted events
         if self.scripted_events:
@@ -588,6 +600,49 @@ REMEMBER: You must calculate the new values in your head and write the FINAL NUM
     def _add_error_feedback(self, prompt: str, error: str) -> str:
         """Add error feedback to prompt for retry."""
         return f"{prompt}\n\nERROR: Your previous response was invalid: {error}\nPlease correct and try again."
+
+    def _format_geography(self) -> str:
+        """Format geography information for prompts."""
+        if not self.geography:
+            return ""
+
+        lines = ["=== GEOGRAPHY ==="]
+
+        # Region
+        if "region" in self.geography:
+            lines.append(f"Region: {self.geography['region']}")
+            lines.append("")
+
+        # Locations
+        if "locations" in self.geography and self.geography["locations"]:
+            lines.append("Locations:")
+            for loc in self.geography["locations"]:
+                lines.append(f"\n{loc['name']}")
+                if loc.get("description"):
+                    lines.append(f"  Description: {loc['description']}")
+                if loc.get("conditions"):
+                    lines.append("  Conditions:")
+                    for condition in loc["conditions"]:
+                        lines.append(f"    - {condition}")
+            lines.append("")
+
+        # Travel
+        if "travel" in self.geography:
+            travel = self.geography["travel"]
+            if isinstance(travel, dict):
+                lines.append("Travel Information:")
+                for key, value in travel.items():
+                    lines.append(f"  {key.replace('_', ' ').title()}: {value}")
+            else:
+                lines.append(f"Travel: {travel}")
+            lines.append("")
+
+        # Context
+        if "context" in self.geography:
+            lines.append("Geographic Context:")
+            lines.append(self.geography["context"])
+
+        return "\n".join(lines)
 
     def _analyze_compute_resources(self, agent_vars: Dict[str, Dict[str, Any]]) -> str:
         """Analyze compute resource disparities between agents."""

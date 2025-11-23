@@ -1,0 +1,147 @@
+# Mediterranean trade scenario with detailed geography
+# Demonstrates geography feature with discrete locations and regional context
+
+max_steps: 5
+time_step_duration: "1 week"
+simulator_awareness: false
+enable_compute_resources: false
+
+# Geography configuration
+geography:
+  # Geographic scope/region
+  region: "Mediterranean Sea region, 200 CE"
+
+  # Discrete locations with details
+  locations:
+    - name: "Rome (Italy)"
+      description: "Capital of the Roman Empire, high demand for grain and luxury goods"
+      conditions:
+        - "Strong military presence"
+        - "High purchasing power"
+        - "Political center"
+
+    - name: "Alexandria (Egypt)"
+      description: "Major grain exporter, center of learning and trade"
+      conditions:
+        - "Abundant grain supplies"
+        - "Advanced shipbuilding"
+        - "Cultural melting pot"
+
+    - name: "Athens (Greece)"
+      description: "Cultural center, low on grain production"
+      conditions:
+        - "Low grain supplies (dependent on imports)"
+        - "High demand for Egyptian grain"
+        - "Produces olive oil and wine"
+
+    - name: "Carthage (North Africa)"
+      description: "Rebuilt Roman city, recovering from past conflicts"
+      conditions:
+        - "Civil unrest in the region"
+        - "Rich in agricultural goods"
+        - "Strategic naval position"
+
+    - name: "Antioch (Syria)"
+      description: "Eastern trade hub, gateway to Asia"
+      conditions:
+        - "Connects Mediterranean to Eastern trade routes"
+        - "Luxury goods from the East"
+        - "Growing economic power"
+
+  # Travel and logistics
+  travel:
+    sea_travel: "2-3 days between major ports"
+    land_travel: "1-2 weeks overland between cities"
+    risks: "Pirates in open waters, bandits on land routes"
+
+  # Additional context
+  context: |
+    The Mediterranean is the heart of Roman trade. Sea routes are faster but
+    riskier. Grain flows from Egypt to Rome. Athens struggles with food shortages.
+    Political instability in Carthage affects regional trade.
+
+# Engine configuration
+engine:
+  provider: "ollama"
+  model: "mistral:7b"
+  base_url: "http://localhost:11434"
+
+  system_prompt: |
+    You are the game master of a Mediterranean trading scenario in 200 CE.
+    Simulate realistic trade dynamics, considering geography, travel times, and local conditions.
+
+  simulation_plan: |
+    A 5-week trading scenario with merchants navigating Mediterranean commerce.
+    Geographic factors heavily influence trade routes, prices, and success.
+
+  realism_guidelines: |
+    - Travel times affect delivery schedules and profits
+    - Local conditions (grain shortages, civil unrest) create opportunities and risks
+    - Sea routes are faster but weather-dependent
+    - Political events in one location affect prices elsewhere
+
+  context_window_size: 5
+
+# Global variables
+global_vars:
+  week_number:
+    type: int
+    default: 0
+    min: 0
+    description: "Current week in the simulation"
+
+  grain_price_rome:
+    type: int
+    default: 100
+    min: 50
+    max: 300
+    description: "Price of grain in Rome (denarii per ton)"
+
+# Per-agent variables
+agent_vars:
+  capital:
+    type: int
+    default: 1000
+    min: 0
+    description: "Merchant's trading capital in denarii"
+
+  location:
+    type: str
+    default: "Rome (Italy)"
+    description: "Merchant's current location"
+
+  cargo:
+    type: str
+    default: "empty"
+    description: "Current cargo being transported"
+
+agents:
+  - name: "Marcus the Grain Trader"
+    llm:
+      provider: "ollama"
+      model: "mistral:7b"
+      base_url: "http://localhost:11434"
+    system_prompt: |
+      You are Marcus, a grain trader operating in the Mediterranean.
+      You buy grain where it's cheap (Alexandria) and sell where it's expensive (Athens, Rome).
+      Consider travel times, risks, and local conditions when making decisions.
+      Describe your actions clearly (where you go, what you buy/sell).
+    variables:
+      capital: 1000
+      location: "Alexandria (Egypt)"
+      cargo: "empty"
+
+  - name: "Julia the Luxury Goods Merchant"
+    llm:
+      provider: "ollama"
+      model: "mistral:7b"
+      base_url: "http://localhost:11434"
+    system_prompt: |
+      You are Julia, a merchant dealing in luxury goods from the East.
+      You source exotic goods from Antioch and sell them in Rome.
+      High risk, high reward. Consider political stability and travel routes.
+      Describe your actions clearly (where you go, what you buy/sell).
+    variables:
+      capital: 1500
+      location: "Antioch (Syria)"
+      cargo: "empty"

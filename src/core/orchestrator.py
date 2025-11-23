@@ -7,7 +7,7 @@ from core.game_engine import GameEngine
 from core.simulator_agent import SimulatorAgent, SimulationError
 from utils.persistence import RunPersistence
 from utils.logging_config import MessageCode, PerformanceTimer
-from utils.config_parser import parse_scripted_events
+from utils.config_parser import parse_scripted_events, parse_geography
 from llm.providers import GeminiProvider, OllamaProvider
 
 
@@ -41,6 +41,9 @@ class Orchestrator:
             }
             simulator_llm = self._create_llm_provider_for_engine(engine_llm_config)
 
+        # Parse geography if present
+        geography = parse_geography(self.config.get("geography"))
+
         self.simulator_agent = SimulatorAgent(
             llm_provider=simulator_llm,
             game_engine=self.game_engine,
@@ -52,6 +55,7 @@ class Orchestrator:
             time_step_duration=self.time_step_duration,
             simulator_awareness=self.simulator_awareness,
             enable_compute_resources=self.enable_compute_resources,
+            geography=geography,
             logger=self.logger
         )
 

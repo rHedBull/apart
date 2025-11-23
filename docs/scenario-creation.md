@@ -351,6 +351,202 @@ When disabled:
 - Outcomes depend only on actions, not capabilities
 - Better for fair competition or narrative-focused scenarios
 
+## Geography
+
+Add geographic context to your scenarios to create immersive, location-aware simulations. Geography affects agent decisions, travel times, and strategic planning.
+
+### Configuration
+
+Geography is optional and can be as simple or detailed as you need:
+
+**Simple regional description:**
+```yaml
+geography:
+  region: "Silicon Valley, present day"
+  context: |
+    Competitive tech startup environment.
+    High costs, top talent, VC funding concentrated in Sand Hill Road.
+```
+
+**Detailed with discrete locations:**
+```yaml
+geography:
+  region: "Mediterranean Sea region, 200 CE"
+
+  locations:
+    - name: "Rome (Italy)"
+      description: "Capital of the Roman Empire"
+      conditions:
+        - "High demand for grain"
+        - "Strong military presence"
+        - "Political center"
+
+    - name: "Alexandria (Egypt)"
+      description: "Major grain exporter"
+      conditions:
+        - "Abundant grain supplies"
+        - "Advanced shipbuilding"
+
+  travel:
+    sea_travel: "2-3 days between major ports"
+    land_travel: "1-2 weeks overland"
+    risks: "Pirates in open waters, bandits on land"
+
+  context: |
+    The Mediterranean is the heart of Roman trade.
+    Sea routes are faster but riskier.
+    Grain flows from Egypt to Rome.
+```
+
+### Geographic Elements
+
+**1. Region (optional):**
+- High-level geographic scope
+- Example: "Mediterranean Sea region, 200 CE", "Silicon Valley, present day"
+
+**2. Locations (optional):**
+- List of discrete places agents can visit or reference
+- Can be simple strings or detailed dictionaries
+
+Simple format:
+```yaml
+locations:
+  - "Rome"
+  - "Athens"
+  - "Alexandria"
+```
+
+Detailed format:
+```yaml
+locations:
+  - name: "Rome (Italy)"
+    description: "Capital with high demand for grain"
+    conditions:
+      - "Strong purchasing power"
+      - "Political instability"
+
+  - name: "Athens (Greece)"
+    description: "Cultural center, low on grain"
+    conditions:
+      - "Dependent on grain imports"
+      - "Produces olive oil"
+```
+
+**3. Travel (optional):**
+- Information about movement between locations
+- Can be dictionary or simple string
+
+Dictionary format:
+```yaml
+travel:
+  sea_travel: "2-3 days"
+  land_travel: "1 week"
+  risks: "Pirates, storms"
+```
+
+Simple format:
+```yaml
+travel: "Sea travel 2-3 days, land travel 1 week"
+```
+
+**4. Context (optional):**
+- Additional geographic narrative
+- Background information about the region
+- Political, economic, or environmental factors
+
+```yaml
+context: |
+  Athens struggles with food shortages due to low grain production.
+  Civil war in Carthage affects regional trade.
+  Sea travel is faster but weather-dependent.
+```
+
+### How Geography Affects Simulation
+
+When you add geography, the orchestrator automatically:
+1. Includes geographic info in every step
+2. Considers locations when evaluating actions
+3. Factors travel times into outcomes
+4. Uses local conditions to create realistic consequences
+
+### Example: Mediterranean Trade
+
+```yaml
+max_steps: 5
+time_step_duration: "1 week"
+simulator_awareness: false
+
+geography:
+  region: "Mediterranean Sea, 200 CE"
+
+  locations:
+    - name: "Rome"
+      conditions: ["High grain prices", "Large market"]
+    - name: "Alexandria"
+      conditions: ["Abundant grain", "Low prices"]
+    - name: "Athens"
+      conditions: ["Grain shortage", "Desperate buyers"]
+
+  travel:
+    sea_travel: "2-3 days between major ports"
+    risks: "Storms, pirates"
+
+  context: |
+    Grain flows from Egypt to feed Rome and Greece.
+    Traders must balance profit against travel risks.
+
+agent_vars:
+  capital:
+    type: int
+    default: 1000
+
+  location:
+    type: str
+    default: "Rome"
+
+  cargo:
+    type: str
+    default: "empty"
+
+agents:
+  - name: "Grain Trader"
+    system_prompt: |
+      You are a Mediterranean grain trader.
+      Buy low in Alexandria, sell high in Athens/Rome.
+      Consider travel times and risks.
+    variables:
+      location: "Alexandria"
+```
+
+With this setup:
+- The orchestrator knows where agents are
+- Travel times affect when cargo arrives
+- Local conditions (shortages, prices) influence profits
+- Agents can reason about where to trade
+
+### Benefits
+
+- **Immersion**: Rich, believable worlds
+- **Strategic depth**: Geography creates meaningful choices
+- **Realistic constraints**: Travel times, distances matter
+- **Dynamic storytelling**: Local events affect distant locations
+- **Agent awareness**: Agents understand their spatial context
+
+### When to Use Geography
+
+✅ **Good for:**
+- Trade/economic scenarios
+- Historical settings
+- Multi-location narratives
+- Strategic movement games
+- Exploration scenarios
+
+❌ **Skip for:**
+- Abstract/mathematical simulations
+- Single-location scenarios
+- Pure conversation/negotiation
+- Time-independent puzzles
+
 ## Agent Self-Awareness
 
 **Agents automatically know their own stats!** Before each turn, agents receive their current variable values in their system prompt. This allows them to make informed decisions based on their actual state.
