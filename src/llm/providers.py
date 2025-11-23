@@ -61,11 +61,47 @@ class UnifiedLLMProvider(LLMProvider):
 
     def _initialize_provider(self):
         """Initialize provider-specific client."""
-        # Set default base_url for Ollama
-        if self.provider_type == "ollama":
-            self.base_url = self.base_url or os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
-        # Will implement provider-specific initialization in next task
-        pass
+        try:
+            if self.provider_type == "openai":
+                import openai
+                base_url = self.base_url or "https://api.openai.com/v1"
+                self._client = openai.OpenAI(api_key=self.api_key, base_url=base_url)
+
+            elif self.provider_type == "grok":
+                import openai
+                base_url = self.base_url or "https://api.x.ai/v1"
+                self._client = openai.OpenAI(api_key=self.api_key, base_url=base_url)
+
+            elif self.provider_type == "anthropic":
+                import anthropic
+                self._client = anthropic.Anthropic(api_key=self.api_key)
+
+            elif self.provider_type == "gemini":
+                import google.generativeai as genai
+                if self.api_key:
+                    genai.configure(api_key=self.api_key)
+                    self._model_instance = genai.GenerativeModel(self.model)
+
+            elif self.provider_type == "ollama":
+                # Ollama doesn't need client initialization
+                self.base_url = self.base_url or os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
+
+        except ImportError as e:
+            raise ImportError(
+                f"Required package not installed for {self.provider_type}. "
+                f"Install with: uv pip install {self._get_package_name()}"
+            ) from e
+
+    def _get_package_name(self) -> str:
+        """Get pip package name for provider."""
+        package_map = {
+            "openai": "openai",
+            "grok": "openai",
+            "anthropic": "anthropic",
+            "gemini": "google-generativeai",
+            "ollama": "requests"
+        }
+        return package_map.get(self.provider_type, "unknown")
 
     def is_available(self) -> bool:
         """Check if provider is configured and available."""
