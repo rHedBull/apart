@@ -88,3 +88,78 @@ class TestUnifiedLLMProviderInitialization:
             provider = UnifiedLLMProvider(provider="gemini", model="gemini-2.5-flash")
             mock_configure.assert_called_once_with(api_key='test-key')
             mock_model.assert_called_once_with("gemini-2.5-flash")
+
+
+class TestUnifiedLLMProviderAvailability:
+    """Test provider availability checking."""
+
+    def test_openai_available_with_key(self):
+        """Test OpenAI provider is available with API key."""
+        with patch.dict('os.environ', {'OPENAI_API_KEY': 'test-key'}):
+            with patch('openai.OpenAI'):
+                provider = UnifiedLLMProvider(provider="openai", model="gpt-4o-mini")
+                assert provider.is_available() is True
+
+    def test_openai_unavailable_without_key(self):
+        """Test OpenAI provider is unavailable without API key."""
+        with patch.dict('os.environ', {}, clear=True):
+            with patch('openai.OpenAI'):
+                provider = UnifiedLLMProvider(provider="openai", model="gpt-4o-mini")
+                assert provider.is_available() is False
+
+    def test_grok_available_with_key(self):
+        """Test Grok provider is available with API key."""
+        with patch.dict('os.environ', {'XAI_API_KEY': 'test-key'}):
+            with patch('openai.OpenAI'):
+                provider = UnifiedLLMProvider(provider="grok", model="grok-4-1-fast-reasoning")
+                assert provider.is_available() is True
+
+    def test_grok_unavailable_without_key(self):
+        """Test Grok provider is unavailable without API key."""
+        with patch.dict('os.environ', {}, clear=True):
+            with patch('openai.OpenAI'):
+                provider = UnifiedLLMProvider(provider="grok", model="grok-4-1-fast-reasoning")
+                assert provider.is_available() is False
+
+    def test_anthropic_available_with_key(self):
+        """Test Anthropic provider is available with API key."""
+        with patch.dict('os.environ', {'ANTHROPIC_API_KEY': 'test-key'}):
+            with patch('anthropic.Anthropic'):
+                provider = UnifiedLLMProvider(provider="anthropic", model="claude-sonnet-4-5-20250929")
+                assert provider.is_available() is True
+
+    def test_anthropic_unavailable_without_key(self):
+        """Test Anthropic provider is unavailable without API key."""
+        with patch.dict('os.environ', {}, clear=True):
+            with patch('anthropic.Anthropic'):
+                provider = UnifiedLLMProvider(provider="anthropic", model="claude-sonnet-4-5-20250929")
+                assert provider.is_available() is False
+
+    def test_gemini_available_with_key(self):
+        """Test Gemini provider is available with API key."""
+        with patch.dict('os.environ', {'GEMINI_API_KEY': 'test-key'}):
+            with patch('google.generativeai.configure'):
+                with patch('google.generativeai.GenerativeModel'):
+                    provider = UnifiedLLMProvider(provider="gemini", model="gemini-2.5-flash")
+                    assert provider.is_available() is True
+
+    def test_gemini_unavailable_without_key(self):
+        """Test Gemini provider is unavailable without API key."""
+        with patch.dict('os.environ', {}, clear=True):
+            with patch('google.generativeai.configure'):
+                with patch('google.generativeai.GenerativeModel'):
+                    provider = UnifiedLLMProvider(provider="gemini", model="gemini-2.5-flash")
+                    assert provider.is_available() is False
+
+    def test_ollama_available_when_server_running(self):
+        """Test Ollama is available when server responds."""
+        with patch('requests.get') as mock_get:
+            mock_get.return_value.status_code = 200
+            provider = UnifiedLLMProvider(provider="ollama", model="llama2")
+            assert provider.is_available() is True
+
+    def test_ollama_unavailable_when_server_not_running(self):
+        """Test Ollama is unavailable when server doesn't respond."""
+        with patch('requests.get', side_effect=Exception("Connection refused")):
+            provider = UnifiedLLMProvider(provider="ollama", model="llama2")
+            assert provider.is_available() is False

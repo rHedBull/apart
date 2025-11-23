@@ -105,8 +105,23 @@ class UnifiedLLMProvider(LLMProvider):
 
     def is_available(self) -> bool:
         """Check if provider is configured and available."""
-        # Will implement in next task
-        pass
+        # Check provider-specific requirements
+        if self.provider_type == "ollama":
+            # Check if Ollama server is reachable
+            try:
+                import requests
+                response = requests.get(f"{self.base_url}/api/tags", timeout=2)
+                return response.status_code == 200
+            except Exception:
+                return False
+
+        elif self.provider_type == "gemini":
+            # Check if API key is set and model instance was created
+            return self.api_key is not None and self._model_instance is not None
+
+        else:
+            # For OpenAI, Grok, Anthropic: check if API key is set and client initialized
+            return self.api_key is not None and self._client is not None
 
     def generate_response(
         self,
