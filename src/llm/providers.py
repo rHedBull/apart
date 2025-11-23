@@ -5,6 +5,85 @@ from typing import Optional, Dict, Any
 from llm.llm_provider import LLMProvider
 
 
+class UnifiedLLMProvider(LLMProvider):
+    """Unified LLM provider supporting OpenAI, Grok, Anthropic, Gemini, and Ollama."""
+
+    SUPPORTED_PROVIDERS = ["openai", "grok", "anthropic", "gemini", "ollama"]
+
+    def __init__(
+        self,
+        provider: str,
+        model: str,
+        api_key: Optional[str] = None,
+        base_url: Optional[str] = None
+    ):
+        """
+        Initialize unified LLM provider.
+
+        Args:
+            provider: Provider type (openai, grok, anthropic, gemini, ollama)
+            model: Model identifier
+            api_key: Optional API key (falls back to env vars)
+            base_url: Optional base URL override
+        """
+        provider = provider.lower()
+        if provider not in self.SUPPORTED_PROVIDERS:
+            raise ValueError(
+                f"Unknown provider: {provider}. "
+                f"Supported providers: {', '.join(self.SUPPORTED_PROVIDERS)}"
+            )
+
+        self.provider_type = provider
+        self.model = model
+        self.base_url = base_url
+
+        # Set API key from parameter or environment
+        self.api_key = api_key or self._get_api_key_from_env()
+
+        # Initialize provider-specific clients
+        self._client = None
+        self._model_instance = None
+        self._initialize_provider()
+
+    def _get_api_key_from_env(self) -> Optional[str]:
+        """Get API key from environment variables."""
+        env_var_map = {
+            "openai": "OPENAI_API_KEY",
+            "grok": "XAI_API_KEY",
+            "anthropic": "ANTHROPIC_API_KEY",
+            "gemini": "GEMINI_API_KEY",
+            "ollama": None  # No API key needed
+        }
+        env_var = env_var_map.get(self.provider_type)
+        if env_var:
+            return os.getenv(env_var)
+        return None
+
+    def _initialize_provider(self):
+        """Initialize provider-specific client."""
+        # Set default base_url for Ollama
+        if self.provider_type == "ollama":
+            self.base_url = self.base_url or os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
+        # Will implement provider-specific initialization in next task
+        pass
+
+    def is_available(self) -> bool:
+        """Check if provider is configured and available."""
+        # Will implement in next task
+        pass
+
+    def generate_response(
+        self,
+        prompt: str,
+        system_prompt: Optional[str] = None,
+        json_schema: Optional[Dict[str, Any]] = None,
+        force_json: bool = False
+    ) -> str:
+        """Generate response from LLM."""
+        # Will implement in next task
+        pass
+
+
 class GeminiProvider(LLMProvider):
     """Google Gemini LLM provider implementation supporting both API and Vertex AI."""
 
