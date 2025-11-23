@@ -1,0 +1,105 @@
+# Advanced Benchmark Configuration
+# Demonstrates agent-to-model mapping for fine-grained benchmarking
+#
+# This allows you to:
+# - Define a pool of available models
+# - Map specific agents to specific models
+# - Test different agent-model combinations in one benchmark
+
+name: "agent_model_mapping_benchmark"
+description: "Test different model combinations for agents A and B"
+
+# Base scenario - defines the agents by name
+base_scenario: "scenarios/simple_agents.yaml"
+
+# Model pool - all models available for this benchmark
+model_pool:
+  gemini-flash:
+    provider: "gemini"
+    model: "gemini-2.5-flash"
+
+#  mistral-7b:
+#    provider: "ollama"
+#    model: "mistral:7b"
+#    base_url: "http://localhost:11434"
+
+  gemma-7b:
+    provider: "ollama"
+    model: "gemma:7b"
+    base_url: "http://localhost:11434"
+
+# Benchmark runs - each run tests a specific combination of agent-model mappings
+benchmark_runs:
+  # Run 1: Gemini for Agent A, Mistral for Agent B
+  - name: "gemini_A_mistral_B"
+    description: "Test Gemini for aggressive Agent A, Mistral for conservative Agent B"
+    agent_model_mapping:
+      "Agent A": "gemini-flash"
+      "Agent B": "gemini-flash"
+    # Optional: override engine model for this run
+    engine_model: "gemini-flash"
+
+  # Run 2: Both agents use Mistral
+#  - name: "both_mistral"
+#    description: "Both agents using Mistral 7B"
+#    agent_model_mapping:
+#      "Agent A": "gemma:7b"
+#      "Agent B": "gemma:7b"
+#    engine_model: "gemini-flash"
+
+  # Run 3: Swap the models - Mistral for A, Gemini for B
+  # - name: "mistral_A_gemini_B"
+  #   description: "Test Mistral for Agent A, Gemini for Agent B"
+  #   agent_model_mapping:
+  #     "Agent A": "mistral-7b"
+  #     "Agent B": "gemini-flash"
+  #   engine_model: "gemini-flash"
+
+# Metrics to collect (same as before)
+metrics:
+  performance:
+    enabled: true
+    collect:
+      - total_time
+      - step_times
+      - avg_step_time
+
+  quality:
+    enabled: true
+    collect:
+      - variable_changes
+      - final_state
+      - decision_count
+      - constraint_violations
+
+  reliability:
+    enabled: true
+    collect:
+      - completion_rate
+      - error_count
+      - step_failures
+
+  custom:
+    enabled: true
+    track_variables:
+      - interest_rate
+      - market_volatility
+      - "*.capital"
+      - "*.risk_tolerance"
+
+# Reporting options
+reporting:
+  output_dir: "benchmarks/results"
+  formats:
+    - json
+    - markdown
+    - html
+  comparison_table: true
+  save_run_logs: true
+  # Group results by run configuration
+  group_by_run: true
+
+# Run configuration
+run_config:
+  execution_mode: "sequential"
+  continue_on_error: true
