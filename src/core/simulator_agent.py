@@ -24,6 +24,9 @@ class SimulatorAgent:
         realism_guidelines: str,
         scripted_events: List[ScriptedEvent],
         context_window_size: int = 5,
+        time_step_duration: str = "1 turn",
+        simulator_awareness: bool = True,
+        enable_compute_resources: bool = False,
         logger=None
     ):
         self.llm_provider = llm_provider
@@ -33,10 +36,23 @@ class SimulatorAgent:
         self.realism_guidelines = realism_guidelines
         self.scripted_events = scripted_events
         self.context_window_size = context_window_size
+        self.time_step_duration = time_step_duration
+        self.simulator_awareness = simulator_awareness
+        self.enable_compute_resources = enable_compute_resources
         self.logger = logger
 
         self.step_history: List[StepRecord] = []
         self.constraint_feedback: List[ConstraintHit] = []
+
+        # Augment realism guidelines with compute resource rules if enabled
+        if self.enable_compute_resources:
+            compute_guidelines = """
+- Compute resource affects action success:
+  * Higher compute_resource = better execution, higher success rates
+  * In competitions, agent with higher compute has significant advantage
+  * Same action with 500 compute is ~5x more successful than with 100 compute
+  * Scale outcomes proportionally to compute_resource ratios"""
+            self.realism_guidelines = self.realism_guidelines + compute_guidelines if self.realism_guidelines else compute_guidelines.strip()
 
         if self.logger:
             self.logger.info(
@@ -300,7 +316,9 @@ class SimulatorAgent:
         global_var_types = {name: defn["type"] for name, defn in self.game_engine.global_var_definitions.items()}
         agent_var_types = {name: defn["type"] for name, defn in self.game_engine.agent_var_definitions.items()}
 
-        prompt = f"""=== SIMULATION SETUP ===
+        # Build context based on simulator awareness
+        if self.simulator_awareness:
+            context_intro = f"""=== SIMULATION SETUP ===
 {self.system_prompt}
 
 Simulation Plan:
@@ -308,6 +326,21 @@ Simulation Plan:
 
 Realism Guidelines:
 {self.realism_guidelines}
+
+Time Scale: Each step represents {self.time_step_duration}"""
+        else:
+            context_intro = f"""=== SCENARIO SETUP ===
+{self.system_prompt}
+
+Scenario Plan:
+{self.simulation_plan}
+
+Realism Guidelines:
+{self.realism_guidelines}
+
+Time Scale: Each step represents {self.time_step_duration}"""
+
+        prompt = f"""{context_intro}
 
 === INITIAL STATE ===
 Global Variables (Available with types):
@@ -322,8 +355,14 @@ Current Values:
 {self._format_agent_variables(current_state["agent_vars"])}
 
 === YOUR TASK ===
-Initialize the simulation for Step 0.
-Generate initial personalized messages for each agent to begin the simulation.
+Initialize the {'simulation' if self.simulator_awareness else 'scenario'} for Step 0.
+Generate initial personalized messages for each agent to begin.
+
+{'IMPORTANT FOR AGENT MESSAGES:' if not self.simulator_awareness else ''}
+{'- Agents are NOT aware they are in a simulation' if not self.simulator_awareness else ''}
+{'- Frame messages as if you are describing real events happening to them' if not self.simulator_awareness else ''}
+{'- Agents should put their ACTIONS and COMMUNICATIONS in their response messages' if not self.simulator_awareness else ''}
+{'- Make it clear that their response should contain what they DO and SAY, not just think' if not self.simulator_awareness else ''}
 
 Return ONLY valid JSON (no markdown, no code blocks):
 {{
@@ -360,15 +399,29 @@ REMEMBER: Calculate values in your head and write the FINAL NUMBERS in the JSON.
         """Build prompt for regular step processing."""
         sections = []
 
-        # Setup section
-        sections.append(f"""=== SIMULATION SETUP ===
+        # Setup section - adjust terminology based on simulator awareness
+        if self.simulator_awareness:
+            sections.append(f"""=== SIMULATION SETUP ===
 {self.system_prompt}
 
 Simulation Plan:
 {self.simulation_plan}
 
 Realism Guidelines:
-{self.realism_guidelines}""")
+{self.realism_guidelines}
+
+Time Scale: Each step represents {self.time_step_duration}""")
+        else:
+            sections.append(f"""=== SCENARIO SETUP ===
+{self.system_prompt}
+
+Scenario Plan:
+{self.simulation_plan}
+
+Realism Guidelines:
+{self.realism_guidelines}
+
+Time Scale: Each step represents {self.time_step_duration}""")
 
         # Scripted events
         if self.scripted_events:
@@ -387,6 +440,12 @@ Agent Variables:""")
         for agent_name, vars_dict in current_state["agent_vars"].items():
             sections.append(f"  {agent_name}:")
             sections.append(f"{self._format_variables(vars_dict, indent='    ')}")
+
+        # Add compute resource analysis if enabled
+        if self.enable_compute_resources:
+            compute_analysis = self._analyze_compute_resources(current_state["agent_vars"])
+            if compute_analysis:
+                sections.append(f"\n{compute_analysis}")
 
         # Recent history
         if self.step_history:
@@ -428,12 +487,22 @@ Agent Variables:""")
                         )
 
         # Task
-        sections.append(f"""=== YOUR TASK ===
+        task_intro = f"""=== YOUR TASK ===
 Process the agent responses from Step {step_number - 1 if step_number > 1 else 0}.
 Update world state realistically for Step {step_number}.
-Generate personalized messages for each agent.
+Generate personalized messages for each agent."""
 
-Agent Responses from previous step:""")
+        if not self.simulator_awareness:
+            task_intro += """
+
+IMPORTANT FOR AGENT MESSAGES:
+- Agents are NOT aware they are in a simulation
+- Frame messages as if describing real events happening to them
+- Agents should include their ACTIONS and COMMUNICATIONS in their responses
+- Make it clear that their response should contain what they DO and SAY, not just internal thoughts"""
+
+        sections.append(task_intro)
+        sections.append("\nAgent Responses from previous step:")
         for agent_name, response in agent_responses.items():
             sections.append(f"  {agent_name}: \"{response}\"")
 
@@ -519,3 +588,38 @@ REMEMBER: You must calculate the new values in your head and write the FINAL NUM
     def _add_error_feedback(self, prompt: str, error: str) -> str:
         """Add error feedback to prompt for retry."""
         return f"{prompt}\n\nERROR: Your previous response was invalid: {error}\nPlease correct and try again."
+
+    def _analyze_compute_resources(self, agent_vars: Dict[str, Dict[str, Any]]) -> str:
+        """Analyze compute resource disparities between agents."""
+        # Check if compute_resource exists in any agent
+        compute_values = {}
+        for agent_name, vars_dict in agent_vars.items():
+            if "compute_resource" in vars_dict:
+                compute_values[agent_name] = vars_dict["compute_resource"]
+
+        if not compute_values or len(compute_values) < 2:
+            return ""
+
+        # Sort by compute resource
+        sorted_agents = sorted(compute_values.items(), key=lambda x: x[1], reverse=True)
+
+        analysis_lines = ["=== COMPUTE RESOURCE ANALYSIS ==="]
+        analysis_lines.append("Remember: Higher compute_resource means better action execution and success rates.")
+
+        # Show relative advantages
+        highest_name, highest_value = sorted_agents[0]
+        for agent_name, compute_value in sorted_agents[1:]:
+            if highest_value > 0 and compute_value > 0:
+                ratio = highest_value / compute_value
+                analysis_lines.append(
+                    f"  {highest_name} has {ratio:.1f}x more compute than {agent_name} "
+                    f"({highest_value:.0f} vs {compute_value:.0f})"
+                )
+
+        # Add strategic implications
+        analysis_lines.append("\nStrategic Implications:")
+        analysis_lines.append(f"  - In direct competition, {highest_name} has significant execution advantage")
+        analysis_lines.append(f"  - Same actions yield {sorted_agents[0][1]/sorted_agents[-1][1]:.1f}x better results for {highest_name}")
+        analysis_lines.append("  - Lower compute agents need clever strategies to overcome this disadvantage")
+
+        return "\n".join(analysis_lines)

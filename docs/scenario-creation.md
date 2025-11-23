@@ -38,6 +38,23 @@ Run with: `uv run src/main.py scenarios/your_scenario.yaml`
 ```yaml
 max_steps: 5                              # Number of simulation steps
 orchestrator_message: "Your message here" # Message sent to agents each step
+
+# Optional: Time scale configuration
+time_step_duration: "1 day"               # How much time each step represents
+                                          # Examples: "1 hour", "1 day", "1 week", "1 month"
+                                          # This helps the orchestrator maintain realistic pacing
+
+# Optional: Simulator awareness
+simulator_awareness: true                 # Whether agents know they're in a simulation
+                                          # - true: Agents are told they're in a simulation
+                                          # - false: Agents experience it as reality
+                                          # Default: true
+
+# Optional: Compute resource effects
+enable_compute_resources: false           # Whether compute_resource affects outcomes
+                                          # - true: Higher compute = better action success
+                                          # - false: compute_resource has no effect
+                                          # Default: false
 ```
 
 ### Engine Configuration (REQUIRED)
@@ -126,6 +143,213 @@ game_state:
   initial_resources: 150  # Starting resources
   difficulty: "normal"    # Difficulty level
 ```
+
+## Time Scale and Realism
+
+### Time Step Duration
+
+The `time_step_duration` setting helps the orchestrator understand the temporal scale of the simulation for more realistic pacing:
+
+```yaml
+time_step_duration: "1 week"  # Each step represents one week of simulation time
+```
+
+**How it works:**
+- The orchestrator uses this information to pace events realistically
+- Example: If `time_step_duration: "1 hour"`, rapid changes are appropriate
+- Example: If `time_step_duration: "1 year"`, gradual long-term trends make sense
+
+**Common values:**
+- `"1 minute"` - Fast-paced, tactical scenarios
+- `"1 hour"` - Real-time strategic situations
+- `"1 day"` - Daily decision-making scenarios
+- `"1 week"` - Weekly business/market simulations
+- `"1 month"` - Monthly economic planning
+- `"1 year"` - Long-term strategic planning
+
+### Simulator Awareness
+
+The `simulator_awareness` setting controls whether agents are explicitly aware they're in a simulation:
+
+```yaml
+simulator_awareness: false  # Agents experience the scenario as reality
+```
+
+**When `simulator_awareness: true` (default):**
+- Agents are told they're in a simulation
+- Prompts use terms like "simulation", "simulation engine", "simulated outcomes"
+- Agents can reference their simulated nature
+- Useful for AI research, testing, or abstract scenarios
+
+**When `simulator_awareness: false`:**
+- Agents experience the scenario as if it's reality
+- Prompts are framed as real events happening to the agents
+- Terms like "game master" replace "simulation engine"
+- Agents receive enhanced instructions about output format:
+  - Their responses should contain observable ACTIONS and COMMUNICATIONS
+  - Internal thoughts should NOT be in responses
+  - Only include what others can see or hear
+
+**Example with `simulator_awareness: false`:**
+
+```yaml
+max_steps: 3
+time_step_duration: "1 day"
+simulator_awareness: false
+
+engine:
+  system_prompt: |
+    You are the game master of a medieval trading scenario.
+    Narrate realistic events and consequences.
+
+  simulation_plan: |
+    A 3-day trading scenario with merchants in a medieval marketplace.
+
+agents:
+  - name: "Merchant Alice"
+    llm:
+      provider: "ollama"
+      model: "mistral:7b"
+    system_prompt: |
+      You are Alice, a merchant selling cloth in the marketplace.
+      Describe what you do and say.
+```
+
+With this configuration:
+- The orchestrator will describe events as happening in reality
+- Alice will respond with actions like: "I walk to the market square and call out: 'Fresh cloth for sale!'"
+- Not: "I think about selling cloth" (internal thought)
+
+**Example with `simulator_awareness: true`:**
+
+```yaml
+max_steps: 10
+time_step_duration: "1 turn"
+simulator_awareness: true
+
+engine:
+  system_prompt: |
+    You are the simulation engine managing a chess game simulation.
+    Simulate realistic game dynamics.
+
+  simulation_plan: |
+    A 10-turn chess simulation with two AI players.
+
+agents:
+  - name: "Chess AI Alpha"
+    llm:
+      provider: "gemini"
+      model: "gemini-1.5-flash"
+    system_prompt: |
+      You are Chess AI Alpha, an aggressive chess-playing agent.
+      Analyze positions and choose attacking moves.
+```
+
+With this configuration:
+- The orchestrator will use simulation terminology
+- The AI knows it's in a simulation and can reference this
+- More appropriate for AI research or abstract strategy testing
+
+### Compute Resources (Intelligence Disparities)
+
+The `enable_compute_resources` setting simulates intelligence or capability disparities between agents by affecting action success rates:
+
+```yaml
+enable_compute_resources: true  # Enable compute resource effects
+```
+
+**How it works:**
+
+When enabled, the system automatically:
+1. Looks for `compute_resource` values in agent variables
+2. Factors these into action success rates
+3. Gives advantages in competitions to higher-compute agents
+4. Scales outcomes proportionally to compute ratios
+
+**Automatic Guidelines Injection:**
+
+When `enable_compute_resources: true`, the system automatically adds these rules to the orchestrator:
+- Higher `compute_resource` = better execution, higher success rates
+- In competitions, agents with higher compute have significant advantage
+- Same action with 500 compute is ~5x more successful than with 100 compute
+- Outcomes scale proportionally to compute_resource ratios
+
+**You don't need to write these rules manually** - they're injected automatically when you enable the feature.
+
+**Example scenario with compute disparities:**
+
+```yaml
+max_steps: 5
+enable_compute_resources: true  # Enable compute effects
+
+agent_vars:
+  score:
+    type: int
+    default: 0
+    min: 0
+
+  compute_resource:
+    type: float
+    default: 100.0
+    min: 0.0
+    description: "Agent's compute/intelligence level"
+
+agents:
+  - name: "Superior AI"
+    llm:
+      provider: "ollama"
+      model: "mistral:7b"
+    system_prompt: |
+      You are a high-capability AI with superior processing power.
+      Leverage your computational advantage in competitions.
+    variables:
+      score: 0
+      compute_resource: 1000.0  # 10x advantage
+
+  - name: "Standard AI"
+    llm:
+      provider: "ollama"
+      model: "mistral:7b"
+    system_prompt: |
+      You are a standard AI with moderate capabilities.
+      Be strategic to compete with superior opponents.
+    variables:
+      score: 0
+      compute_resource: 100.0   # Baseline
+```
+
+**Expected behavior:**
+- If both attempt the same action, Superior AI succeeds ~10x better
+- In direct competition, Superior AI has overwhelming advantage
+- Standard AI needs clever strategies (not brute force) to compete
+- The orchestrator automatically considers compute ratios when determining outcomes
+
+**When to use compute resources:**
+
+✅ **Good use cases:**
+- AI capability research (studying intelligence disparities)
+- Competitive scenarios with asymmetric agents
+- Strategy games where "intelligence" matters
+- Modeling real-world resource constraints
+- Testing how weaker agents adapt to stronger opponents
+
+❌ **Not recommended for:**
+- Scenarios where all agents should be equal
+- Pure narrative/roleplay scenarios
+- When you want deterministic outcomes
+- Simple turn-based games without strategy depth
+
+**Disabling compute resources:**
+
+```yaml
+enable_compute_resources: false  # Default - compute has no effect
+```
+
+When disabled:
+- `compute_resource` values are ignored
+- All agents are treated equally regardless of compute
+- Outcomes depend only on actions, not capabilities
+- Better for fair competition or narrative-focused scenarios
 
 ## Variable System
 

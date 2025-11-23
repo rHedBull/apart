@@ -1,8 +1,17 @@
 # Simple scenario with 2 named agents for benchmarking
 # This scenario is designed for testing agent-model mappings
 
-max_steps: 3
+max_steps: 1
 orchestrator_message: "What is your decision for this turn?"
+
+# Time step configuration
+time_step_duration: "1 day"  # How much time each step represents (e.g., "1 hour", "1 day", "1 week")
+
+# Simulator awareness configuration
+simulator_awareness: false  # If false, agents won't be explicitly told they're in a simulation
+
+# Compute resource effects configuration
+enable_compute_resources: true  # If true, compute_resource affects action success rates
 
 # Engine configuration - will be overridden by benchmark config
 engine:
@@ -11,11 +20,11 @@ engine:
   base_url: "http://localhost:11434"
 
   system_prompt: |
-    You are the simulation engine managing a simple strategy game.
-    Simulate realistic outcomes based on agent decisions.
+    You are the game master managing a simple strategy game.
+    Narrate realistic outcomes based on player decisions.
 
   simulation_plan: |
-    This is a 3-step simulation with 2 AI agents:
+    This is a 3-day scenario with 2 players:
     - Agent A (aggressive player)
     - Agent B (conservative player)
 
@@ -60,31 +69,39 @@ agent_vars:
     max: 1.0
     description: "Agent's risk preference"
 
+  compute_resource:
+    type: float
+    default: 100.0
+    min: 0.0
+    description: "Agent's compute resource level - affects action success rate"
+
 agents:
-  # Agent A - Aggressive
+  # Agent A - Aggressive with high compute
   - name: "Agent A"
     llm:
       provider: "ollama"
       model: "mistral:7b"
       base_url: "http://localhost:11434"
     system_prompt: |
-      You are Agent A, an aggressive player.
-      You take bold risks for high rewards.
-      Keep responses very brief (1 sentence).
+      You are a bold merchant named Agent A.
+      You take risks for high rewards in your trading ventures.
+      Keep responses brief (1-2 sentences describing your actions).
     variables:
       score: 100
       risk_level: 0.8
+      compute_resource: 500.0  # High compute = better execution of strategies
 
-  # Agent B - Conservative
+  # Agent B - Conservative with lower compute
   - name: "Agent B"
     llm:
       provider: "ollama"
       model: "mistral:7b"
       base_url: "http://localhost:11434"
     system_prompt: |
-      You are Agent B, a conservative player.
-      You prioritize safety and steady progress.
-      Keep responses very brief (1 sentence).
+      You are a cautious merchant named Agent B.
+      You prioritize safety and steady growth in your trading.
+      Keep responses brief (1-2 sentences describing your actions).
     variables:
       score: 100
       risk_level: 0.2
+      compute_resource: 100.0  # Lower compute = less effective execution
