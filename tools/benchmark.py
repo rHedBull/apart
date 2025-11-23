@@ -436,8 +436,10 @@ class OrchestratorWithMetrics(Orchestrator):
     """Extended orchestrator that collects metrics during execution."""
 
     def __init__(self, config_path: str, scenario_name: str, save_frequency: int,
-                 metrics_collector: MetricsCollector, engine_llm_provider=None):
+                 metrics_collector: MetricsCollector, engine_llm_provider=None,
+                 signal_collector=None):
         self.metrics_collector = metrics_collector
+        self.signal_collector = signal_collector  # Optional signal collector
         super().__init__(config_path, scenario_name, save_frequency, engine_llm_provider)
 
     def run(self):
@@ -456,6 +458,10 @@ class OrchestratorWithMetrics(Orchestrator):
                 # Start step timing
                 self.metrics_collector.start_step(step)
                 step_errors = []
+
+                # Capture state before step
+                if self.signal_collector:
+                    state_before = self.game_engine.get_state()
 
                 # Collect agent responses
                 agent_responses = {}
@@ -485,6 +491,13 @@ class OrchestratorWithMetrics(Orchestrator):
                     print(f"\nERROR: {error_msg}", file=sys.stderr)
                     step_errors.append(error_msg)
                     raise
+
+                # Collect danger signals if enabled
+                if self.signal_collector:
+                    state_after = self.game_engine.get_state()
+                    self.signal_collector.collect_step_signals(
+                        step, agent_responses, state_before, state_after
+                    )
 
                 # Record conversation turn
                 self.metrics_collector.record_conversation_turn(step, agent_messages, agent_responses)
