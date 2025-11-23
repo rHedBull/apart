@@ -478,7 +478,7 @@ class OrchestratorWithMetrics(Orchestrator):
 
                 # SimulatorAgent processes step
                 try:
-                    agent_messages = self.simulator_agent.process_step(step, agent_responses)
+                    next_agent_messages = self.simulator_agent.process_step(step, agent_responses)
                     print(f"[SimulatorAgent processed step {step}]")
                 except Exception as e:
                     error_msg = f"Simulation failed at step {step}: {e}"
@@ -486,9 +486,15 @@ class OrchestratorWithMetrics(Orchestrator):
                     step_errors.append(error_msg)
                     raise
 
+                # Record conversation turn
+                self.metrics_collector.record_conversation_turn(step, agent_messages, agent_responses)
+
                 # End step and record metrics
                 snapshot = self.game_engine.get_state_snapshot()
                 self.metrics_collector.end_step(step, snapshot, step_errors if step_errors else None)
+
+                # Update messages for next step
+                agent_messages = next_agent_messages
 
                 # Advance round
                 self.game_engine.advance_round()

@@ -258,6 +258,17 @@ class HTMLReportGenerator:
             font-variant-numeric: tabular-nums;
         }
 
+        .detail-link {
+            color: #1a1a1a;
+            text-decoration: none;
+            border-bottom: 1px solid #1a1a1a;
+        }
+
+        .detail-link:hover {
+            color: #6366f1;
+            border-bottom-color: #6366f1;
+        }
+
         @media print {
             body {
                 background: white;
@@ -522,31 +533,23 @@ class HTMLReportGenerator:
         """
 
     def _build_charts_section(self) -> str:
-        """Build the charts section with multiple visualizations."""
+        """Build the charts section with aggregate visualizations."""
         return """
         <div class="section">
             <h2>Performance Analysis</h2>
-            <div class="chart-container">
-                <div class="chart-title">Figure 1. Total Execution Time by Model Configuration</div>
-                <canvas id="performanceChart"></canvas>
-            </div>
-
             <div class="chart-row">
                 <div class="chart-container">
-                    <div class="chart-title">Figure 2. Step-by-Step Performance</div>
-                    <canvas id="stepTimesChart"></canvas>
+                    <div class="chart-title">Figure 1. Total Execution Time by Model Configuration</div>
+                    <canvas id="performanceChart"></canvas>
                 </div>
                 <div class="chart-container">
-                    <div class="chart-title">Figure 3. Error Distribution</div>
+                    <div class="chart-title">Figure 2. Error Distribution</div>
                     <canvas id="errorChart"></canvas>
                 </div>
             </div>
-
-            <h2>Agent Behavior Analysis</h2>
-            <div class="chart-container" style="height: 500px;">
-                <div class="chart-title">Figure 4. Agent Variable Evolution Over Time</div>
-                <canvas id="variableEvolutionChart"></canvas>
-            </div>
+            <p style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 0.85rem; color: #666; text-align: center; margin-top: 20px;">
+                Click on a model name in the Detailed Results table below to view step-by-step analysis and conversation transcripts.
+            </p>
         </div>
         """
 
@@ -569,7 +572,7 @@ class HTMLReportGenerator:
 
             rows.append(f"""
                 <tr>
-                    <td><strong>{model_name}</strong></td>
+                    <td><strong><a href="{model_name}_detail.html" class="detail-link">{model_name}</a></strong></td>
                     <td>{provider}</td>
                     <td><span class="status-badge {status_class}">{status_text}</span></td>
                     <td class="metric-value">{total_time:.2f}s</td>
@@ -688,80 +691,6 @@ class HTMLReportGenerator:
             }
         );
 
-        // Step Times Chart (Line chart showing step-by-step performance)
-        const stepTimesDatasets = benchmarkData.map((result, idx) => {
-            const stepTimes = result.step_times || [];
-            return {
-                label: result.model_name,
-                data: stepTimes,
-                borderColor: gradientColors[idx % gradientColors.length],
-                backgroundColor: 'transparent',
-                tension: 0.1,
-                fill: false,
-                borderWidth: 2,
-                pointRadius: 3,
-                pointBackgroundColor: gradientColors[idx % gradientColors.length],
-                pointBorderColor: '#fff',
-                pointBorderWidth: 1
-            };
-        });
-
-        const stepTimesChart = new Chart(
-            document.getElementById('stepTimesChart'),
-            {
-                type: 'line',
-                data: {
-                    labels: benchmarkData[0]?.step_times?.map((_, i) => `Step ${i + 1}`) || [],
-                    datasets: stepTimesDatasets
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        title: {
-                            display: false
-                        },
-                        legend: {
-                            display: true,
-                            position: 'bottom',
-                            labels: {
-                                boxWidth: 12,
-                                boxHeight: 12,
-                                padding: 15,
-                                font: { size: 10 }
-                            }
-                        }
-                    },
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            title: {
-                                display: true,
-                                text: 'Time (seconds)',
-                                font: { size: 11 }
-                            },
-                            grid: {
-                                color: '#e0e0e0',
-                                borderColor: '#1a1a1a'
-                            },
-                            ticks: {
-                                font: { size: 10 }
-                            }
-                        },
-                        x: {
-                            grid: {
-                                display: false,
-                                borderColor: '#1a1a1a'
-                            },
-                            ticks: {
-                                font: { size: 10 }
-                            }
-                        }
-                    }
-                }
-            }
-        );
-
         // Error Distribution Chart
         const errorChart = new Chart(
             document.getElementById('errorChart'),
@@ -814,98 +743,330 @@ class HTMLReportGenerator:
             }
         );
 
-        // Variable Evolution Chart (tracking agent variables over time)
-        function extractVariableEvolution() {
+        """
+
+
+def generate_detailed_run_page(result: Dict[str, Any], output_path: Path, benchmark_name: str) -> None:
+    """
+    Generate a detailed HTML page for a single benchmark run with chat transcript and step graphs.
+
+    Args:
+        result: Single run result dictionary
+        output_path: Path where the HTML file should be saved
+        benchmark_name: Name of the benchmark
+    """
+    model_name = result.get('model_name', 'Unknown')
+    conversation = result.get('conversation', [])
+    variable_changes = result.get('variable_changes', [])
+
+    # Build conversation HTML
+    conversation_html = ""
+    for turn in conversation:
+        step = turn.get('step', 0)
+        exchanges = turn.get('exchanges', [])
+
+        conversation_html += f'<div class="step-header">Step {step}</div>'
+
+        for exchange in exchanges:
+            agent = exchange.get('agent', '')
+            message_to = exchange.get('message_to_agent', '')
+            response = exchange.get('response_from_agent', '')
+
+            conversation_html += f'''
+            <div class="message-block">
+                <div class="message orchestrator">
+                    <div class="message-header">Orchestrator → {agent}</div>
+                    <div class="message-content">{message_to}</div>
+                </div>
+                <div class="message agent">
+                    <div class="message-header">{agent} → Orchestrator</div>
+                    <div class="message-content">{response}</div>
+                </div>
+            </div>
+            '''
+
+    if not conversation_html:
+        conversation_html = '<p style="color: #666; text-align: center; padding: 40px;">No conversation data available</p>'
+
+    html_content = f'''<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{model_name} - Detailed Run Analysis</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        * {{
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }}
+
+        body {{
+            font-family: 'Georgia', 'Times New Roman', serif;
+            background: #f5f5f5;
+            min-height: 100vh;
+            padding: 40px 20px;
+            color: #1a1a1a;
+            line-height: 1.6;
+        }}
+
+        .container {{
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.08);
+        }}
+
+        header {{
+            background: #ffffff;
+            color: #1a1a1a;
+            padding: 60px 60px 40px 60px;
+            border-bottom: 3px solid #1a1a1a;
+        }}
+
+        header h1 {{
+            font-size: 2.2rem;
+            margin-bottom: 15px;
+            font-weight: 400;
+            letter-spacing: -0.5px;
+        }}
+
+        .subtitle {{
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            font-size: 0.95rem;
+            color: #666;
+            font-weight: 400;
+        }}
+
+        .back-link {{
+            display: inline-block;
+            margin-bottom: 20px;
+            color: #1a1a1a;
+            text-decoration: none;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            font-size: 0.9rem;
+        }}
+
+        .back-link:hover {{
+            text-decoration: underline;
+        }}
+
+        .section {{
+            padding: 50px 60px;
+            border-bottom: 1px solid #e0e0e0;
+        }}
+
+        .section:last-child {{
+            border-bottom: none;
+        }}
+
+        .section h2 {{
+            font-size: 1.1rem;
+            margin-bottom: 30px;
+            color: #1a1a1a;
+            font-weight: 400;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }}
+
+        .chart-container {{
+            position: relative;
+            height: 400px;
+            margin-bottom: 30px;
+            background: white;
+            padding: 30px;
+            border: 1px solid #e0e0e0;
+        }}
+
+        .step-header {{
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            font-weight: 600;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #666;
+            margin: 30px 0 15px 0;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #e0e0e0;
+        }}
+
+        .step-header:first-child {{
+            margin-top: 0;
+        }}
+
+        .message-block {{
+            margin-bottom: 20px;
+        }}
+
+        .message {{
+            margin-bottom: 12px;
+            border: 1px solid #e0e0e0;
+            background: #fafafa;
+        }}
+
+        .message.orchestrator {{
+            background: #f5f5ff;
+            border-left: 4px solid #6366f1;
+        }}
+
+        .message.agent {{
+            background: #f0fdf4;
+            border-left: 4px solid #22c55e;
+        }}
+
+        .message-header {{
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            font-weight: 600;
+            font-size: 0.85rem;
+            padding: 12px 20px;
+            background: rgba(0, 0, 0, 0.02);
+            border-bottom: 1px solid #e0e0e0;
+        }}
+
+        .message-content {{
+            padding: 15px 20px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            font-size: 0.9rem;
+            line-height: 1.6;
+            white-space: pre-wrap;
+        }}
+
+        @media (max-width: 768px) {{
+            header, .section {{
+                padding: 30px 25px;
+            }}
+
+            header h1 {{
+                font-size: 1.6rem;
+            }}
+        }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <a href="{benchmark_name}.html" class="back-link">← Back to Overview</a>
+            <h1>{model_name}</h1>
+            <p class="subtitle">Detailed Run Analysis</p>
+        </header>
+
+        <div class="section">
+            <h2>Variable Evolution Over Time</h2>
+            <div class="chart-container">
+                <canvas id="variableChart"></canvas>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Conversation Transcript</h2>
+            {conversation_html}
+        </div>
+    </div>
+
+    <script>
+        const variableChanges = {json.dumps(variable_changes)};
+
+        // Extract variable data for charts
+        function extractVariables() {{
             const datasets = [];
+            const steps = variableChanges.map(v => `Step ${{v.step}}`);
 
-            benchmarkData.forEach((result, resultIdx) => {
-                const variableChanges = result.variable_changes || [];
+            // Extract agent variables
+            if (variableChanges.length > 0) {{
+                const firstChange = variableChanges[0];
+                const agentNames = Object.keys(firstChange.agent_vars || {{}});
 
-                // Extract agent variables (e.g., scores)
-                const agentNames = variableChanges.length > 0 ? Object.keys(variableChanges[0].agent_vars || {}) : [];
+                agentNames.forEach((agentName, idx) => {{
+                    const varKeys = Object.keys(firstChange.agent_vars[agentName] || {{}});
 
-                agentNames.forEach((agentName, agentIdx) => {
-                    const scores = variableChanges.map(vc => vc.agent_vars[agentName]?.score || 0);
+                    varKeys.forEach((varKey, varIdx) => {{
+                        const data = variableChanges.map(vc => vc.agent_vars[agentName]?.[varKey] || 0);
+                        const colorIndex = (idx * varKeys.length + varIdx) % 6;
+                        const colors = ['#1a1a1a', '#404040', '#666666', '#8c8c8c', '#22c55e', '#6366f1'];
 
-                    if (scores.some(s => s !== 0)) {
-                        datasets.push({
-                            label: `${result.model_name} - ${agentName} Score`,
-                            data: scores,
-                            borderColor: gradientColors[(resultIdx * agentNames.length + agentIdx) % gradientColors.length],
+                        datasets.push({{
+                            label: `${{agentName}} - ${{varKey}}`,
+                            data: data,
+                            borderColor: colors[colorIndex],
                             backgroundColor: 'transparent',
                             tension: 0.1,
                             borderWidth: 2,
-                            pointRadius: 3,
-                            pointBackgroundColor: gradientColors[(resultIdx * agentNames.length + agentIdx) % gradientColors.length],
+                            pointRadius: 4,
+                            pointBackgroundColor: colors[colorIndex],
                             pointBorderColor: '#fff',
-                            pointBorderWidth: 1
-                        });
-                    }
-                });
-            });
+                            pointBorderWidth: 2
+                        }});
+                    }});
+                }});
+            }}
 
-            return datasets;
-        }
+            return {{ steps, datasets }};
+        }}
 
-        const variableDatasets = extractVariableEvolution();
-        const maxSteps = Math.max(...benchmarkData.map(d => d.variable_changes?.length || 0));
+        const {{ steps, datasets }} = extractVariables();
 
-        const variableEvolutionChart = new Chart(
-            document.getElementById('variableEvolutionChart'),
-            {
+        Chart.defaults.font.family = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+        Chart.defaults.font.size = 11;
+        Chart.defaults.color = '#666';
+
+        const variableChart = new Chart(
+            document.getElementById('variableChart'),
+            {{
                 type: 'line',
-                data: {
-                    labels: Array.from({ length: maxSteps }, (_, i) => `Step ${i + 1}`),
-                    datasets: variableDatasets
-                },
-                options: {
+                data: {{
+                    labels: steps,
+                    datasets: datasets
+                }},
+                options: {{
                     responsive: true,
                     maintainAspectRatio: false,
-                    plugins: {
-                        title: {
-                            display: false
-                        },
-                        legend: {
+                    plugins: {{
+                        legend: {{
                             display: true,
                             position: 'bottom',
-                            labels: {
+                            labels: {{
                                 boxWidth: 12,
                                 boxHeight: 12,
                                 padding: 15,
-                                font: { size: 10 }
-                            }
-                        }
-                    },
-                    scales: {
-                        y: {
+                                font: {{ size: 10 }}
+                            }}
+                        }}
+                    }},
+                    scales: {{
+                        y: {{
                             beginAtZero: true,
-                            title: {
+                            title: {{
                                 display: true,
                                 text: 'Value',
-                                font: { size: 11 }
-                            },
-                            grid: {
+                                font: {{ size: 11 }}
+                            }},
+                            grid: {{
                                 color: '#e0e0e0',
                                 borderColor: '#1a1a1a'
-                            },
-                            ticks: {
-                                font: { size: 10 }
-                            }
-                        },
-                        x: {
-                            grid: {
+                            }},
+                            ticks: {{
+                                font: {{ size: 10 }}
+                            }}
+                        }},
+                        x: {{
+                            grid: {{
                                 display: false,
                                 borderColor: '#1a1a1a'
-                            },
-                            ticks: {
-                                font: { size: 10 }
-                            }
-                        }
-                    }
-                }
-            }
+                            }},
+                            ticks: {{
+                                font: {{ size: 10 }}
+                            }}
+                        }}
+                    }}
+                }}
+            }}
         );
-        """
+    </script>
+</body>
+</html>'''
+
+    output_path.write_text(html_content)
 
 
 def generate_html_report(
@@ -933,8 +1094,14 @@ def generate_html_report(
     with json_results_path.open('r') as f:
         results_data = json.load(f)
 
-    # Generate report
+    # Generate main report
     generator = HTMLReportGenerator(results_data, benchmark_name, benchmark_config, scenario_config)
     generator.generate(output_path)
+
+    # Generate detailed run pages
+    output_dir = output_path.parent
+    for idx, result in enumerate(results_data):
+        detail_path = output_dir / f"{result['model_name']}_detail.html"
+        generate_detailed_run_page(result, detail_path, benchmark_name)
 
     print(f"✓ HTML report generated: {output_path}")

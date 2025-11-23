@@ -49,6 +49,9 @@ class RunMetrics:
     # Custom metrics
     custom_metrics: Dict[str, Any] = field(default_factory=dict)
 
+    # Conversation transcript
+    conversation: List[Dict[str, Any]] = field(default_factory=list)
+
     def to_dict(self) -> dict:
         """Convert to dictionary for JSON serialization."""
         return asdict(self)
@@ -138,6 +141,30 @@ class MetricsCollector:
         if self.metrics.total_tokens is None:
             self.metrics.total_tokens = 0
         self.metrics.total_tokens += tokens
+
+    def record_conversation_turn(self, step: int, agent_messages: Dict[str, str], agent_responses: Dict[str, str]):
+        """
+        Record a conversation turn in the simulation.
+
+        Args:
+            step: The step number
+            agent_messages: Messages sent to each agent (from orchestrator/simulator)
+            agent_responses: Responses from each agent
+        """
+        turn = {
+            'step': step,
+            'exchanges': []
+        }
+
+        for agent_name in agent_messages.keys():
+            exchange = {
+                'agent': agent_name,
+                'message_to_agent': agent_messages.get(agent_name, ''),
+                'response_from_agent': agent_responses.get(agent_name, '')
+            }
+            turn['exchanges'].append(exchange)
+
+        self.metrics.conversation.append(turn)
 
     def get_metrics(self) -> RunMetrics:
         """Get the collected metrics."""
