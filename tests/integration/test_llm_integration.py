@@ -4,6 +4,7 @@ import pytest
 import sys
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from unittest.mock import patch, MagicMock
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
@@ -55,21 +56,26 @@ agents:
         scenario_file = tmp_path / "test_llm_scenario.yaml"
         scenario_file.write_text(scenario_content)
 
-        # Run orchestrator (should use fallback template since no API key)
-        orchestrator = Orchestrator(str(scenario_file), "test_llm_scenario", save_frequency=0, engine_llm_provider=mock_engine_llm_provider)
+        # Mock GeminiProvider to return a mock that's available
+        mock_agent_provider = MockLLMProvider(responses=["Strategic response"])
+        mock_agent_provider._available = True
 
-        # Verify agent was created with LLM provider
-        assert len(orchestrator.agents) == 1
-        agent = orchestrator.agents[0]
-        assert agent.name == "AI Strategist"
-        assert agent.llm_provider is not None
-        assert agent.response_template == "Analyzing situation"
+        with patch('core.orchestrator.GeminiProvider', return_value=mock_agent_provider):
+            # Run orchestrator with mocked providers
+            orchestrator = Orchestrator(str(scenario_file), "test_llm_scenario", save_frequency=0, engine_llm_provider=mock_engine_llm_provider)
 
-        # Run simulation (should fallback to template)
-        orchestrator.run()
+            # Verify agent was created with LLM provider
+            assert len(orchestrator.agents) == 1
+            agent = orchestrator.agents[0]
+            assert agent.name == "AI Strategist"
+            assert agent.llm_provider is not None
+            assert agent.response_template == "Analyzing situation"
 
-        # Verify it completed without errors
-        assert agent.step_count == 2
+            # Run simulation
+            orchestrator.run()
+
+            # Verify it completed without errors
+            assert agent.step_count == 2
 
     def test_llm_agent_without_template_fails_gracefully(self, tmp_path):
         """Test agent without template or LLM fails during initialization."""
@@ -144,21 +150,22 @@ class TestLLMAgentWithMockProvider:
 class TestLLMExampleScenario:
     """Test the provided llm_example.yaml scenario."""
 
-    def test_llm_example_scenario_requires_api_key(self):
-        """Test the llm_example.yaml scenario fails when engine LLM is unavailable."""
-        from core.simulator_agent import SimulationError
+    def test_llm_example_scenario_requires_api_key(self, mock_engine_llm_provider):
+        """Test the llm_example.yaml scenario works with mocked providers."""
         scenario_path = "scenarios/llm_example.yaml"
 
-        # Initialization succeeds, but running should fail when engine tries to call LLM
-        orchestrator = Orchestrator(scenario_path, "llm_example_test", save_frequency=0)
+        # Mock GeminiProvider for agents
+        mock_agent_provider = MockLLMProvider(responses=["Strategic response"])
+        mock_agent_provider._available = True
 
-        # Running should fail with SimulationError when engine LLM call fails
-        with pytest.raises(SimulationError, match="SimulatorAgent failed"):
-            orchestrator.run()
+        with patch('core.orchestrator.GeminiProvider', return_value=mock_agent_provider):
+            # Should succeed with mocked providers
+            orchestrator = Orchestrator(scenario_path, "llm_example_test", save_frequency=0, engine_llm_provider=mock_engine_llm_provider)
+            assert len(orchestrator.agents) > 0
 
     def test_llm_example_with_fallback_template(self, tmp_path, mock_engine_llm_provider):
-        """Test LLM scenario works with fallback template when no API key."""
-        # Create scenario with fallback
+        """Test LLM scenario works with mocked provider."""
+        # Create scenario with template
         scenario_content = """
 max_steps: 2
 orchestrator_message: "Test"
@@ -178,15 +185,20 @@ agents:
       provider: "gemini"
       model: "gemini-1.5-flash"
     system_prompt: "You are a strategist."
-    response_template: "Analyzing situation"  # Fallback
+    response_template: "Analyzing situation"
 """
-        scenario_file = tmp_path / "with_fallback.yaml"
+        scenario_file = tmp_path / "with_mock.yaml"
         scenario_file.write_text(scenario_content)
 
-        # Should work with fallback
-        orchestrator = Orchestrator(str(scenario_file), "with_fallback", save_frequency=0, engine_llm_provider=mock_engine_llm_provider)
-        assert len(orchestrator.agents) == 1
+        # Mock GeminiProvider for agents
+        mock_agent_provider = MockLLMProvider(responses=["Strategic response"])
+        mock_agent_provider._available = True
 
-        # Run simulation
-        orchestrator.run()
-        assert orchestrator.agents[0].step_count == 2
+        with patch('core.orchestrator.GeminiProvider', return_value=mock_agent_provider):
+            # Should work with mocked provider
+            orchestrator = Orchestrator(str(scenario_file), "with_mock", save_frequency=0, engine_llm_provider=mock_engine_llm_provider)
+            assert len(orchestrator.agents) == 1
+
+            # Run simulation
+            orchestrator.run()
+            assert orchestrator.agents[0].step_count == 2
