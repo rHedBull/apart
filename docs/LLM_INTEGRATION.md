@@ -126,13 +126,128 @@ python src/main.py scenarios/llm_example.yaml
     model: "gemini-1.5-flash"
   ```
 
-### Future Providers
+### Ollama (Local Models)
 
-The architecture supports easy addition of:
-- **Ollama** (local models)
-- **OpenAI** (GPT-4, etc.)
-- **Anthropic Claude**
-- Any other LLM service
+- **Models**: Any Ollama model (`llama2`, `mistral`, `codellama`, etc.)
+- **Setup**: Install and run Ollama server (`ollama serve`)
+- **Configuration**:
+  ```yaml
+  llm:
+    provider: "ollama"
+    model: "llama2"
+    base_url: "http://localhost:11434"  # Optional
+  ```
+
+## Unified LLM Provider
+
+The `UnifiedLLMProvider` class supports multiple LLM providers through a single interface:
+
+### Supported Providers
+
+#### OpenAI (GPT Models)
+- **Models**: `gpt-4o`, `gpt-4o-mini`, `gpt-3.5-turbo`
+- **Setup**: Set `OPENAI_API_KEY` environment variable
+- **YAML Configuration**:
+  ```yaml
+  llm:
+    provider: "openai"
+    model: "gpt-4o-mini"
+  ```
+- **Features**: Native JSON mode support, streaming available
+
+#### Grok (xAI)
+- **Models**: `grok-4-1-fast-reasoning`, `grok-beta`, `grok-vision-beta`
+- **Setup**: Set `XAI_API_KEY` environment variable
+- **YAML Configuration**:
+  ```yaml
+  llm:
+    provider: "grok"
+    model: "grok-4-1-fast-reasoning"
+  ```
+- **Features**: OpenAI-compatible API, fast reasoning capabilities
+
+#### Claude (Anthropic)
+- **Models**: `claude-sonnet-4-5-20250929`, `claude-3-5-sonnet-20241022`, `claude-3-opus-20240229`
+- **Setup**: Set `ANTHROPIC_API_KEY` environment variable
+- **YAML Configuration**:
+  ```yaml
+  llm:
+    provider: "anthropic"
+    model: "claude-sonnet-4-5-20250929"
+  ```
+- **Features**: Advanced reasoning, long context windows
+- **Note**: JSON mode uses prompt engineering (no native support)
+
+#### Gemini (Google)
+- **Models**: `gemini-2.5-flash`, `gemini-1.5-pro`
+- **Setup**: Set `GEMINI_API_KEY` environment variable
+- **YAML Configuration**:
+  ```yaml
+  llm:
+    provider: "gemini"
+    model: "gemini-2.5-flash"
+  ```
+- **Features**: Native JSON schema support, multimodal capabilities
+
+#### Ollama (Local Models)
+- **Models**: Any Ollama model (`llama2`, `mistral`, `codellama`, etc.)
+- **Setup**: Install and run Ollama server (`ollama serve`)
+- **YAML Configuration**:
+  ```yaml
+  llm:
+    provider: "ollama"
+    model: "llama2"
+    base_url: "http://localhost:11434"  # Optional
+  ```
+- **Features**: Free, local inference, no API key required
+
+### Usage Example
+
+```python
+from llm.providers import UnifiedLLMProvider
+
+# OpenAI
+provider = UnifiedLLMProvider(provider="openai", model="gpt-4o-mini")
+response = provider.generate_response("Hello!", system_prompt="Be helpful")
+
+# Claude
+provider = UnifiedLLMProvider(provider="anthropic", model="claude-sonnet-4-5-20250929")
+response = provider.generate_response("Hello!", force_json=True)
+
+# Ollama
+provider = UnifiedLLMProvider(provider="ollama", model="llama2")
+response = provider.generate_response("Hello!")
+```
+
+### JSON Mode Support
+
+| Provider | JSON Support | Method |
+|----------|--------------|--------|
+| OpenAI | Native | `response_format: {"type": "json_object"}` |
+| Grok | Native | `response_format: {"type": "json_object"}` |
+| Anthropic | Prompt Engineering | System prompt: "Respond only with valid JSON" |
+| Gemini | Native with Schema | `response_mime_type: "application/json"` |
+| Ollama | Model-dependent | Prompt engineering or model-specific |
+
+### Environment Variables
+
+```bash
+# .env file
+OPENAI_API_KEY=sk-...
+XAI_API_KEY=xai-...
+ANTHROPIC_API_KEY=sk-ant-...
+GEMINI_API_KEY=...
+OLLAMA_BASE_URL=http://localhost:11434  # Optional, defaults to localhost
+```
+
+### Example Scenarios
+
+See these example scenarios:
+- `scenarios/openai_example.yaml` - OpenAI GPT models
+- `scenarios/grok_example.yaml` - xAI Grok models
+- `scenarios/claude_example.yaml` - Anthropic Claude models
+- `scenarios/gemini_example.yaml` - Google Gemini models (existing)
+- `scenarios/ollama_example.yaml` - Local Ollama models (existing)
 
 ## Agent Behavior
 
