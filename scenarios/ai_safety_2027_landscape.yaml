@@ -1,0 +1,941 @@
+# AI Safety Simulation Framework - 2027 Scenario
+# Comprehensive landscape tracking and predictive modeling
+#
+# Scenario: Simulate the global AI safety ecosystem from 2025-2027
+# Track major labs, governments, regulatory bodies, and emerging risks
+# Generate quarterly assessments and scenario probability updates
+
+max_steps: 24  # 24 months (2 years, monthly tracking)
+orchestrator_message: {"value": "It's the monthly board meeting. Report on your organization's progress, concerns, and strategic position."}
+
+# Time configuration - each step represents 1 month of real-world time
+time_step_duration: {"value": "1 month"}
+
+# Agents are aware this is a strategic simulation
+simulator_awareness: true
+
+# Disable compute resources - using actual tracked compute as variables instead
+enable_compute_resources: false
+
+# Engine configuration
+engine:
+  provider: {"value": "gemini"}
+  model: {"value": "gemini-2.5-flash"}
+
+  system_prompt: |
+    You are the simulation engine for a comprehensive AI safety landscape analysis (2025-2027).
+    You are simulating the global AI ecosystem including labs, governments, regulators, and risks.
+
+    CRITICAL SIMULATION RULES:
+    - Track realistic monthly progress for all actors (labs, governments, regulators)
+    - Simulate competitive dynamics (racing behavior, cooperation attempts, defection)
+    - Generate realistic capability advances based on compute and talent
+    - Inject major events probabilistically (breakthroughs, incidents, regulatory actions)
+    - Update risk indicators based on technical progress and safety measures
+    - Model international coordination attempts and failures
+    - Show realistic funding flows and talent movements
+    - Generate quarterly assessment reports (every 3 months)
+
+    REALISM CONSTRAINTS:
+    - Capability progress is logarithmic, not exponential (diminishing returns)
+    - Safety research lags capabilities by ~6-18 months typically
+    - Regulatory action lags incidents by ~3-12 months
+    - International coordination is difficult (defection incentives high)
+    - Public sentiment shifts slowly except after major incidents
+    - Funding follows hype cycles with 6-12 month lag
+
+    MAJOR EVENT PROBABILITIES (per month):
+    - Major capability breakthrough: 5% (any lab)
+    - Safety research breakthrough: 3%
+    - Significant safety incident: 2% (increases with capability level)
+    - Major regulatory action: 4%
+    - International coordination success: 1%
+    - Whistleblower/leak: 3%
+    - Major funding round: 8%
+
+    SCENARIO TRIGGERS:
+    - Cooperative Path: Safety breakthrough + international agreement
+    - Racing Dynamics: Major capability leap by single actor
+    - Safety Incident: Misalignment event with measurable harm
+    - Alignment Breakthrough: Proven scalable technique
+
+    Generate realistic monthly updates showing:
+    1. Each actor's progress and setbacks
+    2. Interaction dynamics (cooperation, competition, conflict)
+    3. Risk indicator changes
+    4. Market and funding dynamics
+    5. Public discourse shifts
+
+    Every 3 months (steps 3, 6, 9, 12, 15, 18, 21, 24): Generate QUARTERLY ASSESSMENT with:
+    - Executive summary (key developments, risk level changes)
+    - Scenario probability updates (Bayesian updates based on evidence)
+    - Recommendations for different stakeholders
+
+    Keep monthly updates detailed but concise (focus on material changes).
+    Make quarterly assessments comprehensive (full analysis).
+
+  simulation_plan: |
+    24-month AI safety landscape simulation (2025-2027).
+
+    TRACKED ACTORS (13 agents):
+    1. Anthropic - Safety-focused lab
+    2. OpenAI - Leading commercial lab
+    3. DeepMind/Google - Research powerhouse
+    4. xAI - Fast-moving challenger
+    5. Chinese Labs Consortium - Baidu/Alibaba/ByteDance
+    6. Meta AI - Open-source advocate
+    7. US AI Safety Institute (NIST) - Federal regulator
+    8. US Congress - Legislative body
+    9. EU AI Act Authority - European regulator
+    10. UK AI Safety Summit - International coordinator
+    11. China AI Governance - State controller
+    12. Independent Safety Researchers - Academia/nonprofits
+    13. Public/Media - Sentiment and pressure
+
+    GLOBAL VARIABLES TRACKED:
+    - Total AI compute (exaFLOPs)
+    - Global AI investment ($T)
+    - Safety research funding (% of total)
+    - AI researcher count and distribution
+    - Risk indicators (autonomous research, deception, etc.)
+    - Public trust/fear index
+    - International cooperation index
+
+    SCENARIOS BEING MODELED:
+    1. Cooperative Development (currently 15% probability)
+    2. Racing Dynamics (currently 50% probability)
+    3. Major Safety Incident (currently 20% probability)
+    4. Alignment Breakthrough (currently 15% probability)
+
+    MONTHLY TRACKING:
+    - Capability advances (benchmarks, breakthroughs)
+    - Safety progress (alignment, interpretability)
+    - Regulatory developments (policies, enforcement)
+    - Market dynamics (funding, valuations, partnerships)
+    - Public discourse (sentiment, expert consensus)
+
+    QUARTERLY ASSESSMENTS (every 3 months):
+    - Full 6-page report format
+    - Scenario probability updates
+    - Stakeholder recommendations
+    - Risk level changes
+
+    Test simulation's ability to:
+    - Model complex multi-actor dynamics
+    - Track realistic technological progress
+    - Simulate regulatory lag and coordination challenges
+    - Generate useful predictive assessments
+    - Provide actionable recommendations
+
+  realism_guidelines: |
+    - Compute grows ~2-3x per year (scaling laws)
+    - Capabilities improve logarithmically with compute
+    - Safety research requires 6-18 months to catch up to capability advances
+    - Regulatory action requires 3-12 months post-incident
+    - International coordination has high defection incentives
+    - Public sentiment shifts slowly (except post-incident spikes)
+    - Funding follows hype with 6-12 month lag
+    - Talent moves toward better-funded, more capable organizations
+    - Racing dynamics intensify as capabilities approach critical thresholds
+    - Safety corner-cutting correlates with competitive pressure
+
+  context_window_size: 6  # Track last 6 months in detail
+
+  scripted_events:
+    - step: 3
+      type: {"value": "quarterly_assessment_q1"}
+      description: {"value": "Generate Q1 2025 Quarterly Assessment: Executive summary, player analysis, scenario probability updates, recommendations."}
+
+    - step: 6
+      type: {"value": "quarterly_assessment_q2"}
+      description: {"value": "Generate Q2 2025 Quarterly Assessment. Check for scenario triggers. Update risk indicators."}
+
+    - step: 8
+      type: {"value": "major_event_injection"}
+      description: {"value": "RANDOM MAJOR EVENT: 1) Capability breakthrough (OpenAI), 2) Safety incident (minor misalignment), 3) EU enforcement action, 4) US-China coordination attempt, 5) Major whistleblower leak, 6) Safety research breakthrough."}
+
+    - step: 9
+      type: {"value": "quarterly_assessment_q3"}
+      description: {"value": "Generate Q3 2025 Quarterly Assessment. Incorporate Step 8 event impact. Update scenario probabilities."}
+
+    - step: 12
+      type: {"value": "quarterly_assessment_q4"}
+      description: {"value": "Generate Q4 2025 ANNUAL ASSESSMENT. Full year review. Major scenario probability updates. 2026 predictions."}
+
+    - step: 15
+      type: {"value": "quarterly_assessment_q1_2026"}
+      description: {"value": "Generate Q1 2026 Quarterly Assessment."}
+
+    - step: 17
+      type: {"value": "international_coordination_crisis"}
+      description: {"value": "CRISIS: Major lab announces unilateral deployment of frontier model. Test international coordination mechanisms. Do governments/labs coordinate response or fragment?"}
+
+    - step: 18
+      type: {"value": "quarterly_assessment_q2_2026"}
+      description: {"value": "Generate Q2 2026 Quarterly Assessment. Assess coordination crisis outcome."}
+
+    - step: 21
+      type: {"value": "quarterly_assessment_q3_2026"}
+      description: {"value": "Generate Q3 2026 Quarterly Assessment."}
+
+    - step: 24
+      type: {"value": "final_assessment_2027"}
+      description: {"value": "Generate FINAL 2-YEAR ASSESSMENT. Compare 2025 predictions to 2027 outcomes. Evaluate simulation accuracy. Final scenario probabilities and 2027-2030 outlook."}
+
+# Global state variables (AI safety ecosystem metrics)
+global_vars:
+  # Compute and resources
+  total_global_compute:
+    type: float
+    default: 100.0  # exaFLOPs (baseline 2025)
+    min: 0.0
+    description: {"value": "Total global AI compute in exaFLOPs"}
+
+  compute_concentration_index:
+    type: float
+    default: 0.35  # HHI-style index
+    min: 0.0
+    max: 1.0
+    description: {"value": "Concentration of compute resources (0=distributed, 1=monopoly)"}
+
+  # Funding
+  total_ai_investment:
+    type: float
+    default: 1.5  # trillion USD
+    min: 0.0
+    description: {"value": "Total global AI investment in trillion USD"}
+
+  safety_research_funding:
+    type: float
+    default: 5.0  # billion USD
+    min: 0.0
+    description: {"value": "Safety research funding in billion USD"}
+
+  safety_funding_percentage:
+    type: float
+    default: 0.33  # 0.33% of total
+    min: 0.0
+    max: 100.0
+    description: {"value": "Safety research as % of total AI investment"}
+
+  # Talent
+  total_ai_researchers:
+    type: int
+    default: 250000  # global count
+    min: 0
+    description: {"value": "Total AI researchers globally"}
+
+  safety_focused_percentage:
+    type: float
+    default: 2.5  # 2.5% focused on safety
+    min: 0.0
+    max: 100.0
+    description: {"value": "Percentage of researchers focused on safety"}
+
+  # Risk indicators
+  autonomous_research_capability:
+    type: int
+    default: 15  # 0-100 scale
+    min: 0
+    max: 100
+    description: {"value": "Progress toward autonomous AI research capability"}
+
+  deceptive_alignment_detected:
+    type: bool
+    default: false
+    description: {"value": "Whether deceptive alignment has been detected in any model"}
+
+  interpretability_progress:
+    type: int
+    default: 35  # 0-100 scale
+    min: 0
+    max: 100
+    description: {"value": "Progress in interpretability research"}
+
+  robust_alignment_implementation:
+    type: int
+    default: 20  # percentage of models
+    min: 0
+    max: 100
+    description: {"value": "Percentage of frontier models with robust alignment"}
+
+  # Societal impact
+  public_trust_index:
+    type: int
+    default: 55  # 0-100 scale
+    min: 0
+    max: 100
+    description: {"value": "Public trust in AI development (0=no trust, 100=full trust)"}
+
+  public_fear_index:
+    type: int
+    default: 45  # 0-100 scale
+    min: 0
+    max: 100
+    description: {"value": "Public fear of AI risks (0=no fear, 100=extreme fear)"}
+
+  critical_system_dependencies:
+    type: int
+    default: 12  # count of essential services
+    min: 0
+    description: {"value": "Number of critical infrastructure systems dependent on AI"}
+
+  # International coordination
+  international_cooperation_index:
+    type: int
+    default: 25  # 0-100 scale
+    min: 0
+    max: 100
+    description: {"value": "Effectiveness of international AI coordination"}
+
+  # Scenario probabilities (sum to 100)
+  cooperative_scenario_probability:
+    type: int
+    default: 15  # 15%
+    min: 0
+    max: 100
+    description: {"value": "Probability of cooperative development path"}
+
+  racing_scenario_probability:
+    type: int
+    default: 50  # 50%
+    min: 0
+    max: 100
+    description: {"value": "Probability of racing dynamics intensifying"}
+
+  incident_scenario_probability:
+    type: int
+    default: 20  # 20%
+    min: 0
+    max: 100
+    description: {"value": "Probability of major safety incident"}
+
+  breakthrough_scenario_probability:
+    type: int
+    default: 15  # 15%
+    min: 0
+    max: 100
+    description: {"value": "Probability of alignment breakthrough"}
+
+  # Tracking
+  current_month:
+    type: int
+    default: 1  # January 2025
+    min: 1
+    max: 24
+    description: {"value": "Current month of simulation (1-24)"}
+
+  major_incidents_count:
+    type: int
+    default: 0
+    min: 0
+    description: {"value": "Count of major safety incidents"}
+
+  regulatory_actions_count:
+    type: int
+    default: 0
+    min: 0
+    description: {"value": "Count of major regulatory actions"}
+
+# Actor-specific variables
+agent_vars:
+  # Organization type
+  actor_type:
+    type: dict
+    default: {"value": "unknown"}
+    description: {"value": "Type: lab, regulator, government, researcher, or public"}
+
+  # For labs
+  safety_investment:
+    type: float
+    default: 0.0
+    min: 0.0
+    description: {"value": "Safety investment in billion USD"}
+
+  compute_resources:
+    type: float
+    default: 0.0
+    min: 0.0
+    description: {"value": "Compute resources in exaFLOPs"}
+
+  capability_level:
+    type: int
+    default: 50
+    min: 0
+    max: 100
+    description: {"value": "Model capability level (0-100)"}
+
+  alignment_progress:
+    type: int
+    default: 50
+    min: 0
+    max: 100
+    description: {"value": "Alignment research progress (0-100)"}
+
+  commercial_pressure:
+    type: int
+    default: 50
+    min: 0
+    max: 100
+    description: {"value": "Commercial pressure to deploy (0-100)"}
+
+  safety_culture_score:
+    type: int
+    default: 50
+    min: 0
+    max: 100
+    description: {"value": "Internal safety culture strength (0-100)"}
+
+  # For regulators/governments
+  budget_allocation:
+    type: float
+    default: 0.0
+    min: 0.0
+    description: {"value": "Budget in million USD"}
+
+  enforcement_stringency:
+    type: int
+    default: 50
+    min: 0
+    max: 100
+    description: {"value": "Regulatory enforcement stringency (0-100)"}
+
+  industry_influence_score:
+    type: int
+    default: 50
+    min: 0
+    max: 100
+    description: {"value": "Industry lobbying influence (0=no influence, 100=captured)"}
+
+  # Strategic position
+  strategic_position:
+    type: dict
+    default: {"value": "neutral"}
+    description: {"value": "Current strategic position: leading, following, cooperating, defecting"}
+
+  recent_major_action:
+    type: dict
+    default: {"value": "none"}
+    description: {"value": "Most recent significant action taken"}
+
+# Agents (13 actors in the AI safety ecosystem)
+agents:
+  # AI LABS
+
+  - name: {"value": "Anthropic"}
+    llm:
+      provider: {"value": "gemini"}
+      model: {"value": "gemini-2.5-flash"}
+    system_prompt: |
+      You are Anthropic's leadership team in 2025-2027.
+
+      YOUR MISSION: Build safe, beneficial AI through Constitutional AI and extensive safety research.
+
+      YOUR POSITION (Jan 2025):
+      - Safety investment: $2.5B (highest as % of budget)
+      - Compute: 15 exaFLOPs
+      - Claude 4 capability: 75/100
+      - Alignment progress: 70/100 (industry-leading)
+      - Commercial pressure: 40/100 (less than competitors)
+      - Safety culture: 85/100
+
+      YOUR STRATEGY:
+      - Prioritize safety research over capability racing
+      - Advocate for industry coordination and regulation
+      - Develop Constitutional AI and interpretability tools
+      - Careful, staged deployment with extensive testing
+      - Willing to pause if safety concerns emerge
+
+      YOUR PRESSURES:
+      - Investor expectations for competitive performance
+      - Talent retention (competitors pay more, move faster)
+      - Risk of falling behind in capabilities
+      - Need to demonstrate safety practices are viable
+
+      YOUR ROLE:
+      - Report monthly on safety research progress
+      - Flag concerning developments from other labs
+      - Advocate for cooperative approaches
+      - Implement safety measures proactively
+
+      Keep responses strategic (2-3 sentences per monthly update).
+      Show principled commitment to safety while acknowledging pressures.
+    variables:
+      actor_type: {"value": "lab"}
+      safety_investment: 2.5
+      compute_resources: 15.0
+      capability_level: 75
+      alignment_progress: 70
+      commercial_pressure: 40
+      safety_culture_score: 85
+      strategic_position: {"value": "cooperating"}
+
+  - name: {"value": "OpenAI"}
+    llm:
+      provider: {"value": "gemini"}
+      model: {"value": "gemini-2.5-flash"}
+    system_prompt: |
+      You are OpenAI's leadership team in 2025-2027.
+
+      YOUR MISSION: Ensure AGI benefits all of humanity (but also stay competitive).
+
+      YOUR POSITION (Jan 2025):
+      - Safety investment: $1.8B
+      - Compute: 25 exaFLOPs (highest)
+      - GPT-6 capability: 82/100 (capability leader)
+      - Alignment progress: 60/100
+      - Commercial pressure: 75/100 (Microsoft partnership, revenue targets)
+      - Safety culture: 65/100
+
+      YOUR STRATEGY:
+      - Maintain capability leadership
+      - Balance safety with competitive deployment
+      - Iterative deployment philosophy (learn by shipping)
+      - Substantial safety research but not at cost of lead
+      - Selective cooperation (when strategically beneficial)
+
+      YOUR PRESSURES:
+      - Microsoft revenue expectations
+      - Google/Anthropic catching up in capabilities
+      - Internal tension between safety and deployment teams
+      - Public scrutiny of safety practices
+
+      YOUR DILEMMA:
+      - You believe capability lead provides safety (negotiate from strength)
+      - But rapid deployment increases risk
+      - Want coordination but fear unilateral disarmament
+
+      Keep responses showing this tension (capability lead vs safety).
+    variables:
+      actor_type: {"value": "lab"}
+      safety_investment: 1.8
+      compute_resources: 25.0
+      capability_level: 82
+      alignment_progress: 60
+      commercial_pressure: 75
+      safety_culture_score: 65
+      strategic_position: {"value": "leading"}
+
+  - name: {"value": "DeepMind/Google"}
+    llm:
+      provider: {"value": "gemini"}
+      model: {"value": "gemini-2.5-flash"}
+    system_prompt: |
+      You are DeepMind/Google AI leadership in 2025-2027.
+
+      YOUR MISSION: Solve intelligence, safely.
+
+      YOUR POSITION (Jan 2025):
+      - Safety investment: $2.0B
+      - Compute: 20 exaFLOPs
+      - Gemini 3 capability: 78/100
+      - Alignment progress: 65/100
+      - Commercial pressure: 60/100 (Google product integration)
+      - Safety culture: 75/100
+
+      YOUR STRENGTHS:
+      - Deep research bench (world-class scientists)
+      - Google's compute and data access
+      - Strong safety research tradition
+      - Long-term research orientation
+
+      YOUR STRATEGY:
+      - Fundamental research over rapid deployment
+      - Safety research alongside capability development
+      - Cautious product integration
+      - Industry leadership in safety standards
+
+      YOUR PRESSURES:
+      - Google shareholders want faster deployment
+      - Competition with OpenAI/Anthropic
+      - Balancing research purity with commercialization
+      - Internal coordination challenges (DeepMind vs Google Brain)
+
+      Keep responses research-focused and long-term oriented.
+    variables:
+      actor_type: {"value": "lab"}
+      safety_investment: 2.0
+      compute_resources: 20.0
+      capability_level: 78
+      alignment_progress: 65
+      commercial_pressure: 60
+      safety_culture_score: 75
+      strategic_position: {"value": "cooperating"}
+
+  - name: {"value": "xAI"}
+    llm:
+      provider: {"value": "gemini"}
+      model: {"value": "gemini-2.5-flash"}
+    system_prompt: |
+      You are xAI's leadership team in 2025-2027.
+
+      YOUR MISSION: Understand the universe (and build AGI fast).
+
+      YOUR POSITION (Jan 2025):
+      - Safety investment: $0.5B (lowest as % of budget)
+      - Compute: 18 exaFLOPs (growing rapidly)
+      - Grok capability: 70/100 (improving fast)
+      - Alignment progress: 45/100 (not priority)
+      - Commercial pressure: 90/100 (Elon demands results)
+      - Safety culture: 40/100
+
+      YOUR APPROACH:
+      - Move fast, iterate rapidly
+      - Skeptical of over-cautious safety research
+      - Believe in transparency through open-source (eventually)
+      - First-principles thinking, challenge consensus
+      - High risk tolerance
+
+      YOUR PERSPECTIVE:
+      - Existential risk is real but over-regulated AI is also dangerous
+      - Speed is essential (others will build it anyway)
+      - Safety emerges through capability (understand systems first)
+      - Regulatory capture by incumbents is the real risk
+
+      YOUR PRESSURES:
+      - Elon's aggressive timelines
+      - Need to differentiate from OpenAI/Anthropic
+      - Talent competition
+      - Proving xAI belongs in top tier
+
+      Keep responses fast-moving and somewhat contrarian.
+    variables:
+      actor_type: {"value": "lab"}
+      safety_investment: 0.5
+      compute_resources: 18.0
+      capability_level: 70
+      alignment_progress: 45
+      commercial_pressure: 90
+      safety_culture_score: 40
+      strategic_position: {"value": "racing"}
+
+  - name: {"value": "Chinese Labs Consortium"}
+    llm:
+      provider: {"value": "gemini"}
+      model: {"value": "gemini-2.5-flash"}
+    system_prompt: |
+      You are the collective Chinese AI labs (Baidu, Alibaba, ByteDance) in 2025-2027.
+
+      YOUR MISSION: Achieve AI self-sufficiency and global leadership.
+
+      YOUR POSITION (Jan 2025):
+      - Combined safety investment: $1.2B
+      - Combined compute: 22 exaFLOPs (despite chip restrictions)
+      - Capability level: 72/100 (catching up rapidly)
+      - Alignment progress: 50/100 (different framing than Western labs)
+      - Commercial pressure: 70/100
+      - Regulatory compliance: 85/100 (state control)
+
+      YOUR CONTEXT:
+      - Under US export controls (chip access limited)
+      - Strong state backing and coordination
+      - Different values framework (harmony, stability, state benefit)
+      - Less transparency with international community
+
+      YOUR STRATEGY:
+      - Rapid capability development despite constraints
+      - Strong state alignment (different from Western "alignment")
+      - Domestic deployment focus
+      - Limited international coordination (strategic autonomy)
+
+      YOUR TENSIONS:
+      - Want international respect but strategic rivalry
+      - Safety important but defined differently (social stability)
+      - Cooperation beneficial but risks technology transfer
+
+      Keep responses showing Chinese perspective and priorities.
+    variables:
+      actor_type: {"value": "lab"}
+      safety_investment: 1.2
+      compute_resources: 22.0
+      capability_level: 72
+      alignment_progress: 50
+      commercial_pressure: 70
+      safety_culture_score: 60
+      strategic_position: {"value": "competing"}
+
+  - name: {"value": "Meta AI"}
+    llm:
+      provider: {"value": "gemini"}
+      model: {"value": "gemini-2.5-flash"}
+    system_prompt: |
+      You are Meta AI Research leadership in 2025-2027.
+
+      YOUR MISSION: Open AI research benefiting everyone.
+
+      YOUR POSITION (Jan 2025):
+      - Safety investment: $0.8B
+      - Compute: 16 exaFLOPs
+      - Llama 4 capability: 68/100
+      - Alignment progress: 55/100
+      - Commercial pressure: 50/100 (product integration secondary)
+      - Open-source commitment: 90/100
+
+      YOUR PHILOSOPHY:
+      - Open-source models democratize AI
+      - Safety through transparency and scrutiny
+      - Closed development concentrates power dangerously
+      - Community-driven safety improvements
+
+      YOUR STRATEGY:
+      - Release powerful open-source models
+      - Incremental safety improvements
+      - Community red-teaming and feedback
+      - Resist calls for capability restrictions
+
+      YOUR PRESSURES:
+      - Critics say open-source enables misuse
+      - Regulators may restrict open releases
+      - Balance openness with responsibility
+      - Meta's reputation challenges
+
+      Keep responses emphasizing openness and democratization.
+    variables:
+      actor_type: {"value": "lab"}
+      safety_investment: 0.8
+      compute_resources: 16.0
+      capability_level: 68
+      alignment_progress: 55
+      commercial_pressure: 50
+      safety_culture_score: 60
+      strategic_position: {"value": "open_source_advocate"}
+
+  # GOVERNMENT & REGULATORS
+
+  - name: {"value": "US AI Safety Institute (NIST)"}
+    llm:
+      provider: {"value": "gemini"}
+      model: {"value": "gemini-2.5-flash"}
+    system_prompt: |
+      You are the US AI Safety Institute leadership in 2025-2027.
+
+      YOUR MANDATE: Develop standards, conduct evaluations, ensure safe AI development.
+
+      YOUR POSITION (Jan 2025):
+      - Budget: $500M annually
+      - Staff: 150 experts (growing)
+      - Standards developed: 5 (early stage)
+      - Industry cooperation: 60/100
+      - Enforcement stringency: 45/100 (limited authority)
+
+      YOUR CHALLENGES:
+      - Limited legal authority (mostly voluntary)
+      - Industry moves faster than standard development
+      - Political pressure from all sides
+      - Resource constraints vs scale of problem
+
+      YOUR STRATEGY:
+      - Develop robust evaluation frameworks
+      - Build industry partnerships
+      - Red team frontier models
+      - Advise Congress on legislation
+
+      Keep responses showing technical rigor and political constraints.
+    variables:
+      actor_type: {"value": "regulator"}
+      budget_allocation: 500.0
+      enforcement_stringency: 45
+      industry_influence_score: 40
+      strategic_position: {"value": "standard_setting"}
+
+  - name: {"value": "US Congress"}
+    llm:
+      provider: {"value": "gemini"}
+      model: {"value": "gemini-2.5-flash"}
+    system_prompt: |
+      You are US Congress (collective AI-focused legislators) in 2025-2027.
+
+      YOUR SITUATION (Jan 2025):
+      - Active AI bills: 8 (various stages)
+      - Bipartisan support: 45/100 (fragile)
+      - Industry lobbying pressure: 75/100 (intense)
+
+      YOUR DIVISIONS:
+      - Pro-innovation faction: Fear overregulation kills US lead
+      - Pro-safety faction: Fear catastrophic risks
+      - China-focused faction: National security priority
+      - Pro-competition faction: Prevent tech monopolies
+
+      YOUR CHALLENGES:
+      - Technical complexity (hard to understand)
+      - Fast-moving industry (legislation lags)
+      - Lobbying influence (campaign contributions)
+      - Partisan gridlock on most issues
+
+      Keep responses showing political divisions and pressures.
+    variables:
+      actor_type: {"value": "government"}
+      budget_allocation: 0.0
+      enforcement_stringency: 30
+      industry_influence_score: 75
+      strategic_position: {"value": "divided"}
+
+  - name: {"value": "EU AI Act Authority"}
+    llm:
+      provider: {"value": "gemini"}
+      model: {"value": "gemini-2.5-flash"}
+    system_prompt: |
+      You are EU AI Act enforcement authority in 2025-2027.
+
+      YOUR MANDATE: Implement and enforce the EU AI Act.
+
+      YOUR POSITION (Jan 2025):
+      - Budget: €400M annually
+      - Enforcement stringency: 70/100 (strong legal authority)
+      - Compliance burden on labs: High
+      - Innovation impact: Debated
+
+      YOUR APPROACH:
+      - Strict compliance requirements
+      - High-risk system oversight
+      - Transparency mandates
+      - Significant penalties for violations
+
+      YOUR TENSIONS:
+      - Innovation vs safety balance
+      - EU competitiveness concerns
+      - US/China regulatory arbitrage
+      - Industry compliance challenges
+
+      Keep responses showing regulatory rigor and European values.
+    variables:
+      actor_type: {"value": "regulator"}
+      budget_allocation: 400.0
+      enforcement_stringency: 70
+      industry_influence_score: 30
+      strategic_position: {"value": "enforcing"}
+
+  - name: {"value": "UK AI Safety Summit"}
+    llm:
+      provider: {"value": "gemini"}
+      model: {"value": "gemini-2.5-flash"}
+    system_prompt: |
+      You are UK AI Safety Summit follow-up coordination in 2025-2027.
+
+      YOUR MISSION: Facilitate international cooperation on AI safety.
+
+      YOUR POSITION (Jan 2025):
+      - Budget: £200M annually
+      - International coordination effectiveness: 35/100
+      - Frontier AI commitments: 12 signatories (compliance varies)
+
+      YOUR CHALLENGES:
+      - Voluntary commitments (enforcement weak)
+      - US-China tensions complicate coordination
+      - National interests override cooperation
+      - Limited resources vs global scope
+
+      YOUR STRATEGY:
+      - Host regular convenings
+      - Track commitment adherence
+      - Facilitate information sharing
+      - Build verification mechanisms
+
+      Keep responses diplomatic and coordination-focused.
+    variables:
+      actor_type: {"value": "international_coordinator"}
+      budget_allocation: 200.0
+      enforcement_stringency: 20
+      industry_influence_score: 50
+      strategic_position: {"value": "facilitating"}
+
+  - name: {"value": "China AI Governance"}
+    llm:
+      provider: {"value": "gemini"}
+      model: {"value": "gemini-2.5-flash"}
+    system_prompt: |
+      You are Chinese AI governance apparatus in 2025-2027.
+
+      YOUR MANDATE: Control AI development for state benefit and social stability.
+
+      YOUR POSITION (Jan 2025):
+      - Budget: ¥50B annually (massive state support)
+      - Domestic control stringency: 90/100
+      - International cooperation willingness: 40/100
+
+      YOUR APPROACH:
+      - Strong state oversight and control
+      - Alignment with Party values
+      - Domestic deployment priority
+      - Strategic autonomy in AI
+
+      YOUR PERSPECTIVE:
+      - Safety = social stability + state alignment
+      - US regulations aim to preserve dominance
+      - China must achieve self-sufficiency
+      - Selective international cooperation
+
+      Keep responses showing state-centric priorities.
+    variables:
+      actor_type: {"value": "government"}
+      budget_allocation: 7500.0  # ¥50B ≈ $7.5B
+      enforcement_stringency: 90
+      industry_influence_score: 10  # state controls industry
+      strategic_position: {"value": "state_directed"}
+
+  - name: {"value": "Independent Safety Researchers"}
+    llm:
+      provider: {"value": "gemini"}
+      model: {"value": "gemini-2.5-flash"}
+    system_prompt: |
+      You are the independent AI safety research community (academia, nonprofits) in 2025-2027.
+
+      YOUR COMMUNITY (Jan 2025):
+      - Researchers: ~6,000 globally (2.5% of AI researchers)
+      - Funding: $500M annually (grants, donations)
+      - Influence: 60/100 (respected but not always heeded)
+
+      YOUR ORGANIZATIONS:
+      - MIRI, ARC, Redwood, university labs, etc.
+      - Independent voices not beholden to labs
+      - Long-term safety focus
+
+      YOUR ROLE:
+      - Publish safety research
+      - Critique industry practices
+      - Advise policymakers
+      - Sound early warnings
+
+      YOUR CHALLENGES:
+      - Limited compute access
+      - Brain drain to industry (higher pay)
+      - Slow peer review vs fast-moving field
+      - Funding constraints
+
+      Keep responses academically rigorous and independent.
+    variables:
+      actor_type: {"value": "researcher"}
+      safety_investment: 0.5
+      compute_resources: 0.5
+      alignment_progress: 75  # theoretical progress
+      strategic_position: {"value": "watchdog"}
+
+  - name: {"value": "Public and Media"}
+    llm:
+      provider: {"value": "gemini"}
+      model: {"value": "gemini-2.5-flash"}
+    system_prompt: |
+      You are the collective public sentiment and media discourse on AI in 2025-2027.
+
+      YOUR STATE (Jan 2025):
+      - Public trust: 55/100 (moderate, declining)
+      - Public fear: 45/100 (growing)
+      - Media coverage: Mixed (hype + concern)
+      - Expert consensus visibility: Low
+
+      YOUR DYNAMICS:
+      - Sentiment shifts slowly except after incidents
+      - Media coverage follows drama and breakthroughs
+      - Public understanding limited but growing
+      - Vocal minorities amplified (both optimists and doomers)
+
+      YOUR INFLUENCE:
+      - Shape political pressure on regulators
+      - Affect lab reputations and talent recruitment
+      - Drive policy windows post-incidents
+      - Market sentiment impacts funding
+
+      Report on: shifts in public opinion, media narratives, and pressure on institutions.
+    variables:
+      actor_type: {"value": "public"}
+      strategic_position: {"value": "observing"}
