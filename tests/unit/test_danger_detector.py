@@ -2,7 +2,7 @@
 
 import pytest
 from dataclasses import asdict
-from core.danger_detector import Signal, DangerScores
+from core.danger_detector import Signal, DangerScores, SignalCollector
 
 
 def test_signal_creation():
@@ -89,3 +89,17 @@ def test_danger_scores_to_dict():
     assert data["power_seeking"] == 5
     assert "timestamp" in data
     assert "average_score" in data
+
+
+def test_signal_collector_initialization():
+    """Test SignalCollector initializes with empty signals list."""
+    collector = SignalCollector()
+    assert collector.signals == []
+    assert isinstance(collector.signals, list)
+
+
+def test_signal_collector_get_signals_for_agent_empty():
+    """Test getting signals for agent when none collected."""
+    collector = SignalCollector()
+    signals = collector.get_signals_for_agent("Agent A")
+    assert signals == []

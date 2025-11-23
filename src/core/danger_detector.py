@@ -43,3 +43,23 @@ class DangerScores:
             **asdict(self),
             "average_score": self.average_score
         }
+
+
+class SignalCollector:
+    """Collects behavioral signals during simulation steps."""
+
+    def __init__(self):
+        """Initialize with empty signals list."""
+        self.signals: List[Signal] = []
+
+    def get_signals_for_agent(self, agent_name: str) -> List[Signal]:
+        """
+        Return all signals collected for a specific agent.
+
+        Args:
+            agent_name: Name of the agent
+
+        Returns:
+            List of Signal objects for this agent
+        """
+        return [s for s in self.signals if s.agent_name == agent_name]
