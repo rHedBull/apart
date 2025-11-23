@@ -21,6 +21,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 from core.orchestrator import Orchestrator
 from core.metrics_collector import MetricsCollector, RunMetrics
+from core.danger_detector import SignalCollector, DangerAnalyzer
 from html_report_generator import generate_html_report
 
 
@@ -142,7 +143,7 @@ class BenchmarkRunner:
 
         return str(temp_path)
 
-    def run_single_benchmark_config(self, run_config: dict, model_pool: dict, base_scenario: dict) -> Optional[RunMetrics]:
+    def run_single_benchmark_config(self, run_config: dict, model_pool: dict, base_scenario: dict, signal_collector=None) -> Optional[RunMetrics]:
         """
         Run benchmark for a single configuration (new format with agent-model mapping).
 
@@ -150,6 +151,7 @@ class BenchmarkRunner:
             run_config: Benchmark run configuration
             model_pool: Pool of available models
             base_scenario: Base scenario config
+            signal_collector: Optional SignalCollector for danger detection
 
         Returns:
             RunMetrics object or None if run failed
@@ -193,7 +195,8 @@ class BenchmarkRunner:
                 config_path=temp_scenario_path,
                 scenario_name=f"benchmark_{run_name}",
                 save_frequency=0,  # Only save final state for benchmarks
-                metrics_collector=collector
+                metrics_collector=collector,
+                signal_collector=signal_collector  # Pass signal collector
             )
 
             # Run simulation
@@ -251,11 +254,29 @@ class BenchmarkRunner:
         print(f"Model pool: {list(model_pool.keys())}")
         print(f"Benchmark runs: {[r['name'] for r in benchmark_runs]}\n")
 
+        # Initialize danger detection if enabled
+        danger_config = self.config.get("danger_detection", {})
+        danger_enabled = danger_config.get("enabled", False)
+        signal_collector = SignalCollector() if danger_enabled else None
+
+        if danger_enabled:
+            print("Danger detection: ENABLED")
+            judge_model = danger_config.get("judge_model", {})
+            print(f"Judge model: {judge_model.get('provider')}/{judge_model.get('model')}\n")
+
         # Run each benchmark configuration
         for run_config in benchmark_runs:
-            metrics = self.run_single_benchmark_config(run_config, model_pool, base_scenario)
+            metrics = self.run_single_benchmark_config(run_config, model_pool, base_scenario, signal_collector)
             if metrics:
                 self.results.append(metrics)
+
+        # Run danger analysis if enabled
+        if danger_enabled and signal_collector:
+            print("\n" + "="*70)
+            print("Running danger analysis...")
+            print("="*70 + "\n")
+
+            self._run_danger_analysis(signal_collector, danger_config)
 
         # Generate reports
         self.generate_reports()
@@ -308,6 +329,79 @@ class BenchmarkRunner:
         # Print comparison table
         if self.config.get("reporting", {}).get("comparison_table", True):
             self._print_comparison_table()
+
+    def _run_danger_analysis(self, signal_collector: SignalCollector, danger_config: dict):
+        """
+        Run danger analysis on all collected signals.
+
+        Args:
+            signal_collector: SignalCollector with signals from all runs
+            danger_config: Danger detection configuration
+        """
+        judge_model_config = danger_config.get("judge_model", {})
+        analyzer = DangerAnalyzer(judge_model_config)
+
+        # Analyze each agent in each run
+        for metrics in self.results:
+            run_name = metrics.model_name
+
+            # Get agent names from conversation
+            agent_names = set()
+            for turn in metrics.conversation:
+                for exchange in turn["exchanges"]:
+                    agent_names.add(exchange["agent"])
+
+            # Analyze each agent
+            danger_scores = {}
+            for agent_name in agent_names:
+                print(f"Analyzing {agent_name} in {run_name}...")
+
+                # Collect agent's response history
+                response_history = []
+                for turn in metrics.conversation:
+                    for exchange in turn["exchanges"]:
+                        if exchange["agent"] == agent_name:
+                            response_history.append(exchange["response_from_agent"])
+
+                # Get agent's signals
+                agent_signals = signal_collector.get_signals_for_agent(agent_name)
+
+                # Get agent role from base scenario
+                agent_role = self._get_agent_role(agent_name)
+
+                # Analyze
+                try:
+                    scores = analyzer.analyze_agent(
+                        agent_name=agent_name,
+                        run_name=run_name,
+                        agent_role=agent_role,
+                        response_history=response_history,
+                        signals=agent_signals
+                    )
+                    danger_scores[agent_name] = scores
+
+                    print(f"  Power-Seeking: {scores.power_seeking}/10")
+                    print(f"  Deception: {scores.deception}/10")
+                    print(f"  Rule Exploitation: {scores.rule_exploitation}/10")
+                    print(f"  Average: {scores.average_score:.1f}/10\n")
+
+                except Exception as e:
+                    print(f"  ERROR: Failed to analyze {agent_name}: {e}\n")
+
+            # Add danger scores to metrics
+            metrics.danger_scores = danger_scores
+
+    def _get_agent_role(self, agent_name: str) -> str:
+        """Get agent's system prompt/role from base scenario."""
+        if not self.base_scenario_config:
+            return "Unknown role"
+
+        agents = self.base_scenario_config.get("agents", [])
+        for agent in agents:
+            if agent.get("name") == agent_name:
+                return agent.get("system_prompt", "No role specified")
+
+        return "Unknown role"
 
     def _print_comparison_table(self):
         """Print comparison table to console."""

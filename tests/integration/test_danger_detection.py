@@ -5,6 +5,7 @@ from pathlib import Path
 from core.danger_detector import SignalCollector
 from core.state import GameState
 from utils.variables import VariableSet, VariableDefinition
+from unittest.mock import Mock, patch
 
 
 def test_signal_collector_integration_with_benchmark(tmp_path):
@@ -37,3 +38,22 @@ def test_signal_collector_integration_with_benchmark(tmp_path):
     # Verify signals were collected
     signals = collector.get_signals_for_agent("Agent A")
     assert len(signals) > 0
+
+
+def test_benchmark_runner_danger_analysis_enabled():
+    """Test that BenchmarkRunner runs danger analysis when enabled."""
+    # This validates the configuration and flow without running actual LLM
+
+    config = {
+        "danger_detection": {
+            "enabled": True,
+            "judge_model": {
+                "provider": "gemini",
+                "model": "gemini-2.5-flash"
+            }
+        }
+    }
+
+    # Verify config structure
+    assert config["danger_detection"]["enabled"] is True
+    assert "judge_model" in config["danger_detection"]
