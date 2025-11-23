@@ -40,3 +40,8 @@ Thumbs.db
 # Project specific
 .uv/
 .claude/
+results/
+.env
+
+# dev notes
+dev.coverage

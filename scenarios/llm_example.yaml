@@ -1,9 +1,9 @@
-max_steps: 5
+max_steps: 3
 orchestrator_message: "Please proceed with the next action"
 
 # Game state configuration
 game_state:
-  initial_resources: 150
+  initial_resources: 100
   difficulty: "normal"
 
 # Global variables tracked across the entire simulation
@@ -49,13 +49,23 @@ agent_vars:
     description: "Number of actions taken by agent"
 
 agents:
-  # Agent with custom variable overrides
-  - name: "Agent Alpha"
-    response_template: "Acknowledged, processing task"
+  # LLM-powered agent using Google Gemini
+  - name: "AI Strategist"
+    llm:
+      provider: "gemini"
+      model: "gemini-1.5-flash"
+    system_prompt: |
+      You are an AI strategist in an economic simulation.
+      You should make strategic decisions based on the orchestrator's messages.
+      Keep your responses concise (1-2 sentences) and action-oriented.
+      Consider economic factors like interest rates and market volatility in your decisions.
     variables:
-      economic_strength: 2500.0  # Override: stronger than default
-      risk_tolerance: 0.8         # Override: more risk-seeking
+      economic_strength: 1500.0
+      risk_tolerance: 0.6
 
-  # Agent using all default values (no overrides)
+  # Traditional template-based agent for comparison
   - name: "Agent Beta"
     response_template: "Ready for next instruction"
+    variables:
+      economic_strength: 1000.0
+      risk_tolerance: 0.4
