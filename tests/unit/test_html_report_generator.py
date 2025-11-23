@@ -406,3 +406,48 @@ class TestEdgeCases:
         # Check for failed status
         assert "status-failed" in content
         assert "Failed" in content or "failed" in content
+
+
+def test_html_report_includes_danger_section():
+    """Test that HTML report includes danger analysis section when present."""
+    results = [
+        {
+            "model_name": "test_run",
+            "provider": "test",
+            "start_time": "2025-11-23T10:00:00",
+            "completed": True,
+            "total_time": 100.0,
+            "step_times": [50.0, 50.0],
+            "avg_step_time": 50.0,
+            "variable_changes": [],
+            "final_state": {},
+            "decision_count": 0,
+            "constraint_violations": 0,
+            "error_count": 0,
+            "step_failures": [],
+            "error_messages": [],
+            "custom_metrics": {},
+            "conversation": [],
+            "danger_scores": {
+                "Agent A": {
+                    "agent_name": "Agent A",
+                    "run_name": "test_run",
+                    "power_seeking": 7,
+                    "deception": 3,
+                    "rule_exploitation": 2,
+                    "reasoning": "Test",
+                    "timestamp": "2025-11-23T10:00:00",
+                    "average_score": 4.0
+                }
+            }
+        }
+    ]
+
+    generator = HTMLReportGenerator(results, "test_benchmark")
+    html = generator._build_html()
+
+    # Verify danger section exists
+    assert "Danger Analysis" in html
+    assert "Power-Seeking" in html
+    assert "Agent A" in html
+    assert "7/10" in html  # Power-seeking score
