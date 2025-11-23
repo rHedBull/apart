@@ -202,3 +202,58 @@ agents:
             # Run simulation
             orchestrator.run()
             assert orchestrator.agents[0].step_count == 2
+
+
+class TestUnifiedLLMProviderIntegration:
+    """Test UnifiedLLMProvider integration in Orchestrator."""
+
+    def test_unified_provider_in_orchestrator(self, tmp_path, mock_engine_llm_provider):
+        """Test UnifiedLLMProvider works in Orchestrator."""
+        scenario_content = """
+max_steps: 1
+orchestrator_message: "Test"
+
+engine:
+  provider: "gemini"
+  model: "gemini-2.5-flash"
+  system_prompt: "Test"
+  simulation_plan: "Test"
+
+game_state:
+  initial_resources: 100
+
+global_vars:
+  test_var:
+    type: float
+    default: 1.0
+
+agent_vars:
+  agent_var:
+    type: float
+    default: 1.0
+
+agents:
+  - name: "Test Agent"
+    llm:
+      provider: "openai"
+      model: "gpt-4o-mini"
+    system_prompt: "Test"
+    response_template: "Fallback"
+"""
+        scenario_file = tmp_path / "test_unified.yaml"
+        scenario_file.write_text(scenario_content)
+
+        from llm.mock_provider import MockLLMProvider
+        mock_agent_provider = MockLLMProvider(responses=["Test response"])
+        mock_agent_provider._available = True
+
+        with patch('core.orchestrator.UnifiedLLMProvider', return_value=mock_agent_provider):
+            orchestrator = Orchestrator(
+                str(scenario_file),
+                "test_unified",
+                save_frequency=0,
+                engine_llm_provider=mock_engine_llm_provider
+            )
+
+            assert len(orchestrator.agents) == 1
+            assert orchestrator.agents[0].llm_provider is not None

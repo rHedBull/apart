@@ -8,7 +8,7 @@ from core.simulator_agent import SimulatorAgent, SimulationError
 from utils.persistence import RunPersistence
 from utils.logging_config import MessageCode, PerformanceTimer
 from utils.config_parser import parse_scripted_events
-from llm.providers import GeminiProvider, OllamaProvider
+from llm.providers import GeminiProvider, OllamaProvider, UnifiedLLMProvider
 
 
 class Orchestrator:
@@ -75,9 +75,30 @@ class Orchestrator:
             if llm_config:
                 provider_type = llm_config.get("provider", "gemini").lower()
 
-                if provider_type == "gemini":
+                # Use UnifiedLLMProvider for new providers, keep old ones for backwards compatibility
+                if provider_type in ["openai", "grok", "anthropic"]:
+                    model_name = llm_config.get("model")
+                    llm_provider = UnifiedLLMProvider(
+                        provider=provider_type,
+                        model=model_name,
+                        base_url=llm_config.get("base_url")
+                    )
+                    provider_display = f"{provider_type.title()} ({model_name})"
+
+                    env_var_map = {
+                        "openai": "OPENAI_API_KEY",
+                        "grok": "XAI_API_KEY",
+                        "anthropic": "ANTHROPIC_API_KEY"
+                    }
+                    setup_instructions = (
+                        f"  1. Copy .env.example to .env\n"
+                        f"  2. Add your API key: {env_var_map[provider_type]}=your_key_here\n"
+                    )
+
+                elif provider_type == "gemini":
                     model_name = llm_config.get("model", "gemini-1.5-flash")
-                    llm_provider = GeminiProvider(model_name=model_name)
+                    # Can use UnifiedLLMProvider or keep GeminiProvider for backwards compatibility
+                    llm_provider = UnifiedLLMProvider(provider="gemini", model=model_name)
                     provider_display = f"Google Gemini ({model_name})"
                     setup_instructions = (
                         "  1. Copy .env.example to .env\n"
@@ -88,7 +109,8 @@ class Orchestrator:
                 elif provider_type == "ollama":
                     model_name = llm_config.get("model", "llama2")
                     base_url = llm_config.get("base_url")
-                    llm_provider = OllamaProvider(model=model_name, base_url=base_url)
+                    # Can use UnifiedLLMProvider or keep OllamaProvider for backwards compatibility
+                    llm_provider = UnifiedLLMProvider(provider="ollama", model=model_name, base_url=base_url)
                     provider_display = f"Ollama ({model_name})"
                     setup_instructions = (
                         "  1. Install Ollama: https://ollama.ai\n"
@@ -139,16 +161,14 @@ class Orchestrator:
     def _create_llm_provider_for_engine(self, llm_config: dict):
         """Create LLM provider for SimulatorAgent (engine)."""
         provider_type = llm_config.get("provider", "gemini").lower()
+        model_name = llm_config.get("model")
+        base_url = llm_config.get("base_url")
 
-        if provider_type == "gemini":
-            model_name = llm_config.get("model", "gemini-1.5-flash")
-            provider = GeminiProvider(model_name=model_name)
-        elif provider_type == "ollama":
-            model_name = llm_config.get("model", "llama2")
-            base_url = llm_config.get("base_url")
-            provider = OllamaProvider(model=model_name, base_url=base_url)
-        else:
-            raise ValueError(f"Unknown engine LLM provider: {provider_type}")
+        provider = UnifiedLLMProvider(
+            provider=provider_type,
+            model=model_name or "gemini-1.5-flash",
+            base_url=base_url
+        )
 
         # Engine LLM MUST be available
         if not provider.is_available():
@@ -157,7 +177,7 @@ class Orchestrator:
                 f"ERROR: Engine LLM Provider Not Available\n"
                 f"{'='*70}\n"
                 f"Provider: {provider_type}\n"
-                f"Model: {llm_config.get('model')}\n"
+                f"Model: {model_name}\n"
                 f"\nThe simulation engine requires an LLM to run.\n"
                 f"Please ensure the provider is configured and available.\n"
                 f"{'='*70}\n"
