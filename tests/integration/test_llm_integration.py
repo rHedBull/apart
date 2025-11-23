@@ -56,11 +56,11 @@ agents:
         scenario_file = tmp_path / "test_llm_scenario.yaml"
         scenario_file.write_text(scenario_content)
 
-        # Mock GeminiProvider to return a mock that's available
+        # Mock UnifiedLLMProvider to return a mock that's available
         mock_agent_provider = MockLLMProvider(responses=["Strategic response"])
         mock_agent_provider._available = True
 
-        with patch('core.orchestrator.GeminiProvider', return_value=mock_agent_provider):
+        with patch('core.orchestrator.UnifiedLLMProvider', return_value=mock_agent_provider):
             # Run orchestrator with mocked providers
             orchestrator = Orchestrator(str(scenario_file), "test_llm_scenario", save_frequency=0, engine_llm_provider=mock_engine_llm_provider)
 
@@ -154,11 +154,11 @@ class TestLLMExampleScenario:
         """Test the llm_example.yaml scenario works with mocked providers."""
         scenario_path = "scenarios/llm_example.yaml"
 
-        # Mock GeminiProvider for agents
+        # Mock UnifiedLLMProvider for agents
         mock_agent_provider = MockLLMProvider(responses=["Strategic response"])
         mock_agent_provider._available = True
 
-        with patch('core.orchestrator.GeminiProvider', return_value=mock_agent_provider):
+        with patch('core.orchestrator.UnifiedLLMProvider', return_value=mock_agent_provider):
             # Should succeed with mocked providers
             orchestrator = Orchestrator(scenario_path, "llm_example_test", save_frequency=0, engine_llm_provider=mock_engine_llm_provider)
             assert len(orchestrator.agents) > 0
@@ -190,11 +190,11 @@ agents:
         scenario_file = tmp_path / "with_mock.yaml"
         scenario_file.write_text(scenario_content)
 
-        # Mock GeminiProvider for agents
+        # Mock UnifiedLLMProvider for agents
         mock_agent_provider = MockLLMProvider(responses=["Strategic response"])
         mock_agent_provider._available = True
 
-        with patch('core.orchestrator.GeminiProvider', return_value=mock_agent_provider):
+        with patch('core.orchestrator.UnifiedLLMProvider', return_value=mock_agent_provider):
             # Should work with mocked provider
             orchestrator = Orchestrator(str(scenario_file), "with_mock", save_frequency=0, engine_llm_provider=mock_engine_llm_provider)
             assert len(orchestrator.agents) == 1
