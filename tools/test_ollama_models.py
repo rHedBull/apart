@@ -60,7 +60,7 @@ SYSTEM_PROMPT = """You are a simulation engine that generates valid JSON respons
 You must follow JSON syntax exactly. Never use code, expressions, or comments."""
 
 
-def test_model(model_name: str) -> dict:
+def check_model(model_name: str) -> dict:
     """Test a single Ollama model."""
     print(f"\n{'='*60}")
     print(f"Testing: {model_name}")
@@ -188,7 +188,7 @@ def main():
 
     results = []
     for model in models:
-        result = test_model(model)
+        result = check_model(model)
         results.append(result)
 
         # Print immediate result

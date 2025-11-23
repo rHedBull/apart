@@ -45,7 +45,7 @@ class DynamicMockEngineProvider(LLMProvider):
             #   Agent A: "..."
             #   Agent B: "..."
             response_section = re.search(
-                r'Agent Responses from previous step:(.*?)(?=Return JSON format:|$)',
+                r'Agent Responses from previous step:(.*?)(?=Return ONLY valid JSON|Return JSON format:|$)',
                 prompt,
                 re.DOTALL
             )

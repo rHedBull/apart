@@ -45,7 +45,7 @@ class TestLLMAgent:
         assert provider.call_count == 3
 
     def test_agent_llm_fallback_to_template(self):
-        """Test agent falls back to template when LLM fails."""
+        """Test agent with unavailable LLM raises error (no fallback in new architecture)."""
         provider = MockLLMProvider(available=False)
         agent = Agent(
             name="Fallback Agent",
@@ -54,11 +54,9 @@ class TestLLMAgent:
             system_prompt="Test prompt"
         )
 
-        response = agent.respond("Test message")
-
-        assert "Template response" in response
-        assert "(step 1)" in response
-        assert provider.call_count == 0  # LLM not called
+        # In the new architecture, if LLM is configured but unavailable, it raises an error
+        with pytest.raises(ValueError, match="LLM provider is configured but not available"):
+            agent.respond("Test message")
 
     def test_agent_llm_no_template_fails_when_unavailable(self):
         """Test agent without template fails when LLM unavailable."""
@@ -69,7 +67,8 @@ class TestLLMAgent:
             system_prompt="Test prompt"
         )
 
-        with pytest.raises(ValueError, match="has no available response method"):
+        # Error message changed in new architecture to be more specific
+        with pytest.raises(ValueError, match="LLM provider is configured but not available"):
             agent.respond("Test message")
 
     def test_agent_llm_increments_step_count(self):

@@ -72,7 +72,7 @@ agents:
         assert agent.step_count == 2
 
     def test_llm_agent_without_template_fails_gracefully(self, tmp_path):
-        """Test LLM agent without fallback template shows clear error."""
+        """Test agent without template or LLM fails during initialization."""
         scenario_content = """
 max_steps: 1
 orchestrator_message: "Test"
@@ -90,18 +90,15 @@ global_vars: {}
 agent_vars: {}
 
 agents:
-  - name: "No Fallback Agent"
-    llm:
-      provider: "gemini"
-      model: "gemini-1.5-flash"
+  - name: "No Response Method Agent"
     system_prompt: "Test"
-    # NO response_template - this should cause an issue
+    # NO response_template and NO llm config - should fail
 """
         scenario_file = tmp_path / "no_fallback.yaml"
         scenario_file.write_text(scenario_content)
 
-        # Should fail immediately with clear error during initialization
-        with pytest.raises(ValueError, match="LLM provider not available"):
+        # Should fail during initialization because agent has neither template nor LLM
+        with pytest.raises(ValueError, match="must have either response_template or llm_provider"):
             orchestrator = Orchestrator(str(scenario_file), "no_fallback", save_frequency=0)
 
 
@@ -148,12 +145,16 @@ class TestLLMExampleScenario:
     """Test the provided llm_example.yaml scenario."""
 
     def test_llm_example_scenario_requires_api_key(self):
-        """Test the llm_example.yaml scenario fails clearly without API key."""
+        """Test the llm_example.yaml scenario fails when engine LLM is unavailable."""
+        from core.simulator_agent import SimulationError
         scenario_path = "scenarios/llm_example.yaml"
 
-        # This should fail with clear error message when no API key
-        with pytest.raises(ValueError, match="LLM provider not available"):
-            orchestrator = Orchestrator(scenario_path, "llm_example_test", save_frequency=0)
+        # Initialization succeeds, but running should fail when engine tries to call LLM
+        orchestrator = Orchestrator(scenario_path, "llm_example_test", save_frequency=0)
+
+        # Running should fail with SimulationError when engine LLM call fails
+        with pytest.raises(SimulationError, match="SimulatorAgent failed"):
+            orchestrator.run()
 
     def test_llm_example_with_fallback_template(self, tmp_path, mock_engine_llm_provider):
         """Test LLM scenario works with fallback template when no API key."""
