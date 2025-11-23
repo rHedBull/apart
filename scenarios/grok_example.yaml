@@ -1,0 +1,55 @@
+# Grok Example - xAI's Grok Models
+# 🔑 Requires XAI_API_KEY environment variable
+#
+# This scenario uses xAI's Grok models.
+#
+# ⚠️  NOTE: If you encounter API errors, verify:
+#    1. Your API key is valid: export XAI_API_KEY="xai-..."
+#    2. You have access to Grok API
+#    3. The model is available
+#
+# Models: grok-beta, grok-vision-beta
+
+max_steps: 3
+orchestrator_message: "What's your move?"
+
+engine:
+  provider: "grok"
+  model: "grok-4-1-fast-reasoning"
+
+  system_prompt: |
+    You are a simulation engine for a strategy game.
+    Simulate realistic outcomes based on agent decisions.
+
+  simulation_plan: |
+    3-step simulation with strategic agents.
+
+  realism_guidelines: |
+    - Outcomes should be logical
+    - Risk affects variance
+
+  context_window_size: 3
+
+game_state:
+  initial_resources: 150
+
+global_vars:
+  round_number:
+    type: int
+    default: 0
+    min: 0
+
+agent_vars:
+  score:
+    type: float
+    default: 100.0
+    min: 0.0
+
+agents:
+  - name: "Strategic Planner"
+    llm:
+      provider: "grok"
+      model: "grok-4-1-fast-reasoning"
+    system_prompt: "You are a strategic planner. Be concise."
+    variables:
+      score: 120.0
