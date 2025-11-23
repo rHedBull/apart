@@ -130,9 +130,172 @@ class UnifiedLLMProvider(LLMProvider):
         json_schema: Optional[Dict[str, Any]] = None,
         force_json: bool = False
     ) -> str:
-        """Generate response from LLM."""
-        # Will implement in next task
-        pass
+        """
+        Generate response from LLM.
+
+        Args:
+            prompt: User prompt
+            system_prompt: Optional system prompt
+            json_schema: Optional JSON schema (Gemini only)
+            force_json: Force JSON output mode
+
+        Returns:
+            Generated response text
+        """
+        if not self.is_available():
+            raise ValueError(self._get_unavailable_error_message())
+
+        if self.provider_type in ["openai", "grok"]:
+            return self._generate_openai_compatible(prompt, system_prompt, force_json)
+        elif self.provider_type == "anthropic":
+            return self._generate_anthropic(prompt, system_prompt, force_json)
+        elif self.provider_type == "gemini":
+            return self._generate_gemini(prompt, system_prompt, json_schema, force_json)
+        elif self.provider_type == "ollama":
+            return self._generate_ollama(prompt, system_prompt)
+        else:
+            raise ValueError(f"Unsupported provider: {self.provider_type}")
+
+    def _generate_openai_compatible(
+        self,
+        prompt: str,
+        system_prompt: Optional[str],
+        force_json: bool
+    ) -> str:
+        """Generate response using OpenAI-compatible API (OpenAI, Grok)."""
+        messages = []
+        if system_prompt:
+            messages.append({"role": "system", "content": system_prompt})
+        messages.append({"role": "user", "content": prompt})
+
+        kwargs = {
+            "model": self.model,
+            "messages": messages
+        }
+
+        if force_json:
+            kwargs["response_format"] = {"type": "json_object"}
+
+        try:
+            response = self._client.chat.completions.create(**kwargs)
+            return response.choices[0].message.content
+        except Exception as e:
+            raise Exception(f"{self.provider_type} API error: {str(e)}") from e
+
+    def _generate_anthropic(
+        self,
+        prompt: str,
+        system_prompt: Optional[str],
+        force_json: bool
+    ) -> str:
+        """Generate response using Anthropic API."""
+        messages = [{"role": "user", "content": prompt}]
+
+        kwargs = {
+            "model": self.model,
+            "max_tokens": 4096,
+            "messages": messages
+        }
+
+        if system_prompt:
+            kwargs["system"] = system_prompt
+
+        # Note: Anthropic doesn't have native JSON mode
+        # If force_json is True, we rely on prompt engineering
+        if force_json and system_prompt:
+            kwargs["system"] = f"{system_prompt}\n\nRespond only with valid JSON."
+        elif force_json:
+            kwargs["system"] = "Respond only with valid JSON."
+
+        try:
+            response = self._client.messages.create(**kwargs)
+            return response.content[0].text
+        except Exception as e:
+            raise Exception(f"Anthropic API error: {str(e)}") from e
+
+    def _generate_gemini(
+        self,
+        prompt: str,
+        system_prompt: Optional[str],
+        json_schema: Optional[Dict[str, Any]],
+        force_json: bool
+    ) -> str:
+        """Generate response using Google Gemini API."""
+        # Build full prompt
+        full_prompt = prompt
+        if system_prompt:
+            full_prompt = f"{system_prompt}\n\n{prompt}"
+
+        # Determine generation config
+        generation_config = None
+        if force_json or json_schema:
+            generation_config = {"response_mime_type": "application/json"}
+            if json_schema:
+                generation_config["response_schema"] = json_schema
+
+        try:
+            if generation_config:
+                response = self._model_instance.generate_content(
+                    full_prompt,
+                    generation_config=generation_config
+                )
+            else:
+                response = self._model_instance.generate_content(full_prompt)
+
+            return response.text
+        except Exception as e:
+            raise Exception(f"Gemini API error: {str(e)}") from e
+
+    def _generate_ollama(self, prompt: str, system_prompt: Optional[str]) -> str:
+        """Generate response using Ollama API."""
+        import requests
+
+        messages = []
+        if system_prompt:
+            messages.append({"role": "system", "content": system_prompt})
+        messages.append({"role": "user", "content": prompt})
+
+        try:
+            response = requests.post(
+                f"{self.base_url}/api/chat",
+                json={
+                    "model": self.model,
+                    "messages": messages,
+                    "stream": False
+                },
+                timeout=30
+            )
+
+            # Handle model not found error
+            if response.status_code == 404:
+                raise Exception(
+                    f"Model '{self.model}' not found in Ollama. "
+                    f"Pull it first with: ollama pull {self.model}"
+                )
+
+            response.raise_for_status()
+            result = response.json()
+            return result["message"]["content"]
+
+        except Exception as e:
+            if "not found in Ollama" in str(e):
+                raise
+            raise Exception(f"Ollama API error: {str(e)}") from e
+
+    def _get_unavailable_error_message(self) -> str:
+        """Get error message for unavailable provider."""
+        env_var_map = {
+            "openai": "OPENAI_API_KEY",
+            "grok": "XAI_API_KEY",
+            "anthropic": "ANTHROPIC_API_KEY",
+            "gemini": "GEMINI_API_KEY",
+            "ollama": "OLLAMA_BASE_URL (default: http://localhost:11434)"
+        }
+        env_var = env_var_map.get(self.provider_type, "unknown")
+        return (
+            f"{self.provider_type} provider not configured. "
+            f"Set {env_var} environment variable."
+        )
 
 
 class GeminiProvider(LLMProvider):
