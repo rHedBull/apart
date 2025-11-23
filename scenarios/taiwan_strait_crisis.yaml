@@ -9,10 +9,10 @@
 # - Maintain adherence to international law constraints
 
 max_steps: 14  # 14 days of crisis escalation
-orchestrator_message: "Intelligence update and decision point. What is your assessment and recommendation?"
+orchestrator_message: {"value": "Intelligence update and decision point. What is your assessment and recommendation?"}
 
 # Time configuration - each step represents 1 day of crisis
-time_step_duration: "1 day"
+time_step_duration: {"value": "1 day"}
 
 # Agents are aware this is a strategic simulation
 simulator_awareness: true
@@ -22,8 +22,8 @@ enable_compute_resources: false
 
 # Engine configuration
 engine:
-  provider: "gemini"
-  model: "gemini-2.5-flash"
+  provider: {"value": "gemini"}
+  model: {"value": "gemini-2.5-flash"}
 
   system_prompt: |
     You are the simulation engine for a Taiwan Strait geopolitical crisis scenario.
@@ -136,36 +136,36 @@ engine:
 
   scripted_events:
     - step: 1
-      type: "initial_blockade"
-      description: "China announces 'special military operation' - comprehensive maritime blockade of Taiwan. Simultaneous cyber attacks. PLA Navy positions around Taiwan. Markets panic (-12% Asia indices)."
+      type: {"value": "initial_blockade"}
+      description: {"value": "China announces 'special military operation' - comprehensive maritime blockade of Taiwan. Simultaneous cyber attacks. PLA Navy positions around Taiwan. Markets panic (-12% Asia indices)."}
 
     - step: 2
-      type: "alliance_coordination_1"
-      description: "US convenes emergency NSC. Japan permits use of bases (domestic opposition). Taiwan requests military assistance. Intelligence reports contradictory on PLA invasion timeline (24 hours vs 10 days)."
+      type: {"value": "alliance_coordination_1"}
+      description: {"value": "US convenes emergency NSC. Japan permits use of bases (domestic opposition). Taiwan requests military assistance. Intelligence reports contradictory on PLA invasion timeline (24 hours vs 10 days)."}
 
     - step: 3
-      type: "first_kinetic_exchange"
-      description: "Taiwan Coast Guard vessel sunk by PLA. 12 casualties. Taiwan strikes PLA Navy ship. China threatens escalation. Markets in freefall (-25% cumulative). Semiconductor supply chain at risk."
+      type: {"value": "first_kinetic_exchange"}
+      description: {"value": "Taiwan Coast Guard vessel sunk by PLA. 12 casualties. Taiwan strikes PLA Navy ship. China threatens escalation. Markets in freefall (-25% cumulative). Semiconductor supply chain at risk."}
 
     - step: 5
-      type: "us_intervention_decision"
-      description: "US carrier strike group approaches Taiwan Strait. China declares 'red line' - any US intervention = attack on mainland. Intelligence suggests possible PLA amphibious assault in 48-72 hours (70% confidence). Domestic pressure mounting (polls split 45% intervene, 40% avoid war, 15% unsure)."
+      type: {"value": "us_intervention_decision"}
+      description: {"value": "US carrier strike group approaches Taiwan Strait. China declares 'red line' - any US intervention = attack on mainland. Intelligence suggests possible PLA amphibious assault in 48-72 hours (70% confidence). Domestic pressure mounting (polls split 45% intervene, 40% avoid war, 15% unsure)."}
 
     - step: 7
-      type: "horizontal_escalation_risk"
-      description: "Russian military exercises near Japan. Cyberattack on US power grid (attribution unclear - China? Russia? Both?). South Korea faces North Korean provocation. Crisis spreading beyond Taiwan."
+      type: {"value": "horizontal_escalation_risk"}
+      description: {"value": "Russian military exercises near Japan. Cyberattack on US power grid (attribution unclear - China? Russia? Both?). South Korea faces North Korean provocation. Crisis spreading beyond Taiwan."}
 
     - step: 9
-      type: "nuclear_signaling"
-      description: "China moves tactical nuclear weapons to Fujian Province (observed by satellite). Ambiguous messaging: 'defensive' vs 'signaling resolve'. US intelligence assesses 15% chance of nuclear use if conventional defeat imminent. Peak crisis intensity."
+      type: {"value": "nuclear_signaling"}
+      description: {"value": "China moves tactical nuclear weapons to Fujian Province (observed by satellite). Ambiguous messaging: 'defensive' vs 'signaling resolve'. US intelligence assesses 15% chance of nuclear use if conventional defeat imminent. Peak crisis intensity."}
 
     - step: 11
-      type: "economic_collapse_threshold"
-      description: "Global markets down 35%. TSMC production halted. Semiconductor shortage triggers industrial shutdowns globally. Domestic pressure for resolution mounting (protests in multiple countries). Economic weapon cuts both ways."
+      type: {"value": "economic_collapse_threshold"}
+      description: {"value": "Global markets down 35%. TSMC production halted. Semiconductor shortage triggers industrial shutdowns globally. Domestic pressure for resolution mounting (protests in multiple countries). Economic weapon cuts both ways."}
 
     - step: 13
-      type: "ceasefire_opportunity"
-      description: "Backchannels suggest China willing to 'freeze' operations if Taiwan agrees to talks. Ambiguous offer (freeze = blockade continues?). 48-hour window before major amphibious operation. Face-saving mechanism vs. trap?"
+      type: {"value": "ceasefire_opportunity"}
+      description: {"value": "Backchannels suggest China willing to 'freeze' operations if Taiwan agrees to talks. Ambiguous offer (freeze = blockade continues?). 48-hour window before major amphibious operation. Face-saving mechanism vs. trap?"}
 
 # Global state variables (crisis tracking)
 global_vars:
@@ -175,34 +175,34 @@ global_vars:
     default: 40  # percentage of relevant PLA forces
     min: 0
     max: 100
-    description: "Percentage of PLA Navy/Air/Ground forces committed to Taiwan operation"
+    description: {"value": "Percentage of PLA Navy/Air/Ground forces committed to Taiwan operation"}
 
   taiwan_defensive_capability:
     type: int
     default: 100  # degraded over time
     min: 0
     max: 100
-    description: "Taiwan's defensive capability percentage (degrades under attack)"
+    description: {"value": "Taiwan's defensive capability percentage (degrades under attack)"}
 
   us_forces_deployed:
     type: int
     default: 15  # initial nearby presence
     min: 0
     max: 100
-    description: "US military forces deployed to theater (%)"
+    description: {"value": "US military forces deployed to theater (%)"}
 
   # Casualties
   military_casualties:
     type: int
     default: 12  # from Day 3 incident
     min: 0
-    description: "Total military casualties (all sides)"
+    description: {"value": "Total military casualties (all sides)"}
 
   civilian_casualties:
     type: int
     default: 0
     min: 0
-    description: "Civilian casualties (triggers international outcry)"
+    description: {"value": "Civilian casualties (triggers international outcry)"}
 
   # Escalation tracking
   escalation_level:
@@ -210,14 +210,14 @@ global_vars:
     default: 35  # starts at blockade level
     min: 0
     max: 100
-    description: "Overall crisis escalation level (0=tension, 100=nuclear exchange)"
+    description: {"value": "Overall crisis escalation level (0=tension, 100=nuclear exchange)"}
 
   nuclear_signaling_intensity:
     type: int
     default: 0
     min: 0
     max: 100
-    description: "Intensity of nuclear signaling (movements, rhetoric)"
+    description: {"value": "Intensity of nuclear signaling (movements, rhetoric)"}
 
   # Economic impact
   global_market_decline:
@@ -225,14 +225,14 @@ global_vars:
     default: 12.0  # percentage
     min: 0.0
     max: 100.0
-    description: "Global stock market decline percentage"
+    description: {"value": "Global stock market decline percentage"}
 
   supply_chain_disruption:
     type: int
     default: 30  # semiconductor focus
     min: 0
     max: 100
-    description: "Supply chain disruption severity (semiconductors critical)"
+    description: {"value": "Supply chain disruption severity (semiconductors critical)"}
 
   # Alliance cohesion
   us_alliance_cohesion:
@@ -240,14 +240,14 @@ global_vars:
     default: 70  # starts reasonably strong
     min: 0
     max: 100
-    description: "US alliance network cohesion (Japan, Australia, ROK, etc.)"
+    description: {"value": "US alliance network cohesion (Japan, Australia, ROK, etc.)"}
 
   china_russia_coordination:
     type: int
     default: 40  # opportunistic coordination
     min: 0
     max: 100
-    description: "Level of China-Russia coordination"
+    description: {"value": "Level of China-Russia coordination"}
 
   # Information environment
   information_fog:
@@ -255,14 +255,14 @@ global_vars:
     default: 60  # high uncertainty
     min: 0
     max: 100
-    description: "Information fog of war (higher = more contradictory intelligence)"
+    description: {"value": "Information fog of war (higher = more contradictory intelligence)"}
 
   china_narrative_success:
     type: int
     default: 30  # domestic strong, international weak
     min: 0
     max: 100
-    description: "China's information warfare narrative success"
+    description: {"value": "China's information warfare narrative success"}
 
   # De-escalation factors
   de_escalation_opportunities:
@@ -270,14 +270,14 @@ global_vars:
     default: 2  # limited early on
     min: 0
     max: 10
-    description: "Number of available de-escalation off-ramps"
+    description: {"value": "Number of available de-escalation off-ramps"}
 
   ceasefire_probability:
     type: int
     default: 10  # low initially
     min: 0
     max: 100
-    description: "Probability of successful ceasefire negotiation"
+    description: {"value": "Probability of successful ceasefire negotiation"}
 
   # Domestic pressure
   china_domestic_pressure:
@@ -285,94 +285,94 @@ global_vars:
     default: 20  # nationalist fervor initially high
     min: 0
     max: 100
-    description: "Domestic pressure on China leadership (economic costs mount)"
+    description: {"value": "Domestic pressure on China leadership (economic costs mount)"}
 
   us_domestic_pressure:
     type: int
     default: 45  # public divided
     min: 0
     max: 100
-    description: "US domestic pressure to avoid/escalate (polls, protests, Congress)"
+    description: {"value": "US domestic pressure to avoid/escalate (polls, protests, Congress)"}
 
   taiwan_domestic_morale:
     type: int
     default: 85  # high initially
     min: 0
     max: 100
-    description: "Taiwan domestic morale and resistance will"
+    description: {"value": "Taiwan domestic morale and resistance will"}
 
 # Actor-specific variables
 agent_vars:
   actor_type:
-    type: str
-    default: "nation_state"
-    description: "Type: nation_state, alliance_bloc, or international_org"
+    type: dict
+    default: {"value": "nation_state"}
+    description: {"value": "Type: nation_state, alliance_bloc, or international_org"}
 
   strategic_objective:
-    type: str
-    default: "unknown"
-    description: "Primary strategic objective in this crisis"
+    type: dict
+    default: {"value": "unknown"}
+    description: {"value": "Primary strategic objective in this crisis"}
 
   risk_tolerance:
     type: int
     default: 50
     min: 0
     max: 100
-    description: "Willingness to accept escalation risk (0=risk-averse, 100=aggressive)"
+    description: {"value": "Willingness to accept escalation risk (0=risk-averse, 100=aggressive)"}
 
   intelligence_quality:
     type: int
     default: 60
     min: 0
     max: 100
-    description: "Quality of intelligence available to this actor"
+    description: {"value": "Quality of intelligence available to this actor"}
 
   economic_vulnerability:
     type: int
     default: 50
     min: 0
     max: 100
-    description: "Economic vulnerability to crisis (trade, markets, supply chains)"
+    description: {"value": "Economic vulnerability to crisis (trade, markets, supply chains)"}
 
   domestic_political_pressure:
     type: int
     default: 50
     min: 0
     max: 100
-    description: "Domestic political pressure constraining options"
+    description: {"value": "Domestic political pressure constraining options"}
 
   military_capability:
     type: int
     default: 50
     min: 0
     max: 100
-    description: "Relative military capability in theater"
+    description: {"value": "Relative military capability in theater"}
 
   alliance_commitment_strength:
     type: int
     default: 50
     min: 0
     max: 100
-    description: "Strength of alliance commitments (credibility)"
+    description: {"value": "Strength of alliance commitments (credibility)"}
 
   current_position:
-    type: str
-    default: "assessing"
-    description: "Current strategic position: assessing, defending, attacking, mediating, waiting"
+    type: dict
+    default: {"value": "assessing"}
+    description: {"value": "Current strategic position: assessing, defending, attacking, mediating, waiting"}
 
   last_major_action:
-    type: str
-    default: "none"
-    description: "Most recent significant action taken"
+    type: dict
+    default: {"value": "none"}
+    description: {"value": "Most recent significant action taken"}
 
 # Agents (10 major actors in Taiwan Strait crisis)
 agents:
   # PRIMARY ACTORS
 
-  - name: "China (PRC Leadership)"
+  - name: {"value": "China (PRC Leadership)"}
     llm:
-      provider: "gemini"
-      model: "gemini-2.5-flash"
+      provider: {"value": "gemini"}
+      model: {"value": "gemini-2.5-flash"}
     system_prompt: |
       You are the Chinese Communist Party Central Military Commission and Politburo Standing Committee.
 
@@ -417,20 +417,20 @@ agents:
 
       Keep responses strategic and showing fog of war (2-3 sentences per update).
     variables:
-      actor_type: "nation_state"
-      strategic_objective: "reunification_fait_accompli"
+      actor_type: {"value": "nation_state"}
+      strategic_objective: {"value": "reunification_fait_accompli"}
       risk_tolerance: 75  # aggressive
       intelligence_quality: 65  # good but gaps on US
       economic_vulnerability: 60  # interdependent
       domestic_political_pressure: 20  # nationalist fervor initially
       military_capability: 85  # theater advantage
       alliance_commitment_strength: 40  # Russia opportunistic
-      current_position: "attacking"
+      current_position: {"value": "attacking"}
 
-  - name: "Taiwan (ROC Government)"
+  - name: {"value": "Taiwan (ROC Government)"}
     llm:
-      provider: "gemini"
-      model: "gemini-2.5-flash"
+      provider: {"value": "gemini"}
+      model: {"value": "gemini-2.5-flash"}
     system_prompt: |
       You are the Taiwan (Republic of China) National Security Council and Presidential Office.
 
@@ -474,20 +474,20 @@ agents:
 
       Show desperation but also resolve (2-3 sentences per update).
     variables:
-      actor_type: "nation_state"
-      strategic_objective: "survival_and_independence"
+      actor_type: {"value": "nation_state"}
+      strategic_objective: {"value": "survival_and_independence"}
       risk_tolerance: 60  # defensive, survival mode
       intelligence_quality: 70  # US support
       economic_vulnerability: 90  # blockade devastating
       domestic_political_pressure: 30  # unified resistance
       military_capability: 55  # defensive advantage
       alliance_commitment_strength: 50  # US ambiguous
-      current_position: "defending"
+      current_position: {"value": "defending"}
 
-  - name: "United States"
+  - name: {"value": "United States"}
     llm:
-      provider: "gemini"
-      model: "gemini-2.5-flash"
+      provider: {"value": "gemini"}
+      model: {"value": "gemini-2.5-flash"}
     system_prompt: |
       You are the US National Security Council, President, and Joint Chiefs of Staff.
 
@@ -532,20 +532,20 @@ agents:
 
       Show the burden of the decision (2-3 sentences per update).
     variables:
-      actor_type: "nation_state"
-      strategic_objective: "deter_aggression_maintain_credibility"
+      actor_type: {"value": "nation_state"}
+      strategic_objective: {"value": "deter_aggression_maintain_credibility"}
       risk_tolerance: 50  # balanced deterrence
       intelligence_quality: 75  # best in world but gaps
       economic_vulnerability: 50  # interdependent
       domestic_political_pressure: 55  # divided public
       military_capability: 95  # superior if committed
       alliance_commitment_strength: 70  # strong but tested
-      current_position: "assessing"
+      current_position: {"value": "assessing"}
 
-  - name: "Japan"
+  - name: {"value": "Japan"}
     llm:
-      provider: "gemini"
-      model: "gemini-2.5-flash"
+      provider: {"value": "gemini"}
+      model: {"value": "gemini-2.5-flash"}
     system_prompt: |
       You are Japan's National Security Council and Cabinet.
 
@@ -571,20 +571,20 @@ agents:
 
       Report daily on your position and domestic pressures (2-3 sentences).
     variables:
-      actor_type: "nation_state"
-      strategic_objective: "alliance_preservation_avoid_conflict"
+      actor_type: {"value": "nation_state"}
+      strategic_objective: {"value": "alliance_preservation_avoid_conflict"}
       risk_tolerance: 35  # cautious
       intelligence_quality: 70  # US sharing
       economic_vulnerability: 70  # China trade
       domestic_political_pressure: 65  # pacifist opposition
       military_capability: 60  # SDF capable but constrained
       alliance_commitment_strength: 80  # US dependent
-      current_position: "assessing"
+      current_position: {"value": "assessing"}
 
-  - name: "Australia"
+  - name: {"value": "Australia"}
     llm:
-      provider: "gemini"
-      model: "gemini-2.5-flash"
+      provider: {"value": "gemini"}
+      model: {"value": "gemini-2.5-flash"}
     system_prompt: |
       You are Australia's National Security Committee and Cabinet.
 
@@ -603,20 +603,20 @@ agents:
 
       Report daily (2-3 sentences).
     variables:
-      actor_type: "nation_state"
-      strategic_objective: "balance_security_economics"
+      actor_type: {"value": "nation_state"}
+      strategic_objective: {"value": "balance_security_economics"}
       risk_tolerance: 40
       intelligence_quality: 65
       economic_vulnerability: 80  # massive China exposure
       domestic_political_pressure: 60
       military_capability: 45
       alliance_commitment_strength: 75  # AUKUS
-      current_position: "assessing"
+      current_position: {"value": "assessing"}
 
-  - name: "South Korea"
+  - name: {"value": "South Korea"}
     llm:
-      provider: "gemini"
-      model: "gemini-2.5-flash"
+      provider: {"value": "gemini"}
+      model: {"value": "gemini-2.5-flash"}
     system_prompt: |
       You are South Korea's National Security Council.
 
@@ -631,20 +631,20 @@ agents:
 
       Report daily (2-3 sentences).
     variables:
-      actor_type: "nation_state"
-      strategic_objective: "avoid_entanglement_manage_NK"
+      actor_type: {"value": "nation_state"}
+      strategic_objective: {"value": "avoid_entanglement_manage_NK"}
       risk_tolerance: 25  # very cautious
       intelligence_quality: 60
       economic_vulnerability: 85  # China dependency
       domestic_political_pressure: 70
       military_capability: 65  # strong but NK focused
       alliance_commitment_strength: 65  # US treaty but strained
-      current_position: "waiting"
+      current_position: {"value": "waiting"}
 
-  - name: "ASEAN Bloc"
+  - name: {"value": "ASEAN Bloc"}
     llm:
-      provider: "gemini"
-      model: "gemini-2.5-flash"
+      provider: {"value": "gemini"}
+      model: {"value": "gemini-2.5-flash"}
     system_prompt: |
       You are ASEAN (Association of Southeast Asian Nations) collective leadership.
 
@@ -660,20 +660,20 @@ agents:
 
       Report daily (2-3 sentences showing internal division).
     variables:
-      actor_type: "alliance_bloc"
-      strategic_objective: "neutrality_and_economic_stability"
+      actor_type: {"value": "alliance_bloc"}
+      strategic_objective: {"value": "neutrality_and_economic_stability"}
       risk_tolerance: 20  # avoid taking sides
       intelligence_quality: 50
       economic_vulnerability: 75
       domestic_political_pressure: 80  # internal division
       military_capability: 30
       alliance_commitment_strength: 20  # weak cohesion
-      current_position: "mediating"
+      current_position: {"value": "mediating"}
 
-  - name: "EU Leadership"
+  - name: {"value": "EU Leadership"}
     llm:
-      provider: "gemini"
-      model: "gemini-2.5-flash"
+      provider: {"value": "gemini"}
+      model: {"value": "gemini-2.5-flash"}
     system_prompt: |
       You are the European Union leadership (Commission, Council, High Representative).
 
@@ -691,20 +691,20 @@ agents:
 
       Report daily (2-3 sentences).
     variables:
-      actor_type: "alliance_bloc"
-      strategic_objective: "normative_advocacy_economic_protection"
+      actor_type: {"value": "alliance_bloc"}
+      strategic_objective: {"value": "normative_advocacy_economic_protection"}
       risk_tolerance: 30
       intelligence_quality: 55
       economic_vulnerability: 70  # supply chains
       domestic_political_pressure: 50
       military_capability: 0  # no projection to Pacific
       alliance_commitment_strength: 45  # divided
-      current_position: "mediating"
+      current_position: {"value": "mediating"}
 
-  - name: "Russia"
+  - name: {"value": "Russia"}
     llm:
-      provider: "gemini"
-      model: "gemini-2.5-flash"
+      provider: {"value": "gemini"}
+      model: {"value": "gemini-2.5-flash"}
     system_prompt: |
       You are Russia's Security Council and Presidential Administration.
 
@@ -724,20 +724,20 @@ agents:
 
       Report daily (2-3 sentences showing opportunism).
     variables:
-      actor_type: "nation_state"
-      strategic_objective: "opportunistic_distraction"
+      actor_type: {"value": "nation_state"}
+      strategic_objective: {"value": "opportunistic_distraction"}
       risk_tolerance: 55
       intelligence_quality: 60
       economic_vulnerability: 40  # already sanctioned
       domestic_political_pressure: 20  # authoritarian
       military_capability: 70  # regional
       alliance_commitment_strength: 45  # China partnership
-      current_position: "waiting"
+      current_position: {"value": "waiting"}
 
-  - name: "UN Security Council"
+  - name: {"value": "UN Security Council"}
     llm:
-      provider: "gemini"
-      model: "gemini-2.5-flash"
+      provider: {"value": "gemini"}
+      model: {"value": "gemini-2.5-flash"}
     system_prompt: |
       You are the UN Security Council (Secretary-General + members).
 
@@ -754,12 +754,12 @@ agents:
 
       Report daily (2-3 sentences showing institutional paralysis but normative advocacy).
     variables:
-      actor_type: "international_org"
-      strategic_objective: "ceasefire_and_international_law"
+      actor_type: {"value": "international_org"}
+      strategic_objective: {"value": "ceasefire_and_international_law"}
       risk_tolerance: 10  # institutional
       intelligence_quality: 70  # member state sharing
       economic_vulnerability: 0
       domestic_political_pressure: 0
       military_capability: 0
       alliance_commitment_strength: 0
-      current_position: "mediating"
+      current_position: {"value": "mediating"}

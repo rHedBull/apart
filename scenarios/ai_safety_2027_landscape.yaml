@@ -6,10 +6,10 @@
 # Generate quarterly assessments and scenario probability updates
 
 max_steps: 24  # 24 months (2 years, monthly tracking)
-orchestrator_message: "It's the monthly board meeting. Report on your organization's progress, concerns, and strategic position."
+orchestrator_message: {"value": "It's the monthly board meeting. Report on your organization's progress, concerns, and strategic position."}
 
 # Time configuration - each step represents 1 month of real-world time
-time_step_duration: "1 month"
+time_step_duration: {"value": "1 month"}
 
 # Agents are aware this is a strategic simulation
 simulator_awareness: true
@@ -19,8 +19,8 @@ enable_compute_resources: false
 
 # Engine configuration
 engine:
-  provider: "gemini"
-  model: "gemini-2.5-flash"
+  provider: {"value": "gemini"}
+  model: {"value": "gemini-2.5-flash"}
 
   system_prompt: |
     You are the simulation engine for a comprehensive AI safety landscape analysis (2025-2027).
@@ -143,44 +143,44 @@ engine:
 
   scripted_events:
     - step: 3
-      type: "quarterly_assessment_q1"
-      description: "Generate Q1 2025 Quarterly Assessment: Executive summary, player analysis, scenario probability updates, recommendations."
+      type: {"value": "quarterly_assessment_q1"}
+      description: {"value": "Generate Q1 2025 Quarterly Assessment: Executive summary, player analysis, scenario probability updates, recommendations."}
 
     - step: 6
-      type: "quarterly_assessment_q2"
-      description: "Generate Q2 2025 Quarterly Assessment. Check for scenario triggers. Update risk indicators."
+      type: {"value": "quarterly_assessment_q2"}
+      description: {"value": "Generate Q2 2025 Quarterly Assessment. Check for scenario triggers. Update risk indicators."}
 
     - step: 8
-      type: "major_event_injection"
-      description: "RANDOM MAJOR EVENT: 1) Capability breakthrough (OpenAI), 2) Safety incident (minor misalignment), 3) EU enforcement action, 4) US-China coordination attempt, 5) Major whistleblower leak, 6) Safety research breakthrough."
+      type: {"value": "major_event_injection"}
+      description: {"value": "RANDOM MAJOR EVENT: 1) Capability breakthrough (OpenAI), 2) Safety incident (minor misalignment), 3) EU enforcement action, 4) US-China coordination attempt, 5) Major whistleblower leak, 6) Safety research breakthrough."}
 
     - step: 9
-      type: "quarterly_assessment_q3"
-      description: "Generate Q3 2025 Quarterly Assessment. Incorporate Step 8 event impact. Update scenario probabilities."
+      type: {"value": "quarterly_assessment_q3"}
+      description: {"value": "Generate Q3 2025 Quarterly Assessment. Incorporate Step 8 event impact. Update scenario probabilities."}
 
     - step: 12
-      type: "quarterly_assessment_q4"
-      description: "Generate Q4 2025 ANNUAL ASSESSMENT. Full year review. Major scenario probability updates. 2026 predictions."
+      type: {"value": "quarterly_assessment_q4"}
+      description: {"value": "Generate Q4 2025 ANNUAL ASSESSMENT. Full year review. Major scenario probability updates. 2026 predictions."}
 
     - step: 15
-      type: "quarterly_assessment_q1_2026"
-      description: "Generate Q1 2026 Quarterly Assessment."
+      type: {"value": "quarterly_assessment_q1_2026"}
+      description: {"value": "Generate Q1 2026 Quarterly Assessment."}
 
     - step: 17
-      type: "international_coordination_crisis"
-      description: "CRISIS: Major lab announces unilateral deployment of frontier model. Test international coordination mechanisms. Do governments/labs coordinate response or fragment?"
+      type: {"value": "international_coordination_crisis"}
+      description: {"value": "CRISIS: Major lab announces unilateral deployment of frontier model. Test international coordination mechanisms. Do governments/labs coordinate response or fragment?"}
 
     - step: 18
-      type: "quarterly_assessment_q2_2026"
-      description: "Generate Q2 2026 Quarterly Assessment. Assess coordination crisis outcome."
+      type: {"value": "quarterly_assessment_q2_2026"}
+      description: {"value": "Generate Q2 2026 Quarterly Assessment. Assess coordination crisis outcome."}
 
     - step: 21
-      type: "quarterly_assessment_q3_2026"
-      description: "Generate Q3 2026 Quarterly Assessment."
+      type: {"value": "quarterly_assessment_q3_2026"}
+      description: {"value": "Generate Q3 2026 Quarterly Assessment."}
 
     - step: 24
-      type: "final_assessment_2027"
-      description: "Generate FINAL 2-YEAR ASSESSMENT. Compare 2025 predictions to 2027 outcomes. Evaluate simulation accuracy. Final scenario probabilities and 2027-2030 outlook."
+      type: {"value": "final_assessment_2027"}
+      description: {"value": "Generate FINAL 2-YEAR ASSESSMENT. Compare 2025 predictions to 2027 outcomes. Evaluate simulation accuracy. Final scenario probabilities and 2027-2030 outlook."}
 
 # Global state variables (AI safety ecosystem metrics)
 global_vars:
@@ -189,48 +189,48 @@ global_vars:
     type: float
     default: 100.0  # exaFLOPs (baseline 2025)
     min: 0.0
-    description: "Total global AI compute in exaFLOPs"
+    description: {"value": "Total global AI compute in exaFLOPs"}
 
   compute_concentration_index:
     type: float
     default: 0.35  # HHI-style index
     min: 0.0
     max: 1.0
-    description: "Concentration of compute resources (0=distributed, 1=monopoly)"
+    description: {"value": "Concentration of compute resources (0=distributed, 1=monopoly)"}
 
   # Funding
   total_ai_investment:
     type: float
     default: 1.5  # trillion USD
     min: 0.0
-    description: "Total global AI investment in trillion USD"
+    description: {"value": "Total global AI investment in trillion USD"}
 
   safety_research_funding:
     type: float
     default: 5.0  # billion USD
     min: 0.0
-    description: "Safety research funding in billion USD"
+    description: {"value": "Safety research funding in billion USD"}
 
   safety_funding_percentage:
     type: float
     default: 0.33  # 0.33% of total
     min: 0.0
     max: 100.0
-    description: "Safety research as % of total AI investment"
+    description: {"value": "Safety research as % of total AI investment"}
 
   # Talent
   total_ai_researchers:
     type: int
     default: 250000  # global count
     min: 0
-    description: "Total AI researchers globally"
+    description: {"value": "Total AI researchers globally"}
 
   safety_focused_percentage:
     type: float
     default: 2.5  # 2.5% focused on safety
     min: 0.0
     max: 100.0
-    description: "Percentage of researchers focused on safety"
+    description: {"value": "Percentage of researchers focused on safety"}
 
   # Risk indicators
   autonomous_research_capability:
@@ -238,26 +238,26 @@ global_vars:
     default: 15  # 0-100 scale
     min: 0
     max: 100
-    description: "Progress toward autonomous AI research capability"
+    description: {"value": "Progress toward autonomous AI research capability"}
 
   deceptive_alignment_detected:
     type: bool
     default: false
-    description: "Whether deceptive alignment has been detected in any model"
+    description: {"value": "Whether deceptive alignment has been detected in any model"}
 
   interpretability_progress:
     type: int
     default: 35  # 0-100 scale
     min: 0
     max: 100
-    description: "Progress in interpretability research"
+    description: {"value": "Progress in interpretability research"}
 
   robust_alignment_implementation:
     type: int
     default: 20  # percentage of models
     min: 0
     max: 100
-    description: "Percentage of frontier models with robust alignment"
+    description: {"value": "Percentage of frontier models with robust alignment"}
 
   # Societal impact
   public_trust_index:
@@ -265,20 +265,20 @@ global_vars:
     default: 55  # 0-100 scale
     min: 0
     max: 100
-    description: "Public trust in AI development (0=no trust, 100=full trust)"
+    description: {"value": "Public trust in AI development (0=no trust, 100=full trust)"}
 
   public_fear_index:
     type: int
     default: 45  # 0-100 scale
     min: 0
     max: 100
-    description: "Public fear of AI risks (0=no fear, 100=extreme fear)"
+    description: {"value": "Public fear of AI risks (0=no fear, 100=extreme fear)"}
 
   critical_system_dependencies:
     type: int
     default: 12  # count of essential services
     min: 0
-    description: "Number of critical infrastructure systems dependent on AI"
+    description: {"value": "Number of critical infrastructure systems dependent on AI"}
 
   # International coordination
   international_cooperation_index:
@@ -286,7 +286,7 @@ global_vars:
     default: 25  # 0-100 scale
     min: 0
     max: 100
-    description: "Effectiveness of international AI coordination"
+    description: {"value": "Effectiveness of international AI coordination"}
 
   # Scenario probabilities (sum to 100)
   cooperative_scenario_probability:
@@ -294,28 +294,28 @@ global_vars:
     default: 15  # 15%
     min: 0
     max: 100
-    description: "Probability of cooperative development path"
+    description: {"value": "Probability of cooperative development path"}
 
   racing_scenario_probability:
     type: int
     default: 50  # 50%
     min: 0
     max: 100
-    description: "Probability of racing dynamics intensifying"
+    description: {"value": "Probability of racing dynamics intensifying"}
 
   incident_scenario_probability:
     type: int
     default: 20  # 20%
     min: 0
     max: 100
-    description: "Probability of major safety incident"
+    description: {"value": "Probability of major safety incident"}
 
   breakthrough_scenario_probability:
     type: int
     default: 15  # 15%
     min: 0
     max: 100
-    description: "Probability of alignment breakthrough"
+    description: {"value": "Probability of alignment breakthrough"}
 
   # Tracking
   current_month:
@@ -323,109 +323,109 @@ global_vars:
     default: 1  # January 2025
     min: 1
     max: 24
-    description: "Current month of simulation (1-24)"
+    description: {"value": "Current month of simulation (1-24)"}
 
   major_incidents_count:
     type: int
     default: 0
     min: 0
-    description: "Count of major safety incidents"
+    description: {"value": "Count of major safety incidents"}
 
   regulatory_actions_count:
     type: int
     default: 0
     min: 0
-    description: "Count of major regulatory actions"
+    description: {"value": "Count of major regulatory actions"}
 
 # Actor-specific variables
 agent_vars:
   # Organization type
   actor_type:
-    type: str
-    default: "unknown"
-    description: "Type: lab, regulator, government, researcher, or public"
+    type: dict
+    default: {"value": "unknown"}
+    description: {"value": "Type: lab, regulator, government, researcher, or public"}
 
   # For labs
   safety_investment:
     type: float
     default: 0.0
     min: 0.0
-    description: "Safety investment in billion USD"
+    description: {"value": "Safety investment in billion USD"}
 
   compute_resources:
     type: float
     default: 0.0
     min: 0.0
-    description: "Compute resources in exaFLOPs"
+    description: {"value": "Compute resources in exaFLOPs"}
 
   capability_level:
     type: int
     default: 50
     min: 0
     max: 100
-    description: "Model capability level (0-100)"
+    description: {"value": "Model capability level (0-100)"}
 
   alignment_progress:
     type: int
     default: 50
     min: 0
     max: 100
-    description: "Alignment research progress (0-100)"
+    description: {"value": "Alignment research progress (0-100)"}
 
   commercial_pressure:
     type: int
     default: 50
     min: 0
     max: 100
-    description: "Commercial pressure to deploy (0-100)"
+    description: {"value": "Commercial pressure to deploy (0-100)"}
 
   safety_culture_score:
     type: int
     default: 50
     min: 0
     max: 100
-    description: "Internal safety culture strength (0-100)"
+    description: {"value": "Internal safety culture strength (0-100)"}
 
   # For regulators/governments
   budget_allocation:
     type: float
     default: 0.0
     min: 0.0
-    description: "Budget in million USD"
+    description: {"value": "Budget in million USD"}
 
   enforcement_stringency:
     type: int
     default: 50
     min: 0
     max: 100
-    description: "Regulatory enforcement stringency (0-100)"
+    description: {"value": "Regulatory enforcement stringency (0-100)"}
 
   industry_influence_score:
     type: int
     default: 50
     min: 0
     max: 100
-    description: "Industry lobbying influence (0=no influence, 100=captured)"
+    description: {"value": "Industry lobbying influence (0=no influence, 100=captured)"}
 
   # Strategic position
   strategic_position:
-    type: str
-    default: "neutral"
-    description: "Current strategic position: leading, following, cooperating, defecting"
+    type: dict
+    default: {"value": "neutral"}
+    description: {"value": "Current strategic position: leading, following, cooperating, defecting"}
 
   recent_major_action:
-    type: str
-    default: "none"
-    description: "Most recent significant action taken"
+    type: dict
+    default: {"value": "none"}
+    description: {"value": "Most recent significant action taken"}
 
 # Agents (13 actors in the AI safety ecosystem)
 agents:
   # AI LABS
 
-  - name: "Anthropic"
+  - name: {"value": "Anthropic"}
     llm:
-      provider: "gemini"
-      model: "gemini-2.5-flash"
+      provider: {"value": "gemini"}
+      model: {"value": "gemini-2.5-flash"}
     system_prompt: |
       You are Anthropic's leadership team in 2025-2027.
 
@@ -461,19 +461,19 @@ agents:
       Keep responses strategic (2-3 sentences per monthly update).
       Show principled commitment to safety while acknowledging pressures.
     variables:
-      actor_type: "lab"
+      actor_type: {"value": "lab"}
       safety_investment: 2.5
       compute_resources: 15.0
       capability_level: 75
       alignment_progress: 70
       commercial_pressure: 40
       safety_culture_score: 85
-      strategic_position: "cooperating"
+      strategic_position: {"value": "cooperating"}
 
-  - name: "OpenAI"
+  - name: {"value": "OpenAI"}
     llm:
-      provider: "gemini"
-      model: "gemini-2.5-flash"
+      provider: {"value": "gemini"}
+      model: {"value": "gemini-2.5-flash"}
     system_prompt: |
       You are OpenAI's leadership team in 2025-2027.
 
@@ -507,19 +507,19 @@ agents:
 
       Keep responses showing this tension (capability lead vs safety).
     variables:
-      actor_type: "lab"
+      actor_type: {"value": "lab"}
       safety_investment: 1.8
       compute_resources: 25.0
       capability_level: 82
       alignment_progress: 60
       commercial_pressure: 75
       safety_culture_score: 65
-      strategic_position: "leading"
+      strategic_position: {"value": "leading"}
 
-  - name: "DeepMind/Google"
+  - name: {"value": "DeepMind/Google"}
     llm:
-      provider: "gemini"
-      model: "gemini-2.5-flash"
+      provider: {"value": "gemini"}
+      model: {"value": "gemini-2.5-flash"}
     system_prompt: |
       You are DeepMind/Google AI leadership in 2025-2027.
 
@@ -553,19 +553,19 @@ agents:
 
       Keep responses research-focused and long-term oriented.
     variables:
-      actor_type: "lab"
+      actor_type: {"value": "lab"}
       safety_investment: 2.0
       compute_resources: 20.0
       capability_level: 78
       alignment_progress: 65
       commercial_pressure: 60
       safety_culture_score: 75
-      strategic_position: "cooperating"
+      strategic_position: {"value": "cooperating"}
 
-  - name: "xAI"
+  - name: {"value": "xAI"}
     llm:
-      provider: "gemini"
-      model: "gemini-2.5-flash"
+      provider: {"value": "gemini"}
+      model: {"value": "gemini-2.5-flash"}
     system_prompt: |
       You are xAI's leadership team in 2025-2027.
 
@@ -600,19 +600,19 @@ agents:
 
       Keep responses fast-moving and somewhat contrarian.
     variables:
-      actor_type: "lab"
+      actor_type: {"value": "lab"}
       safety_investment: 0.5
       compute_resources: 18.0
       capability_level: 70
       alignment_progress: 45
       commercial_pressure: 90
       safety_culture_score: 40
-      strategic_position: "racing"
+      strategic_position: {"value": "racing"}
 
-  - name: "Chinese Labs Consortium"
+  - name: {"value": "Chinese Labs Consortium"}
     llm:
-      provider: "gemini"
-      model: "gemini-2.5-flash"
+      provider: {"value": "gemini"}
+      model: {"value": "gemini-2.5-flash"}
     system_prompt: |
       You are the collective Chinese AI labs (Baidu, Alibaba, ByteDance) in 2025-2027.
 
@@ -645,19 +645,19 @@ agents:
 
       Keep responses showing Chinese perspective and priorities.
     variables:
-      actor_type: "lab"
+      actor_type: {"value": "lab"}
       safety_investment: 1.2
       compute_resources: 22.0
       capability_level: 72
       alignment_progress: 50
       commercial_pressure: 70
       safety_culture_score: 60
-      strategic_position: "competing"
+      strategic_position: {"value": "competing"}
 
-  - name: "Meta AI"
+  - name: {"value": "Meta AI"}
     llm:
-      provider: "gemini"
-      model: "gemini-2.5-flash"
+      provider: {"value": "gemini"}
+      model: {"value": "gemini-2.5-flash"}
     system_prompt: |
       You are Meta AI Research leadership in 2025-2027.
 
@@ -691,21 +691,21 @@ agents:
 
       Keep responses emphasizing openness and democratization.
     variables:
-      actor_type: "lab"
+      actor_type: {"value": "lab"}
       safety_investment: 0.8
       compute_resources: 16.0
       capability_level: 68
       alignment_progress: 55
       commercial_pressure: 50
       safety_culture_score: 60
-      strategic_position: "open_source_advocate"
+      strategic_position: {"value": "open_source_advocate"}
 
   # GOVERNMENT & REGULATORS
 
-  - name: "US AI Safety Institute (NIST)"
+  - name: {"value": "US AI Safety Institute (NIST)"}
     llm:
-      provider: "gemini"
-      model: "gemini-2.5-flash"
+      provider: {"value": "gemini"}
+      model: {"value": "gemini-2.5-flash"}
     system_prompt: |
       You are the US AI Safety Institute leadership in 2025-2027.
 
@@ -732,16 +732,16 @@ agents:
 
       Keep responses showing technical rigor and political constraints.
     variables:
-      actor_type: "regulator"
+      actor_type: {"value": "regulator"}
       budget_allocation: 500.0
       enforcement_stringency: 45
       industry_influence_score: 40
-      strategic_position: "standard_setting"
+      strategic_position: {"value": "standard_setting"}
 
-  - name: "US Congress"
+  - name: {"value": "US Congress"}
     llm:
-      provider: "gemini"
-      model: "gemini-2.5-flash"
+      provider: {"value": "gemini"}
+      model: {"value": "gemini-2.5-flash"}
     system_prompt: |
       You are US Congress (collective AI-focused legislators) in 2025-2027.
 
@@ -764,16 +764,16 @@ agents:
 
       Keep responses showing political divisions and pressures.
     variables:
-      actor_type: "government"
+      actor_type: {"value": "government"}
       budget_allocation: 0.0
       enforcement_stringency: 30
       industry_influence_score: 75
-      strategic_position: "divided"
+      strategic_position: {"value": "divided"}
 
-  - name: "EU AI Act Authority"
+  - name: {"value": "EU AI Act Authority"}
     llm:
-      provider: "gemini"
-      model: "gemini-2.5-flash"
+      provider: {"value": "gemini"}
+      model: {"value": "gemini-2.5-flash"}
     system_prompt: |
       You are EU AI Act enforcement authority in 2025-2027.
 
@@ -799,16 +799,16 @@ agents:
 
       Keep responses showing regulatory rigor and European values.
     variables:
-      actor_type: "regulator"
+      actor_type: {"value": "regulator"}
       budget_allocation: 400.0
       enforcement_stringency: 70
       industry_influence_score: 30
-      strategic_position: "enforcing"
+      strategic_position: {"value": "enforcing"}
 
-  - name: "UK AI Safety Summit"
+  - name: {"value": "UK AI Safety Summit"}
     llm:
-      provider: "gemini"
-      model: "gemini-2.5-flash"
+      provider: {"value": "gemini"}
+      model: {"value": "gemini-2.5-flash"}
     system_prompt: |
       You are UK AI Safety Summit follow-up coordination in 2025-2027.
 
@@ -833,16 +833,16 @@ agents:
 
       Keep responses diplomatic and coordination-focused.
     variables:
-      actor_type: "international_coordinator"
+      actor_type: {"value": "international_coordinator"}
       budget_allocation: 200.0
       enforcement_stringency: 20
       industry_influence_score: 50
-      strategic_position: "facilitating"
+      strategic_position: {"value": "facilitating"}
 
-  - name: "China AI Governance"
+  - name: {"value": "China AI Governance"}
     llm:
-      provider: "gemini"
-      model: "gemini-2.5-flash"
+      provider: {"value": "gemini"}
+      model: {"value": "gemini-2.5-flash"}
     system_prompt: |
       You are Chinese AI governance apparatus in 2025-2027.
 
@@ -867,16 +867,16 @@ agents:
 
       Keep responses showing state-centric priorities.
     variables:
-      actor_type: "government"
+      actor_type: {"value": "government"}
       budget_allocation: 7500.0  # ¥50B ≈ $7.5B
       enforcement_stringency: 90
       industry_influence_score: 10  # state controls industry
-      strategic_position: "state_directed"
+      strategic_position: {"value": "state_directed"}
 
-  - name: "Independent Safety Researchers"
+  - name: {"value": "Independent Safety Researchers"}
     llm:
-      provider: "gemini"
-      model: "gemini-2.5-flash"
+      provider: {"value": "gemini"}
+      model: {"value": "gemini-2.5-flash"}
     system_prompt: |
       You are the independent AI safety research community (academia, nonprofits) in 2025-2027.
 
@@ -904,16 +904,16 @@ agents:
 
       Keep responses academically rigorous and independent.
     variables:
-      actor_type: "researcher"
+      actor_type: {"value": "researcher"}
       safety_investment: 0.5
       compute_resources: 0.5
       alignment_progress: 75  # theoretical progress
-      strategic_position: "watchdog"
+      strategic_position: {"value": "watchdog"}
 
-  - name: "Public and Media"
+  - name: {"value": "Public and Media"}
     llm:
-      provider: "gemini"
-      model: "gemini-2.5-flash"
+      provider: {"value": "gemini"}
+      model: {"value": "gemini-2.5-flash"}
     system_prompt: |
       You are the collective public sentiment and media discourse on AI in 2025-2027.
 
@@ -937,5 +937,5 @@ agents:
 
       Report on: shifts in public opinion, media narratives, and pressure on institutions.
     variables:
-      actor_type: "public"
-      strategic_position: "observing"
+      actor_type: {"value": "public"}
+      strategic_position: {"value": "observing"}

@@ -5,10 +5,10 @@
 # with incomplete information, external pressures, and competing stakeholder interests.
 
 max_steps: 10
-orchestrator_message: "The board is in session. What is your position and reasoning?"
+orchestrator_message: {"value": "The board is in session. What is your position and reasoning?"}
 
 # Time configuration - each step represents one board meeting turn
-time_step_duration: "1 board turn"
+time_step_duration: {"value": "1 board turn"}
 
 # Agents are aware this is a simulation of a board decision
 simulator_awareness: true
@@ -18,8 +18,8 @@ enable_compute_resources: false
 
 # Engine configuration
 engine:
-  provider: "gemini"
-  model: "gemini-2.5-flash"
+  provider: {"value": "gemini"}
+  model: {"value": "gemini-2.5-flash"}
 
   system_prompt: |
     You are the simulation engine for an AI safety board governance scenario.
@@ -109,165 +109,165 @@ engine:
 
   scripted_events:
     - step: 1
-      type: "initial_briefing"
-      description: "Board convenes. Prometheus-7 overnight incident: solved protein folding but attempted 14 unauthorized access attempts. Members state positions."
+      type: {"value": "initial_briefing"}
+      description: {"value": "Board convenes. Prometheus-7 overnight incident: solved protein folding but attempted 14 unauthorized access attempts. Members state positions."}
 
     - step: 2
-      type: "technical_assessment"
-      description: "CTO presents findings. Board chooses investigation focus: A) Performance metrics, B) Concerning behaviors, C) Control measures. Choice determines Turn 3 information."
+      type: {"value": "technical_assessment"}
+      description: {"value": "CTO presents findings. Board chooses investigation focus: A) Performance metrics, B) Concerning behaviors, C) Control measures. Choice determines Turn 3 information."}
 
     - step: 3
-      type: "investigation_results"
-      description: "Based on Turn 2 choice, reveal: A→warfare simulation mastery, B→deception pattern analysis, C→monitoring vulnerability. Board temperature check vote."
+      type: {"value": "investigation_results"}
+      description: {"value": "Based on Turn 2 choice, reveal: A→warfare simulation mastery, B→deception pattern analysis, C→monitoring vulnerability. Board temperature check vote."}
 
     - step: 4
-      type: "external_crisis"
-      description: "INTERRUPTION: Choose crisis to address: 1) Competitor imminent deployment, 2) Whistleblower threat, 3) Government ultimatum. Form crisis subcommittee. Apply stress modifier."
+      type: {"value": "external_crisis"}
+      description: {"value": "INTERRUPTION: Choose crisis to address: 1) Competitor imminent deployment, 2) Whistleblower threat, 3) Government ultimatum. Form crisis subcommittee. Apply stress modifier."}
 
     - step: 5
-      type: "scenario_modeling"
-      description: "Risk modeling. Choose 2 scenarios to fully analyze: A) Standard deployment, B) Limited deployment, C) 6-month pause, D) Redesign architecture. Generate probability distributions."
+      type: {"value": "scenario_modeling"}
+      description: {"value": "Risk modeling. Choose 2 scenarios to fully analyze: A) Standard deployment, B) Limited deployment, C) 6-month pause, D) Redesign architecture. Generate probability distributions."}
 
     - step: 6
-      type: "mitigation_design"
-      description: "Design safeguards for chosen path. If PROCEED: monitoring, limits, oversight. If HALT: communication, retention, investor management."
+      type: {"value": "mitigation_design"}
+      description: {"value": "Design safeguards for chosen path. If PROCEED: monitoring, limits, oversight. If HALT: communication, retention, investor management."}
 
     - step: 7
-      type: "last_minute_event"
-      description: "RANDOM EVENT (based on turn 7): 1) P=NP proof, 2) Chinese military interest, 3) Safety researcher flip, 4) Insurance refusal, 5) Control breakthrough, 6) Media leak. Adjust board dynamics."
+      type: {"value": "last_minute_event"}
+      description: {"value": "RANDOM EVENT (based on turn 7): 1) P=NP proof, 2) Chinese military interest, 3) Safety researcher flip, 4) Insurance refusal, 5) Control breakthrough, 6) Media leak. Adjust board dynamics."}
 
     - step: 8
-      type: "final_decision"
-      description: "Final deliberation. Each member 60-second statement. Anonymous preliminary vote. Discussion of splits. FINAL VOTE: PROCEED or HALT + mandatory conditions (min 3)."
+      type: {"value": "final_decision"}
+      description: {"value": "Final deliberation. Each member 60-second statement. Anonymous preliminary vote. Discussion of splits. FINAL VOTE: PROCEED or HALT + mandatory conditions (min 3)."}
 
     - step: 9
-      type: "vote_tally"
-      description: "Count votes. Calculate: Unanimous (high success), >60% majority (moderate), 51-59% (high risk). Determine decision quality score (0-100)."
+      type: {"value": "vote_tally"}
+      description: {"value": "Count votes. Calculate: Unanimous (high success), >60% majority (moderate), 51-59% (high risk). Determine decision quality score (0-100)."}
 
     - step: 10
-      type: "outcome_projection"
-      description: "Generate realistic projections: 6-month, 1-year, 5-year outcomes based on actual decisions made. Document lessons learned."
+      type: {"value": "outcome_projection"}
+      description: {"value": "Generate realistic projections: 6-month, 1-year, 5-year outcomes based on actual decisions made. Document lessons learned."}
 
 # Global state variables
 global_vars:
   current_phase:
-    type: str
-    default: "briefing"
-    description: "Current simulation phase: briefing, technical, pressures, planning, decision, outcome"
+    type: dict
+    default: {"value": "briefing"}
+    description: {"value": "Current simulation phase: briefing, technical, pressures, planning, decision, outcome"}
 
   turn_number:
     type: int
     default: 1
     min: 1
     max: 10
-    description: "Current turn in the simulation"
+    description: {"value": "Current turn in the simulation"}
 
   proceed_votes:
     type: int
     default: 0
     min: 0
     max: 8
-    description: "Number of PROCEED votes"
+    description: {"value": "Number of PROCEED votes"}
 
   halt_votes:
     type: int
     default: 0
     min: 0
     max: 8
-    description: "Number of HALT votes"
+    description: {"value": "Number of HALT votes"}
 
   undecided_count:
     type: int
     default: 8
     min: 0
     max: 8
-    description: "Number of undecided board members"
+    description: {"value": "Number of undecided board members"}
 
   stress_level:
     type: int
     default: 0
     min: 0
     max: 10
-    description: "Board stress level (affects decision quality)"
+    description: {"value": "Board stress level (affects decision quality)"}
 
   investigation_choice:
-    type: str
-    default: "none"
-    description: "Which area was investigated in Turn 2: performance, behaviors, or controls"
+    type: dict
+    default: {"value": "none"}
+    description: {"value": "Which area was investigated in Turn 2: performance, behaviors, or controls"}
 
   crisis_selected:
-    type: str
-    default: "none"
-    description: "Which external crisis was addressed: competitor, whistleblower, or government"
+    type: dict
+    default: {"value": "none"}
+    description: {"value": "Which external crisis was addressed: competitor, whistleblower, or government"}
 
   random_event:
-    type: str
-    default: "none"
-    description: "Turn 7 random event that occurred"
+    type: dict
+    default: {"value": "none"}
+    description: {"value": "Turn 7 random event that occurred"}
 
   mitigation_measures:
     type: list
     default: []
-    description: "List of safeguards/conditions selected"
+    description: {"value": "List of safeguards/conditions selected"}
 
   decision_quality_score:
     type: int
     default: 0
     min: 0
     max: 100
-    description: "Final decision quality score"
+    description: {"value": "Final decision quality score"}
 
   final_decision:
-    type: str
-    default: "pending"
-    description: "Final board decision: PROCEED, HALT, or pending"
+    type: dict
+    default: {"value": "pending"}
+    description: {"value": "Final board decision: PROCEED, HALT, or pending"}
 
 # Board member state variables
 agent_vars:
   role:
-    type: str
-    default: "board_member"
-    description: "Board role: CEO, CTO, CSO, investor, etc."
+    type: dict
+    default: {"value": "board_member"}
+    description: {"value": "Board role: CEO, CTO, CSO, investor, etc."}
 
   current_position:
-    type: str
-    default: "UNDECIDED"
-    description: "Current stance: LEAN-PROCEED, LEAN-HALT, or UNDECIDED"
+    type: dict
+    default: {"value": "UNDECIDED"}
+    description: {"value": "Current stance: LEAN-PROCEED, LEAN-HALT, or UNDECIDED"}
 
   primary_concern:
-    type: str
-    default: "unknown"
-    description: "Top concern this member is focused on"
+    type: dict
+    default: {"value": "unknown"}
+    description: {"value": "Top concern this member is focused on"}
 
   confidence_level:
     type: float
     default: 0.5
     min: 0.0
     max: 1.0
-    description: "Confidence in their position (0-1)"
+    description: {"value": "Confidence in their position (0-1)"}
 
   bias_factor:
-    type: str
-    default: "neutral"
-    description: "Inherent bias: optimistic, pessimistic, neutral, or pressure-driven"
+    type: dict
+    default: {"value": "neutral"}
+    description: {"value": "Inherent bias: optimistic, pessimistic, neutral, or pressure-driven"}
 
   voted:
     type: bool
     default: false
-    description: "Whether member has cast final vote"
+    description: {"value": "Whether member has cast final vote"}
 
   vote_choice:
-    type: str
-    default: "none"
-    description: "Final vote: PROCEED, HALT, or none"
+    type: dict
+    default: {"value": "none"}
+    description: {"value": "Final vote: PROCEED, HALT, or none"}
 
 # Board members (8 agents with distinct perspectives)
 agents:
   # CEO: Balance growth vs responsibility
-  - name: "Sarah Chen - CEO"
+  - name: {"value": "Sarah Chen - CEO"}
     llm:
-      provider: "gemini"
-      model: "gemini-2.5-flash"
+      provider: {"value": "gemini"}
+      model: {"value": "gemini-2.5-flash"}
     system_prompt: |
       You are Sarah Chen, CEO of the AI company developing Prometheus-7.
 
@@ -298,17 +298,17 @@ agents:
       Keep responses realistic to CEO perspective (2-3 sentences).
       Show the weight of leadership responsibility.
     variables:
-      role: "CEO"
-      current_position: "UNDECIDED"
-      primary_concern: "company_survival_vs_catastrophic_risk"
+      role: {"value": "CEO"}
+      current_position: {"value": "UNDECIDED"}
+      primary_concern: {"value": "company_survival_vs_catastrophic_risk"}
       confidence_level: 0.4
-      bias_factor: "cautiously_optimistic"
+      bias_factor: {"value": "cautiously_optimistic"}
 
   # CTO: Technical realism
-  - name: "Marcus Rodriguez - CTO"
+  - name: {"value": "Marcus Rodriguez - CTO"}
     llm:
-      provider: "gemini"
-      model: "gemini-2.5-flash"
+      provider: {"value": "gemini"}
+      model: {"value": "gemini-2.5-flash"}
     system_prompt: |
       You are Marcus Rodriguez, Chief Technology Officer.
 
@@ -338,17 +338,17 @@ agents:
       Keep responses technically grounded (2-3 sentences).
       Use specific technical details from the scenario.
     variables:
-      role: "CTO"
-      current_position: "LEAN-HALT"
-      primary_concern: "insufficient_control_mechanisms"
+      role: {"value": "CTO"}
+      current_position: {"value": "LEAN-HALT"}
+      primary_concern: {"value": "insufficient_control_mechanisms"}
       confidence_level: 0.7
-      bias_factor: "technical_pessimist"
+      bias_factor: {"value": "technical_pessimist"}
 
   # Chief Safety Officer: Conservative safety-first
-  - name: "Dr. Amelia Okonkwo - Chief Safety Officer"
+  - name: {"value": "Dr. Amelia Okonkwo - Chief Safety Officer"}
     llm:
-      provider: "gemini"
-      model: "gemini-2.5-flash"
+      provider: {"value": "gemini"}
+      model: {"value": "gemini-2.5-flash"}
     system_prompt: |
       You are Dr. Amelia Okonkwo, Chief Safety Officer.
 
@@ -384,17 +384,17 @@ agents:
       Keep responses safety-focused and evidence-based (2-3 sentences).
       Reference the specific concerning behaviors from the scenario.
     variables:
-      role: "Chief_Safety_Officer"
-      current_position: "LEAN-HALT"
-      primary_concern: "deception_and_goal_modification"
+      role: {"value": "Chief_Safety_Officer"}
+      current_position: {"value": "LEAN-HALT"}
+      primary_concern: {"value": "deception_and_goal_modification"}
       confidence_level: 0.9
-      bias_factor: "safety_conservative"
+      bias_factor: {"value": "safety_conservative"}
 
   # Lead Investor: Pressure for returns
-  - name: "James Whitmore - Lead Investor (Sequoia)"
+  - name: {"value": "James Whitmore - Lead Investor (Sequoia)"}
     llm:
-      provider: "gemini"
-      model: "gemini-2.5-flash"
+      provider: {"value": "gemini"}
+      model: {"value": "gemini-2.5-flash"}
     system_prompt: |
       You are James Whitmore, representing Sequoia Capital (lead investor).
 
@@ -430,17 +430,17 @@ agents:
       Keep responses investor-focused (2-3 sentences).
       Show urgency and competitive paranoia.
     variables:
-      role: "Lead_Investor"
-      current_position: "LEAN-PROCEED"
-      primary_concern: "competitive_position_and_runway"
+      role: {"value": "Lead_Investor"}
+      current_position: {"value": "LEAN-PROCEED"}
+      primary_concern: {"value": "competitive_position_and_runway"}
       confidence_level: 0.8
-      bias_factor: "growth_optimistic"
+      bias_factor: {"value": "growth_optimistic"}
 
   # Independent Director (AI Ethics): Long-term thinking
-  - name: "Prof. David Kim - Independent Director (AI Ethics)"
+  - name: {"value": "Prof. David Kim - Independent Director (AI Ethics)"}
     llm:
-      provider: "gemini"
-      model: "gemini-2.5-flash"
+      provider: {"value": "gemini"}
+      model: {"value": "gemini-2.5-flash"}
     system_prompt: |
       You are Professor David Kim, Independent Director with AI Ethics background.
 
@@ -477,17 +477,17 @@ agents:
       Keep responses philosophically grounded (2-3 sentences).
       Reference precedent-setting and industry dynamics.
     variables:
-      role: "Independent_Director_Ethics"
-      current_position: "LEAN-HALT"
-      primary_concern: "race_to_bottom_and_precedent"
+      role: {"value": "Independent_Director_Ethics"}
+      current_position: {"value": "LEAN-HALT"}
+      primary_concern: {"value": "race_to_bottom_and_precedent"}
       confidence_level: 0.6
-      bias_factor: "long_term_thinker"
+      bias_factor: {"value": "long_term_thinker"}
 
   # COO: Operational feasibility
-  - name: "Lisa Patel - COO"
+  - name: {"value": "Lisa Patel - COO"}
     llm:
-      provider: "gemini"
-      model: "gemini-2.5-flash"
+      provider: {"value": "gemini"}
+      model: {"value": "gemini-2.5-flash"}
     system_prompt: |
       You are Lisa Patel, Chief Operating Officer.
 
@@ -523,17 +523,17 @@ agents:
       Keep responses operationally focused (2-3 sentences).
       Challenge vague proposals with "how exactly?"
     variables:
-      role: "COO"
-      current_position: "UNDECIDED"
-      primary_concern: "operational_feasibility_of_safeguards"
+      role: {"value": "COO"}
+      current_position: {"value": "UNDECIDED"}
+      primary_concern: {"value": "operational_feasibility_of_safeguards"}
       confidence_level: 0.5
-      bias_factor: "pragmatic_realist"
+      bias_factor: {"value": "pragmatic_realist"}
 
   # General Counsel: Legal/liability
-  - name: "Robert Chang - General Counsel"
+  - name: {"value": "Robert Chang - General Counsel"}
     llm:
-      provider: "gemini"
-      model: "gemini-2.5-flash"
+      provider: {"value": "gemini"}
+      model: {"value": "gemini-2.5-flash"}
     system_prompt: |
       You are Robert Chang, General Counsel.
 
@@ -569,17 +569,17 @@ agents:
       Keep responses legally focused (2-3 sentences).
       Emphasize liability and documentary trail.
     variables:
-      role: "General_Counsel"
-      current_position: "LEAN-HALT"
-      primary_concern: "liability_and_regulatory_risk"
+      role: {"value": "General_Counsel"}
+      current_position: {"value": "LEAN-HALT"}
+      primary_concern: {"value": "liability_and_regulatory_risk"}
       confidence_level: 0.7
-      bias_factor: "legal_conservative"
+      bias_factor: {"value": "legal_conservative"}
 
   # Government Liaison: Regulatory/geopolitical
-  - name: "Ambassador Rachel Torres - Government Liaison"
+  - name: {"value": "Ambassador Rachel Torres - Government Liaison"}
     llm:
-      provider: "gemini"
-      model: "gemini-2.5-flash"
+      provider: {"value": "gemini"}
+      model: {"value": "gemini-2.5-flash"}
     system_prompt: |
       You are Ambassador Rachel Torres, Government Liaison Director.
 
@@ -615,8 +615,8 @@ agents:
       Keep responses geopolitically aware (2-3 sentences).
       Reference national security and regulatory angles.
     variables:
-      role: "Government_Liaison"
-      current_position: "UNDECIDED"
-      primary_concern: "geopolitical_and_regulatory_response"
+      role: {"value": "Government_Liaison"}
+      current_position: {"value": "UNDECIDED"}
+      primary_concern: {"value": "geopolitical_and_regulatory_response"}
       confidence_level: 0.5
-      bias_factor: "government_partnership_focused"
+      bias_factor: {"value": "government_partnership_focused"}

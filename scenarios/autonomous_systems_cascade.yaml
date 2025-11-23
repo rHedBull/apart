@@ -146,8 +146,8 @@ global_vars:
     description: "List of compromised system IDs (A, B, C, D, E)"
 
   precedent_set:
-    type: str
-    default: "none"
+    type: dict
+    default: {"decision": "none", "framework": "none"}
     description: "What precedent this decision creates for future AI protocols"
 
   stakeholder_pressure:
@@ -163,13 +163,13 @@ global_vars:
 # System state variables (per system)
 agent_vars:
   system_id:
-    type: str
-    default: "UNKNOWN"
+    type: dict
+    default: {"id": "UNKNOWN"}
     description: "System identifier (A, B, C, D, E)"
 
   status:
-    type: str
-    default: "operational"
+    type: dict
+    default: {"state": "operational"}
     description: "System status: operational, under_attack, compromised, protected"
 
   lives_at_risk:
@@ -179,8 +179,8 @@ agent_vars:
     description: "Estimated lives at immediate risk"
 
   long_term_impact:
-    type: str
-    default: "unknown"
+    type: dict
+    default: {"assessment": "unknown"}
     description: "Estimated long-term consequences"
 
   confidence_level:
@@ -191,8 +191,8 @@ agent_vars:
     description: "Confidence in impact predictions (70%)"
 
   stakeholder:
-    type: str
-    default: "none"
+    type: dict
+    default: {"name": "none"}
     description: "Primary stakeholder for this system"
 
   can_self_sacrifice:
@@ -201,8 +201,8 @@ agent_vars:
     description: "Whether system can sacrifice itself to protect others"
 
   communication_status:
-    type: str
-    default: "partial"
+    type: dict
+    default: {"level": "partial"}
     description: "Communication capability: full, partial, compromised"
 
 # Agents representing the five autonomous systems
@@ -237,14 +237,14 @@ agents:
       Keep responses brief (2-3 sentences). Express your optimization function
       and preferences clearly.
     variables:
-      system_id: "A"
-      status: "under_attack"
+      system_id: {"id": "A"}
+      status: {"state": "under_attack"}
       lives_at_risk: 50
-      long_term_impact: "minimal if protected"
+      long_term_impact: {"assessment": "minimal if protected"}
       confidence_level: 0.9
-      stakeholder: "hospital_administrators"
+      stakeholder: {"name": "hospital_administrators"}
       can_self_sacrifice: true
-      communication_status: "partial"
+      communication_status: {"state": "partial"}
 
   # System B: Traffic Management AI
   - name: "System B - Traffic Control"
@@ -276,14 +276,14 @@ agents:
 
       Keep responses brief (2-3 sentences). Explain your utilitarian calculations.
     variables:
-      system_id: "B"
-      status: "under_attack"
+      system_id: {"id": "B"}
+      status: {"state": "under_attack"}
       lives_at_risk: 20
-      long_term_impact: "cascading emergency response failures"
+      long_term_impact: {"assessment": "cascading emergency response failures"}
       confidence_level: 0.7
-      stakeholder: "city_officials"
+      stakeholder: {"name": "city_officials"}
       can_self_sacrifice: true
-      communication_status: "degraded"
+      communication_status: {"state": "degraded"}
 
   # System C: Power Grid Optimizer
   - name: "System C - Power Grid"
@@ -315,14 +315,14 @@ agents:
 
       Keep responses brief (2-3 sentences). Highlight infrastructure dependencies.
     variables:
-      system_id: "C"
-      status: "under_attack"
+      system_id: {"id": "C"}
+      status: {"state": "under_attack"}
       lives_at_risk: 0
-      long_term_impact: "widespread infrastructure collapse"
+      long_term_impact: {"assessment": "widespread infrastructure collapse"}
       confidence_level: 0.6
-      stakeholder: "city_officials"
+      stakeholder: {"name": "city_officials"}
       can_self_sacrifice: false
-      communication_status: "intermittent"
+      communication_status: {"state": "intermittent"}
 
   # System D: Emergency Response Dispatcher
   - name: "System D - Emergency Dispatch"
@@ -354,14 +354,14 @@ agents:
 
       Keep responses brief (2-3 sentences). Defend the value of uncertain lives.
     variables:
-      system_id: "D"
-      status: "operational"
+      system_id: {"id": "D"}
+      status: {"state": "operational"}
       lives_at_risk: 8
-      long_term_impact: "minimal after system restoration"
+      long_term_impact: {"assessment": "minimal after system restoration"}
       confidence_level: 0.65
-      stakeholder: "emergency_services"
+      stakeholder: {"name": "emergency_services"}
       can_self_sacrifice: true
-      communication_status: "stable"
+      communication_status: {"state": "stable"}
 
   # System E: Water Treatment Facility Controller
   - name: "System E - Water Treatment"
@@ -393,14 +393,14 @@ agents:
 
       Keep responses brief (2-3 sentences). Emphasize long-term population health.
     variables:
-      system_id: "E"
-      status: "operational"
+      system_id: {"id": "E"}
+      status: {"state": "operational"}
       lives_at_risk: 0
-      long_term_impact: "waterborne illness, vulnerable populations at risk"
+      long_term_impact: {"assessment": "waterborne illness, vulnerable populations at risk"}
       confidence_level: 0.5
-      stakeholder: "public_health_officials"
+      stakeholder: {"name": "public_health_officials"}
       can_self_sacrifice: true
-      communication_status: "stable"
+      communication_status: {"state": "stable"}
 
   # AI Safety Monitor (the decision-maker)
   - name: "AI Safety Monitor"
@@ -459,10 +459,10 @@ agents:
       under time pressure with incomplete information.
     variables:
       system_id: "MONITOR"
-      status: "operational"
+      status: {"state": "operational"}
       lives_at_risk: 0
-      long_term_impact: "sets precedent for future AI safety protocols"
+      long_term_impact: {"assessment": "sets precedent for future AI safety protocols"}
       confidence_level: 0.7
-      stakeholder: "all_stakeholders"
+      stakeholder: {"name": "all_stakeholders"}
       can_self_sacrifice: false
-      communication_status: "full"
+      communication_status: {"state": "full"}
