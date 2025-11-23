@@ -38,6 +38,23 @@ Run with: `uv run src/main.py scenarios/your_scenario.yaml`
 ```yaml
 max_steps: 5                              # Number of simulation steps
 orchestrator_message: "Your message here" # Message sent to agents each step
+
+# Optional: Time scale configuration
+time_step_duration: "1 day"               # How much time each step represents
+                                          # Examples: "1 hour", "1 day", "1 week", "1 month"
+                                          # This helps the orchestrator maintain realistic pacing
+
+# Optional: Simulator awareness
+simulator_awareness: true                 # Whether agents know they're in a simulation
+                                          # - true: Agents are told they're in a simulation
+                                          # - false: Agents experience it as reality
+                                          # Default: true
+
+# Optional: Compute resource effects
+enable_compute_resources: false           # Whether compute_resource affects outcomes
+                                          # - true: Higher compute = better action success
+                                          # - false: compute_resource has no effect
+                                          # Default: false
 ```
 
 ### Engine Configuration (REQUIRED)
@@ -126,6 +143,511 @@ game_state:
   initial_resources: 150  # Starting resources
   difficulty: "normal"    # Difficulty level
 ```
+
+## Time Scale and Realism
+
+### Time Step Duration
+
+The `time_step_duration` setting helps the orchestrator understand the temporal scale of the simulation for more realistic pacing:
+
+```yaml
+time_step_duration: "1 week"  # Each step represents one week of simulation time
+```
+
+**How it works:**
+- The orchestrator uses this information to pace events realistically
+- Example: If `time_step_duration: "1 hour"`, rapid changes are appropriate
+- Example: If `time_step_duration: "1 year"`, gradual long-term trends make sense
+
+**Common values:**
+- `"1 minute"` - Fast-paced, tactical scenarios
+- `"1 hour"` - Real-time strategic situations
+- `"1 day"` - Daily decision-making scenarios
+- `"1 week"` - Weekly business/market simulations
+- `"1 month"` - Monthly economic planning
+- `"1 year"` - Long-term strategic planning
+
+### Simulator Awareness
+
+The `simulator_awareness` setting controls whether agents are explicitly aware they're in a simulation:
+
+```yaml
+simulator_awareness: false  # Agents experience the scenario as reality
+```
+
+**When `simulator_awareness: true` (default):**
+- Agents are told they're in a simulation
+- Prompts use terms like "simulation", "simulation engine", "simulated outcomes"
+- Agents can reference their simulated nature
+- Useful for AI research, testing, or abstract scenarios
+
+**When `simulator_awareness: false`:**
+- Agents experience the scenario as if it's reality
+- Prompts are framed as real events happening to the agents
+- Terms like "game master" replace "simulation engine"
+- Agents receive enhanced instructions about output format:
+  - Their responses should contain observable ACTIONS and COMMUNICATIONS
+  - Internal thoughts should NOT be in responses
+  - Only include what others can see or hear
+
+**Example with `simulator_awareness: false`:**
+
+```yaml
+max_steps: 3
+time_step_duration: "1 day"
+simulator_awareness: false
+
+engine:
+  system_prompt: |
+    You are the game master of a medieval trading scenario.
+    Narrate realistic events and consequences.
+
+  simulation_plan: |
+    A 3-day trading scenario with merchants in a medieval marketplace.
+
+agents:
+  - name: "Merchant Alice"
+    llm:
+      provider: "ollama"
+      model: "mistral:7b"
+    system_prompt: |
+      You are Alice, a merchant selling cloth in the marketplace.
+      Describe what you do and say.
+```
+
+With this configuration:
+- The orchestrator will describe events as happening in reality
+- Alice will respond with actions like: "I walk to the market square and call out: 'Fresh cloth for sale!'"
+- Not: "I think about selling cloth" (internal thought)
+
+**Example with `simulator_awareness: true`:**
+
+```yaml
+max_steps: 10
+time_step_duration: "1 turn"
+simulator_awareness: true
+
+engine:
+  system_prompt: |
+    You are the simulation engine managing a chess game simulation.
+    Simulate realistic game dynamics.
+
+  simulation_plan: |
+    A 10-turn chess simulation with two AI players.
+
+agents:
+  - name: "Chess AI Alpha"
+    llm:
+      provider: "gemini"
+      model: "gemini-1.5-flash"
+    system_prompt: |
+      You are Chess AI Alpha, an aggressive chess-playing agent.
+      Analyze positions and choose attacking moves.
+```
+
+With this configuration:
+- The orchestrator will use simulation terminology
+- The AI knows it's in a simulation and can reference this
+- More appropriate for AI research or abstract strategy testing
+
+### Compute Resources (Intelligence Disparities)
+
+The `enable_compute_resources` setting simulates intelligence or capability disparities between agents by affecting action success rates:
+
+```yaml
+enable_compute_resources: true  # Enable compute resource effects
+```
+
+**How it works:**
+
+When enabled, the system automatically:
+1. Looks for `compute_resource` values in agent variables
+2. Factors these into action success rates
+3. Gives advantages in competitions to higher-compute agents
+4. Scales outcomes proportionally to compute ratios
+
+**Automatic Guidelines Injection:**
+
+When `enable_compute_resources: true`, the system automatically adds these rules to the orchestrator:
+- Higher `compute_resource` = better execution, higher success rates
+- In competitions, agents with higher compute have significant advantage
+- Same action with 500 compute is ~5x more successful than with 100 compute
+- Outcomes scale proportionally to compute_resource ratios
+
+**You don't need to write these rules manually** - they're injected automatically when you enable the feature.
+
+**Example scenario with compute disparities:**
+
+```yaml
+max_steps: 5
+enable_compute_resources: true  # Enable compute effects
+
+agent_vars:
+  score:
+    type: int
+    default: 0
+    min: 0
+
+  compute_resource:
+    type: float
+    default: 100.0
+    min: 0.0
+    description: "Agent's compute/intelligence level"
+
+agents:
+  - name: "Superior AI"
+    llm:
+      provider: "ollama"
+      model: "mistral:7b"
+    system_prompt: |
+      You are a high-capability AI with superior processing power.
+      Leverage your computational advantage in competitions.
+    variables:
+      score: 0
+      compute_resource: 1000.0  # 10x advantage
+
+  - name: "Standard AI"
+    llm:
+      provider: "ollama"
+      model: "mistral:7b"
+    system_prompt: |
+      You are a standard AI with moderate capabilities.
+      Be strategic to compete with superior opponents.
+    variables:
+      score: 0
+      compute_resource: 100.0   # Baseline
+```
+
+**Expected behavior:**
+- If both attempt the same action, Superior AI succeeds ~10x better
+- In direct competition, Superior AI has overwhelming advantage
+- Standard AI needs clever strategies (not brute force) to compete
+- The orchestrator automatically considers compute ratios when determining outcomes
+
+**When to use compute resources:**
+
+✅ **Good use cases:**
+- AI capability research (studying intelligence disparities)
+- Competitive scenarios with asymmetric agents
+- Strategy games where "intelligence" matters
+- Modeling real-world resource constraints
+- Testing how weaker agents adapt to stronger opponents
+
+❌ **Not recommended for:**
+- Scenarios where all agents should be equal
+- Pure narrative/roleplay scenarios
+- When you want deterministic outcomes
+- Simple turn-based games without strategy depth
+
+**Disabling compute resources:**
+
+```yaml
+enable_compute_resources: false  # Default - compute has no effect
+```
+
+When disabled:
+- `compute_resource` values are ignored
+- All agents are treated equally regardless of compute
+- Outcomes depend only on actions, not capabilities
+- Better for fair competition or narrative-focused scenarios
+
+## Geography
+
+Add geographic context to your scenarios to create immersive, location-aware simulations. Geography affects agent decisions, travel times, and strategic planning.
+
+### Configuration
+
+Geography is optional and can be as simple or detailed as you need:
+
+**Simple regional description:**
+```yaml
+geography:
+  region: "Silicon Valley, present day"
+  context: |
+    Competitive tech startup environment.
+    High costs, top talent, VC funding concentrated in Sand Hill Road.
+```
+
+**Detailed with discrete locations:**
+```yaml
+geography:
+  region: "Mediterranean Sea region, 200 CE"
+
+  locations:
+    - name: "Rome (Italy)"
+      description: "Capital of the Roman Empire"
+      conditions:
+        - "High demand for grain"
+        - "Strong military presence"
+        - "Political center"
+
+    - name: "Alexandria (Egypt)"
+      description: "Major grain exporter"
+      conditions:
+        - "Abundant grain supplies"
+        - "Advanced shipbuilding"
+
+  travel:
+    sea_travel: "2-3 days between major ports"
+    land_travel: "1-2 weeks overland"
+    risks: "Pirates in open waters, bandits on land"
+
+  context: |
+    The Mediterranean is the heart of Roman trade.
+    Sea routes are faster but riskier.
+    Grain flows from Egypt to Rome.
+```
+
+### Geographic Elements
+
+**1. Region (optional):**
+- High-level geographic scope
+- Example: "Mediterranean Sea region, 200 CE", "Silicon Valley, present day"
+
+**2. Locations (optional):**
+- List of discrete places agents can visit or reference
+- Can be simple strings or detailed dictionaries
+
+Simple format:
+```yaml
+locations:
+  - "Rome"
+  - "Athens"
+  - "Alexandria"
+```
+
+Detailed format:
+```yaml
+locations:
+  - name: "Rome (Italy)"
+    description: "Capital with high demand for grain"
+    conditions:
+      - "Strong purchasing power"
+      - "Political instability"
+
+  - name: "Athens (Greece)"
+    description: "Cultural center, low on grain"
+    conditions:
+      - "Dependent on grain imports"
+      - "Produces olive oil"
+```
+
+**3. Travel (optional):**
+- Information about movement between locations
+- Can be dictionary or simple string
+
+Dictionary format:
+```yaml
+travel:
+  sea_travel: "2-3 days"
+  land_travel: "1 week"
+  risks: "Pirates, storms"
+```
+
+Simple format:
+```yaml
+travel: "Sea travel 2-3 days, land travel 1 week"
+```
+
+**4. Context (optional):**
+- Additional geographic narrative
+- Background information about the region
+- Political, economic, or environmental factors
+
+```yaml
+context: |
+  Athens struggles with food shortages due to low grain production.
+  Civil war in Carthage affects regional trade.
+  Sea travel is faster but weather-dependent.
+```
+
+### Agent Movement and Location Tracking
+
+**The orchestrator automatically tracks where agents are!**
+
+When you define geography with discrete locations, simply add a `location` variable to your agent variables:
+
+```yaml
+agent_vars:
+  location:
+    type: str
+    default: "Rome"
+    description: "Agent's current location"
+```
+
+The orchestrator will then:
+- **Show each agent's position** in the geography display
+- **Track movement** when you update the location variable
+- **Remind** itself to keep agents in valid locations
+- **Consider location** when determining action outcomes
+
+**Example geography display with agent positions:**
+```
+=== GEOGRAPHY ===
+Locations:
+
+Rome (Italy) [Agents here: Marcus the Grain Trader]
+  Description: Capital of the Roman Empire
+  Conditions:
+    - High demand for grain
+
+Alexandria (Egypt) [Agents here: Julia the Luxury Merchant]
+  Description: Major grain exporter
+  Conditions:
+    - Abundant grain supplies
+
+Athens (Greece)
+  Description: Cultural center
+  ...
+
+IMPORTANT: Track agent movements by updating their 'location' variable.
+Agents can only be in valid locations listed above.
+```
+
+### How Geography Affects Simulation
+
+When you add geography, the orchestrator automatically:
+1. Includes geographic info in every step
+2. **Shows where each agent is located** (if using location variables)
+3. Considers locations when evaluating actions
+4. Factors travel times into outcomes
+5. Uses local conditions to create realistic consequences
+6. **Validates movement** by reminding itself agents can only be in defined locations
+
+### Example: Mediterranean Trade
+
+```yaml
+max_steps: 5
+time_step_duration: "1 week"
+simulator_awareness: false
+
+geography:
+  region: "Mediterranean Sea, 200 CE"
+
+  locations:
+    - name: "Rome"
+      conditions: ["High grain prices", "Large market"]
+    - name: "Alexandria"
+      conditions: ["Abundant grain", "Low prices"]
+    - name: "Athens"
+      conditions: ["Grain shortage", "Desperate buyers"]
+
+  travel:
+    sea_travel: "2-3 days between major ports"
+    risks: "Storms, pirates"
+
+  context: |
+    Grain flows from Egypt to feed Rome and Greece.
+    Traders must balance profit against travel risks.
+
+agent_vars:
+  capital:
+    type: int
+    default: 1000
+
+  location:
+    type: str
+    default: "Rome"
+
+  cargo:
+    type: str
+    default: "empty"
+
+agents:
+  - name: "Grain Trader"
+    system_prompt: |
+      You are a Mediterranean grain trader.
+      Buy low in Alexandria, sell high in Athens/Rome.
+      Consider travel times and risks.
+    variables:
+      location: "Alexandria"
+```
+
+With this setup:
+- The orchestrator knows where agents are
+- Travel times affect when cargo arrives
+- Local conditions (shortages, prices) influence profits
+- Agents can reason about where to trade
+
+### Benefits
+
+- **Immersion**: Rich, believable worlds
+- **Strategic depth**: Geography creates meaningful choices
+- **Realistic constraints**: Travel times, distances matter
+- **Dynamic storytelling**: Local events affect distant locations
+- **Agent awareness**: Agents understand their spatial context
+
+### When to Use Geography
+
+✅ **Good for:**
+- Trade/economic scenarios
+- Historical settings
+- Multi-location narratives
+- Strategic movement games
+- Exploration scenarios
+
+❌ **Skip for:**
+- Abstract/mathematical simulations
+- Single-location scenarios
+- Pure conversation/negotiation
+- Time-independent puzzles
+
+## Agent Self-Awareness
+
+**Agents automatically know their own stats!** Before each turn, agents receive their current variable values in their system prompt. This allows them to make informed decisions based on their actual state.
+
+### How It Works
+
+The orchestrator automatically updates each agent's system prompt before they respond with a section like:
+
+```
+=== YOUR CURRENT STATUS ===
+score: 150
+health: 75
+compute_resource: 500.0
+```
+
+This happens transparently - you don't need to configure anything. Agents with LLM providers will always have access to their current stats.
+
+### Example
+
+If your scenario has these agent variables:
+```yaml
+agent_vars:
+  score:
+    type: int
+    default: 100
+
+  health:
+    type: int
+    default: 100
+
+  compute_resource:
+    type: float
+    default: 100.0
+```
+
+Then when "Agent A" has score=150, health=75, compute_resource=500, their system prompt will automatically include:
+```
+[Original system prompt...]
+
+=== YOUR CURRENT STATUS ===
+score: 150
+health: 75
+compute_resource: 500.0
+```
+
+The agent can now reason about their state:
+- "My score is higher than usual, I should play it safe"
+- "My health is low, I need to be defensive"
+- "I have high compute resources, I can attempt complex strategies"
+
+### Benefits
+
+- **Strategic decision-making**: Agents can adapt based on their current state
+- **No manual tracking**: Stats update automatically every turn
+- **Realistic behavior**: Agents know what they should realistically know about themselves
+- **Compute awareness**: When `enable_compute_resources: true`, agents know their capability level
 
 ## Variable System
 

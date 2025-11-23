@@ -7,7 +7,7 @@ from core.game_engine import GameEngine
 from core.simulator_agent import SimulatorAgent, SimulationError
 from utils.persistence import RunPersistence
 from utils.logging_config import MessageCode, PerformanceTimer
-from utils.config_parser import parse_scripted_events
+from utils.config_parser import parse_scripted_events, parse_geography
 from llm.providers import GeminiProvider, OllamaProvider, UnifiedLLMProvider
 
 
@@ -20,6 +20,9 @@ class Orchestrator:
 
         self.config = self._load_config(config_path)
         self.max_steps = self.config.get("max_steps", 5)
+        self.time_step_duration = self.config.get("time_step_duration", "1 turn")
+        self.simulator_awareness = self.config.get("simulator_awareness", True)
+        self.enable_compute_resources = self.config.get("enable_compute_resources", False)
         self.persistence = RunPersistence(scenario_name, save_frequency)
         self.logger = self.persistence.logger  # Use the same logger instance
         self.agents = self._initialize_agents()
@@ -38,6 +41,9 @@ class Orchestrator:
             }
             simulator_llm = self._create_llm_provider_for_engine(engine_llm_config)
 
+        # Parse geography if present
+        geography = parse_geography(self.config.get("geography"))
+
         self.simulator_agent = SimulatorAgent(
             llm_provider=simulator_llm,
             game_engine=self.game_engine,
@@ -46,6 +52,10 @@ class Orchestrator:
             realism_guidelines=engine_config.get("realism_guidelines", ""),
             scripted_events=parse_scripted_events(engine_config.get("scripted_events")),
             context_window_size=engine_config.get("context_window_size", 5),
+            time_step_duration=self.time_step_duration,
+            simulator_awareness=self.simulator_awareness,
+            enable_compute_resources=self.enable_compute_resources,
+            geography=geography,
             logger=self.logger
         )
 
@@ -142,11 +152,30 @@ class Orchestrator:
                         f"LLM provider not available for agent '{agent_config['name']}'."
                     )
 
+            # Build agent system prompt with simulator awareness instructions
+            base_system_prompt = agent_config.get("system_prompt", "")
+
+            if not self.simulator_awareness and llm_provider:
+                # Add instructions for non-simulator-aware agents
+                enhanced_system_prompt = f"""{base_system_prompt}
+
+IMPORTANT - Response Format:
+- You will receive messages describing events and situations happening to you
+- Your responses should contain your ACTIONS and COMMUNICATIONS with the real world
+- Include what you DO and what you SAY out loud
+- Internal thoughts that you keep to yourself should NOT be in your response
+- Only include actions/speech that others can observe or hear
+
+Example of a GOOD response: "I walk to the market and ask the merchant: 'What is the price for wheat today?'"
+Example of a BAD response: "I think about going to the market" (this is just internal thought)"""
+            else:
+                enhanced_system_prompt = base_system_prompt
+
             agent = Agent(
                 name=agent_config["name"],
                 response_template=agent_config.get("response_template"),
                 llm_provider=llm_provider,
-                system_prompt=agent_config.get("system_prompt")
+                system_prompt=enhanced_system_prompt
             )
             agents.append(agent)
 
@@ -212,6 +241,12 @@ class Orchestrator:
                 print(f"\nERROR: Simulation initialization failed:\n{e}", file=sys.stderr)
                 raise
 
+            # Initialize agent stats after simulation setup
+            initial_state = self.game_engine.get_state_snapshot()
+            for agent in self.agents:
+                agent_stats = initial_state["agent_vars"].get(agent.name, {})
+                agent.update_stats(agent_stats)
+
             # Main simulation loop
             for step in range(1, self.max_steps + 1):
                 with PerformanceTimer(self.logger, MessageCode.PRF001, f"Step {step}", step=step):
@@ -240,6 +275,11 @@ class Orchestrator:
                                 "to": agent.name,
                                 "content": message
                             })
+
+                            # Update agent's stats before they respond
+                            current_state = self.game_engine.get_state_snapshot()
+                            agent_stats = current_state["agent_vars"].get(agent.name, {})
+                            agent.update_stats(agent_stats)
 
                             # Agent responds
                             response = agent.respond(message)

@@ -202,6 +202,74 @@ def validate_engine_config(config: dict[str, Any]) -> None:
         parse_scripted_events(engine["scripted_events"])
 
 
+def parse_geography(geography_config: dict | None) -> dict:
+    """
+    Parse geography configuration from YAML.
+
+    Args:
+        geography_config: Geography configuration dictionary
+
+    Returns:
+        Parsed geography with normalized structure
+    """
+    if not geography_config:
+        return {}
+
+    if not isinstance(geography_config, dict):
+        raise ValueError("Geography configuration must be a dictionary")
+
+    geography = {}
+
+    # Region (optional)
+    if "region" in geography_config:
+        geography["region"] = str(geography_config["region"])
+
+    # Locations (optional - list of discrete locations)
+    if "locations" in geography_config:
+        locations = geography_config["locations"]
+        if not isinstance(locations, list):
+            raise ValueError("Geography 'locations' must be a list")
+
+        parsed_locations = []
+        for loc in locations:
+            if isinstance(loc, dict):
+                # Structured location with name, description, conditions
+                if "name" not in loc:
+                    raise ValueError("Each location must have a 'name' field")
+                parsed_locations.append({
+                    "name": str(loc["name"]),
+                    "description": str(loc.get("description", "")),
+                    "conditions": loc.get("conditions", [])
+                })
+            elif isinstance(loc, str):
+                # Simple string location
+                parsed_locations.append({
+                    "name": loc,
+                    "description": "",
+                    "conditions": []
+                })
+            else:
+                raise ValueError("Each location must be a string or dictionary")
+
+        geography["locations"] = parsed_locations
+
+    # Travel information (optional)
+    if "travel" in geography_config:
+        travel = geography_config["travel"]
+        if isinstance(travel, dict):
+            geography["travel"] = travel
+        elif isinstance(travel, str):
+            geography["travel"] = {"description": travel}
+        else:
+            raise ValueError("Geography 'travel' must be a string or dictionary")
+
+    # Additional context (optional)
+    if "context" in geography_config:
+        geography["context"] = str(geography_config["context"])
+
+    return geography
+
+
 def validate_config(config: dict[str, Any]) -> None:
     """
     Validate the entire configuration.
@@ -218,3 +286,7 @@ def validate_config(config: dict[str, Any]) -> None:
         agent_vars_defs = config.get("agent_vars")
         for agent_config in config["agents"]:
             validate_agent_config(agent_config, agent_vars_defs)
+
+    # Validate geography if present
+    if "geography" in config:
+        parse_geography(config["geography"])

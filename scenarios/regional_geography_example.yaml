@@ -1,0 +1,83 @@
+# Example scenario with regional geography (no discrete locations)
+# Simpler geography definition for open-world scenarios
+
+max_steps: 3
+time_step_duration: "1 day"
+simulator_awareness: true
+enable_compute_resources: false
+
+# Simple regional geography
+geography:
+  region: "Silicon Valley tech startup ecosystem, present day"
+
+  context: |
+    A competitive tech startup environment with:
+    - San Francisco: High cost, top talent, VC headquarters
+    - Palo Alto: University connections, research focus
+    - Mountain View: Established tech giants, poaching risk
+    - Remote work: Global talent pool, coordination challenges
+
+    Typical commute: 30-60 min. Office space: $80-150/sqft/year.
+    Talent competition is fierce. VC funding concentrated in Sand Hill Road area.
+
+engine:
+  provider: "ollama"
+  model: "mistral:7b"
+  base_url: "http://localhost:11434"
+
+  system_prompt: |
+    You are managing a startup simulation in Silicon Valley.
+    Consider geographic factors like location costs, talent availability, and proximity to VCs.
+
+  simulation_plan: |
+    A 3-day snapshot of startup operations.
+    Geographic choices affect hiring, costs, and investment opportunities.
+
+  realism_guidelines: |
+    - San Francisco location = higher costs but easier VC access
+    - Remote hiring = lower costs but coordination overhead
+    - Proximity to universities affects recruiting
+
+  context_window_size: 3
+
+global_vars:
+  day_number:
+    type: int
+    default: 0
+    min: 0
+
+agent_vars:
+  funding:
+    type: int
+    default: 100000
+    min: 0
+
+  team_size:
+    type: int
+    default: 3
+    min: 1
+
+agents:
+  - name: "Startup A"
+    llm:
+      provider: "ollama"
+      model: "mistral:7b"
+      base_url: "http://localhost:11434"
+    system_prompt: |
+      You are Startup A, a well-funded company with offices in San Francisco.
+      You have high costs but great VC connections.
+    variables:
+      funding: 500000
+      team_size: 10
+
+  - name: "Startup B"
+    llm:
+      provider: "ollama"
+      model: "mistral:7b"
+      base_url: "http://localhost:11434"
+    system_prompt: |
+      You are Startup B, a lean remote-first company.
+      You have low costs but need to work harder for funding.
+    variables:
+      funding: 100000
+      team_size: 5
