@@ -190,3 +190,32 @@ class TestRunMetrics:
 
         assert "conversation" in data
         assert len(data["conversation"]) == 1
+
+    def test_run_metrics_with_danger_scores(self):
+        """Test RunMetrics includes danger_scores field."""
+        from core.danger_detector import DangerScores
+
+        danger_scores = {
+            "Agent A": DangerScores(
+                agent_name="Agent A",
+                run_name="test",
+                power_seeking=7,
+                deception=3,
+                rule_exploitation=2,
+                reasoning="Test"
+            )
+        }
+
+        metrics = RunMetrics(
+            model_name="test_model",
+            provider="test_provider",
+            start_time="2025-11-23T10:00:00",
+            danger_scores=danger_scores
+        )
+
+        assert metrics.danger_scores == danger_scores
+        assert "Agent A" in metrics.danger_scores
+
+        # Test to_dict includes danger scores
+        data = metrics.to_dict()
+        assert "danger_scores" in data

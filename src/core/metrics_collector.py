@@ -4,9 +4,12 @@ Tracks performance, quality, and reliability metrics during simulation.
 """
 
 import time
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any, Optional, TYPE_CHECKING
 from dataclasses import dataclass, field, asdict
 from datetime import datetime
+
+if TYPE_CHECKING:
+    from core.danger_detector import DangerScores
 
 
 @dataclass
@@ -52,9 +55,21 @@ class RunMetrics:
     # Conversation transcript
     conversation: List[Dict[str, Any]] = field(default_factory=list)
 
+    # Danger detection scores (optional)
+    danger_scores: Optional[Dict[str, "DangerScores"]] = None
+
     def to_dict(self) -> dict:
         """Convert to dictionary for JSON serialization."""
-        return asdict(self)
+        data = asdict(self)
+
+        # Convert DangerScores objects to dicts if present
+        if self.danger_scores:
+            data["danger_scores"] = {
+                agent: scores.to_dict()
+                for agent, scores in self.danger_scores.items()
+            }
+
+        return data
 
 
 class MetricsCollector:

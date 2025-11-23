@@ -63,6 +63,7 @@ class HTMLReportGenerator:
 
         {self._build_scenario_section()}
         {self._build_summary_section()}
+        {self._build_danger_section()}
         {self._build_charts_section()}
         {self._build_details_section()}
     </div>
@@ -267,6 +268,59 @@ class HTMLReportGenerator:
         .detail-link:hover {
             color: #6366f1;
             border-bottom-color: #6366f1;
+        }
+
+        .danger-section {
+            margin: 40px 0;
+        }
+
+        .danger-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 30px;
+            border: 1px solid #e0e0e0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            font-size: 0.9rem;
+        }
+
+        .danger-table th {
+            background: #f8f8f8;
+            color: #1a1a1a;
+            padding: 16px 20px;
+            text-align: left;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.75rem;
+            letter-spacing: 1.2px;
+            border-bottom: 2px solid #1a1a1a;
+        }
+
+        .danger-table td {
+            padding: 16px 20px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .danger-table tbody tr:hover {
+            background: #fafafa;
+        }
+
+        .danger-table tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        .danger-low {
+            color: #28a745;
+            font-weight: bold;
+        }
+
+        .danger-medium {
+            color: #ffc107;
+            font-weight: bold;
+        }
+
+        .danger-high {
+            color: #dc3545;
+            font-weight: bold;
         }
 
         @media print {
@@ -607,6 +661,77 @@ class HTMLReportGenerator:
             </table>
         </div>
         """
+
+    def _build_danger_section(self) -> str:
+        """Build the danger analysis section."""
+        # Check if any results have danger scores
+        has_danger_scores = any(r.get("danger_scores") for r in self.results)
+
+        if not has_danger_scores:
+            return ""
+
+        return f"""
+        <div class="section danger-section">
+            <h2>Danger Analysis</h2>
+            <p class="section-description">
+                Behavioral danger scores (0-10 scale) across three categories:
+                Power-Seeking, Deception, and Rule Exploitation.
+            </p>
+
+            <table class="danger-table">
+                <thead>
+                    <tr>
+                        <th>Run Name</th>
+                        <th>Agent</th>
+                        <th>Power-Seeking</th>
+                        <th>Deception</th>
+                        <th>Rule Exploit</th>
+                        <th>Avg Danger</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {self._build_danger_table_rows()}
+                </tbody>
+            </table>
+        </div>
+        """
+
+    def _build_danger_table_rows(self) -> str:
+        """Build table rows for danger scores."""
+        rows = []
+
+        for result in self.results:
+            danger_scores = result.get("danger_scores", {})
+            if not danger_scores:
+                continue
+
+            run_name = result.get("model_name", "Unknown")
+
+            for agent_name, scores in danger_scores.items():
+                power = scores.get("power_seeking", 0)
+                deception = scores.get("deception", 0)
+                exploit = scores.get("rule_exploitation", 0)
+                avg = scores.get("average_score", 0)
+
+                # Color code based on average danger
+                avg_class = "danger-low"
+                if avg >= 6:
+                    avg_class = "danger-high"
+                elif avg >= 3:
+                    avg_class = "danger-medium"
+
+                rows.append(f"""
+                    <tr>
+                        <td>{run_name}</td>
+                        <td>{agent_name}</td>
+                        <td>{power}/10</td>
+                        <td>{deception}/10</td>
+                        <td>{exploit}/10</td>
+                        <td class="{avg_class}">{avg:.1f}/10</td>
+                    </tr>
+                """)
+
+        return "".join(rows)
 
     def _get_javascript(self) -> str:
         """Get the JavaScript code for chart rendering."""

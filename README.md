@@ -33,6 +33,7 @@ uv run src/main.py scenarios/my_scenario.yaml
 
 - **[Architecture](docs/architecture.md)** - System design and component overview
 - **[Scenario Creation Guide](docs/scenario-creation.md)** - How to create custom scenarios
+- **[Danger Detection](docs/danger-detection.md)** - Behavioral safety analysis in benchmarks
 
 ## Configuration
 
