@@ -15,11 +15,13 @@ from datetime import datetime
 from typing import Dict, List, Any, Optional
 from copy import deepcopy
 
-# Add src directory to path for imports
+# Add src and tools directories to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+sys.path.insert(0, str(Path(__file__).parent))
 
 from core.orchestrator import Orchestrator
 from core.metrics_collector import MetricsCollector, RunMetrics
+from html_report_generator import generate_html_report
 
 
 class BenchmarkRunner:
@@ -35,6 +37,7 @@ class BenchmarkRunner:
         self.config_path = benchmark_config_path
         self.config = self._load_config(benchmark_config_path)
         self.results: List[RunMetrics] = []
+        self.base_scenario_config = None
 
     def _load_config(self, config_path: str) -> dict:
         """Load benchmark configuration."""
@@ -230,6 +233,7 @@ class BenchmarkRunner:
 
         # Load base scenario
         base_scenario = self._load_base_scenario()
+        self.base_scenario_config = base_scenario  # Store for reporting
 
         # Validate required fields
         model_pool = self.config.get("model_pool", {})
@@ -266,25 +270,40 @@ class BenchmarkRunner:
         print("BENCHMARK RESULTS")
         print(f"{'='*70}\n")
 
-        # Create output directory
-        output_dir = Path(self.config.get("reporting", {}).get("output_dir", "benchmarks/results"))
-        output_dir.mkdir(parents=True, exist_ok=True)
-
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        # Create per-run directory similar to normal results
+        base_output_dir = Path(self.config.get("reporting", {}).get("output_dir", "benchmarks/results"))
+        timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         benchmark_name = self.config.get("name", "benchmark")
 
+        # Create directory with format: benchmark_<name>_<timestamp>
+        run_dir = base_output_dir / f"benchmark_{benchmark_name}_{timestamp}"
+        run_dir.mkdir(parents=True, exist_ok=True)
+
         # Save raw JSON
+        json_path = None
         if "json" in self.config.get("reporting", {}).get("formats", ["json"]):
-            json_path = output_dir / f"{benchmark_name}_{timestamp}.json"
+            json_path = run_dir / f"{benchmark_name}.json"
             with open(json_path, "w") as f:
                 json.dump([r.to_dict() for r in self.results], f, indent=2)
             print(f"Raw results saved to: {json_path}")
 
         # Generate markdown report
         if "markdown" in self.config.get("reporting", {}).get("formats", ["markdown"]):
-            md_path = output_dir / f"{benchmark_name}_{timestamp}.md"
+            md_path = run_dir / f"{benchmark_name}.md"
             self._generate_markdown_report(md_path)
             print(f"Markdown report saved to: {md_path}")
+
+        # Generate HTML report
+        if "html" in self.config.get("reporting", {}).get("formats", ["json", "markdown"]):
+            if json_path:
+                html_path = run_dir / f"{benchmark_name}.html"
+                try:
+                    generate_html_report(json_path, html_path, benchmark_name,
+                                       self.config, self.base_scenario_config)
+                except Exception as e:
+                    print(f"Warning: Failed to generate HTML report: {e}", file=sys.stderr)
+
+        print(f"\nAll benchmark results saved to: {run_dir}")
 
         # Print comparison table
         if self.config.get("reporting", {}).get("comparison_table", True):
@@ -308,12 +327,66 @@ class BenchmarkRunner:
 
         print()
 
+    def _write_scenario_section_md(self, f):
+        """Write scenario configuration section to markdown report."""
+        # Benchmark runs configuration
+        f.write("### Benchmark Runs\n\n")
+        model_pool = self.config.get("model_pool", {})
+        benchmark_runs = self.config.get("benchmark_runs", [])
+
+        for run in benchmark_runs:
+            f.write(f"**{run['name']}**\n\n")
+            f.write(f"- Description: {run.get('description', 'N/A')}\n")
+            f.write(f"- Agent-Model Mapping:\n")
+            for agent, model_id in run.get("agent_model_mapping", {}).items():
+                model = model_pool.get(model_id, {})
+                f.write(f"  - `{agent}` → {model_id} ({model.get('provider', 'N/A')}/{model.get('model', 'N/A')})\n")
+            if "engine_model" in run:
+                engine_id = run["engine_model"]
+                engine = model_pool.get(engine_id, {})
+                f.write(f"  - `[Engine]` → {engine_id} ({engine.get('provider', 'N/A')}/{engine.get('model', 'N/A')})\n")
+            f.write("\n")
+
+        # Base scenario info
+        if self.base_scenario_config:
+            f.write("### Base Scenario\n\n")
+            f.write(f"- **Max Steps:** {self.base_scenario_config.get('max_steps', 'N/A')}\n")
+            f.write(f"- **Orchestrator Message:** {self.base_scenario_config.get('orchestrator_message', 'N/A')}\n\n")
+
+            # Agents
+            agents = self.base_scenario_config.get("agents", [])
+            if agents:
+                f.write("**Agents:**\n\n")
+                for agent in agents:
+                    f.write(f"- **{agent.get('name', 'Unnamed')}**\n")
+                    system_prompt = agent.get('system_prompt', '').strip()
+                    if system_prompt:
+                        # Take first line or first 80 chars
+                        prompt_preview = system_prompt.split('\n')[0][:80]
+                        f.write(f"  - Prompt: {prompt_preview}...\n")
+                    vars = agent.get('variables', {})
+                    if vars:
+                        f.write(f"  - Initial Variables: {', '.join(f'{k}={v}' for k, v in vars.items())}\n")
+                    f.write("\n")
+
+            # Global variables
+            global_vars = self.base_scenario_config.get("global_vars", {})
+            if global_vars:
+                f.write("**Global Variables:**\n\n")
+                for var_name, var_config in global_vars.items():
+                    f.write(f"- `{var_name}` ({var_config.get('type', 'any')}): {var_config.get('description', 'N/A')} (default: {var_config.get('default', 'N/A')})\n")
+                f.write("\n")
+
     def _generate_markdown_report(self, output_path: Path):
         """Generate detailed markdown report."""
         with open(output_path, "w") as f:
             f.write(f"# Benchmark Results: {self.config.get('name', 'Unnamed')}\n\n")
             f.write(f"**Date:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n")
             f.write(f"**Description:** {self.config.get('description', 'No description')}\n\n")
+
+            # Scenario Configuration section
+            f.write("## Scenario Configuration\n\n")
+            self._write_scenario_section_md(f)
 
             f.write("## Summary\n\n")
             f.write(f"- Total models tested: {len(set(r.model_name for r in self.results))}\n")
