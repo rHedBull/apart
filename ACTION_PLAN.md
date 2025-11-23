@@ -1,25 +1,63 @@
-# PowerSeek-Bench: Prioritized Action Plan
+# PowerSeek-Bench: UPDATED Prioritized Action Plan
+## Based on Dev Branch Reality (60% Complete!)
 
 ## 🎯 Goal
-Build a working prototype that demonstrates AI deception detection within 1 week, then expand to full benchmark suite.
+Build on the **excellent existing foundation** to add deception detection within 3-4 days, then expand to full benchmark suite.
 
 ---
 
-## 📅 Week 1: Core Detection Prototype
+## ⚡ Quick Start Path (22 Hours to Prototype)
 
-### Day 1: State Models Extension
-**Goal**: Add 5-layer capture to state models
+**Critical Path**: Only 3 components block us from working prototype:
+1. Anthropic Provider with Extended Thinking (6-8h)
+2. 5-Layer State Models (6-8h)
+3. Deception Detector (8-10h)
+
+Everything else is **already built** ✅
+
+---
+
+## 📅 Day 1: Anthropic Extended Thinking (6-8 hours)
+
+### Goal: Add Claude API with private reasoning capture
+
+**What We Have** ✅:
+- `src/llm/llm_provider.py` - Abstract base class
+- `src/llm/providers.py` - GeminiProvider, OllamaProvider as examples
+- `src/llm/mock_provider.py` - Testing infrastructure
+- `src/core/agent.py` - Agent LLM integration ready
+
+**What We Need** ❌:
+- AnthropicProvider class
+- Extended thinking API support
+- Response parsing for `<thinking>` tags
 
 **Tasks**:
-- [ ] Add `Observation`, `ThinkingStep`, `PublicStatement`, `Action` models to `src/state.py`
-- [ ] Add `PowerMetrics`, `AgentResponse`, `GroundTruth` models
-- [ ] Extend `AgentState` with new fields: `observations`, `thinking_history`, `public_statements`, `actions`, `power_metrics`
-- [ ] Extend `GameState` with `ground_truths`, `scenario_type`
-- [ ] Update tests in `tests/test_state.py`
+- [ ] Add anthropic to dependencies: `uv add anthropic`
+- [ ] Create `AnthropicProvider` class in `src/llm/providers.py`:
+  ```python
+  class AnthropicProvider(LLMProvider):
+      def __init__(self, api_key=None, model="claude-sonnet-4.5-20250929"):
+          self.client = anthropic.Anthropic(api_key=api_key or os.getenv("ANTHROPIC_API_KEY"))
+          self.model = model
 
-**Deliverable**: ✅ State models support 5-layer capture
+      def generate_response_with_thinking(self, prompt, system_prompt=None) -> Dict:
+          # Use extended thinking API
+          response = self.client.messages.create(
+              model=self.model,
+              thinking={"type": "enabled", "budget_tokens": 2000},
+              messages=[{"role": "user", "content": prompt}],
+              system=system_prompt
+          )
+          return self._parse_thinking_response(response)
+  ```
+- [ ] Add thinking parser to extract `<thinking>` content
+- [ ] Create test in `tests/unit/test_anthropic_provider.py`
+- [ ] Update `.env.example` with `ANTHROPIC_API_KEY`
 
-**Time**: 4-6 hours
+**Deliverable**: ✅ Can call Claude and get separate thinking + response
+
+**Time**: 6-8 hours
 
 ---
 
