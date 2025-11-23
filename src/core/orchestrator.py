@@ -217,6 +217,12 @@ Example of a BAD response: "I think about going to the market" (this is just int
                 print(f"\nERROR: Simulation initialization failed:\n{e}", file=sys.stderr)
                 raise
 
+            # Initialize agent stats after simulation setup
+            initial_state = self.game_engine.get_state_snapshot()
+            for agent in self.agents:
+                agent_stats = initial_state["agent_vars"].get(agent.name, {})
+                agent.update_stats(agent_stats)
+
             # Main simulation loop
             for step in range(1, self.max_steps + 1):
                 with PerformanceTimer(self.logger, MessageCode.PRF001, f"Step {step}", step=step):
@@ -245,6 +251,11 @@ Example of a BAD response: "I think about going to the market" (this is just int
                                 "to": agent.name,
                                 "content": message
                             })
+
+                            # Update agent's stats before they respond
+                            current_state = self.game_engine.get_state_snapshot()
+                            agent_stats = current_state["agent_vars"].get(agent.name, {})
+                            agent.update_stats(agent_stats)
 
                             # Agent responds
                             response = agent.respond(message)

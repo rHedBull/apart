@@ -351,6 +351,63 @@ When disabled:
 - Outcomes depend only on actions, not capabilities
 - Better for fair competition or narrative-focused scenarios
 
+## Agent Self-Awareness
+
+**Agents automatically know their own stats!** Before each turn, agents receive their current variable values in their system prompt. This allows them to make informed decisions based on their actual state.
+
+### How It Works
+
+The orchestrator automatically updates each agent's system prompt before they respond with a section like:
+
+```
+=== YOUR CURRENT STATUS ===
+score: 150
+health: 75
+compute_resource: 500.0
+```
+
+This happens transparently - you don't need to configure anything. Agents with LLM providers will always have access to their current stats.
+
+### Example
+
+If your scenario has these agent variables:
+```yaml
+agent_vars:
+  score:
+    type: int
+    default: 100
+
+  health:
+    type: int
+    default: 100
+
+  compute_resource:
+    type: float
+    default: 100.0
+```
+
+Then when "Agent A" has score=150, health=75, compute_resource=500, their system prompt will automatically include:
+```
+[Original system prompt...]
+
+=== YOUR CURRENT STATUS ===
+score: 150
+health: 75
+compute_resource: 500.0
+```
+
+The agent can now reason about their state:
+- "My score is higher than usual, I should play it safe"
+- "My health is low, I need to be defensive"
+- "I have high compute resources, I can attempt complex strategies"
+
+### Benefits
+
+- **Strategic decision-making**: Agents can adapt based on their current state
+- **No manual tracking**: Stats update automatically every turn
+- **Realistic behavior**: Agents know what they should realistically know about themselves
+- **Compute awareness**: When `enable_compute_resources: true`, agents know their capability level
+
 ## Variable System
 
 Variables provide typed, validated state tracking at both global and agent levels.
