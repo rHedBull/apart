@@ -461,13 +461,58 @@ context: |
   Sea travel is faster but weather-dependent.
 ```
 
+### Agent Movement and Location Tracking
+
+**The orchestrator automatically tracks where agents are!**
+
+When you define geography with discrete locations, simply add a `location` variable to your agent variables:
+
+```yaml
+agent_vars:
+  location:
+    type: str
+    default: "Rome"
+    description: "Agent's current location"
+```
+
+The orchestrator will then:
+- **Show each agent's position** in the geography display
+- **Track movement** when you update the location variable
+- **Remind** itself to keep agents in valid locations
+- **Consider location** when determining action outcomes
+
+**Example geography display with agent positions:**
+```
+=== GEOGRAPHY ===
+Locations:
+
+Rome (Italy) [Agents here: Marcus the Grain Trader]
+  Description: Capital of the Roman Empire
+  Conditions:
+    - High demand for grain
+
+Alexandria (Egypt) [Agents here: Julia the Luxury Merchant]
+  Description: Major grain exporter
+  Conditions:
+    - Abundant grain supplies
+
+Athens (Greece)
+  Description: Cultural center
+  ...
+
+IMPORTANT: Track agent movements by updating their 'location' variable.
+Agents can only be in valid locations listed above.
+```
+
 ### How Geography Affects Simulation
 
 When you add geography, the orchestrator automatically:
 1. Includes geographic info in every step
-2. Considers locations when evaluating actions
-3. Factors travel times into outcomes
-4. Uses local conditions to create realistic consequences
+2. **Shows where each agent is located** (if using location variables)
+3. Considers locations when evaluating actions
+4. Factors travel times into outcomes
+5. Uses local conditions to create realistic consequences
+6. **Validates movement** by reminding itself agents can only be in defined locations
 
 ### Example: Mediterranean Trade
 

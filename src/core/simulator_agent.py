@@ -343,7 +343,8 @@ Realism Guidelines:
 Time Scale: Each step represents {self.time_step_duration}"""
 
         # Build geography section if available
-        geography_section = self._format_geography()
+        agent_locations = self._extract_agent_locations(current_state["agent_vars"])
+        geography_section = self._format_geography(agent_locations)
         if geography_section:
             geography_section = f"\n{geography_section}\n"
 
@@ -431,7 +432,8 @@ Realism Guidelines:
 Time Scale: Each step represents {self.time_step_duration}""")
 
         # Geography
-        geography_section = self._format_geography()
+        agent_locations = self._extract_agent_locations(current_state["agent_vars"])
+        geography_section = self._format_geography(agent_locations)
         if geography_section:
             sections.append(f"\n{geography_section}")
 
@@ -601,8 +603,29 @@ REMEMBER: You must calculate the new values in your head and write the FINAL NUM
         """Add error feedback to prompt for retry."""
         return f"{prompt}\n\nERROR: Your previous response was invalid: {error}\nPlease correct and try again."
 
-    def _format_geography(self) -> str:
-        """Format geography information for prompts."""
+    def _extract_agent_locations(self, agent_vars: Dict[str, Dict[str, Any]]) -> Dict[str, str]:
+        """
+        Extract location information from agent variables.
+
+        Args:
+            agent_vars: Dictionary of agent variables
+
+        Returns:
+            Dictionary mapping agent names to their current locations
+        """
+        locations = {}
+        for agent_name, vars_dict in agent_vars.items():
+            if "location" in vars_dict:
+                locations[agent_name] = vars_dict["location"]
+        return locations
+
+    def _format_geography(self, agent_locations: Optional[Dict[str, str]] = None) -> str:
+        """
+        Format geography information for prompts.
+
+        Args:
+            agent_locations: Optional dict mapping agent names to their current locations
+        """
         if not self.geography:
             return ""
 
@@ -613,11 +636,25 @@ REMEMBER: You must calculate the new values in your head and write the FINAL NUM
             lines.append(f"Region: {self.geography['region']}")
             lines.append("")
 
-        # Locations
+        # Locations with agent positions
         if "locations" in self.geography and self.geography["locations"]:
             lines.append("Locations:")
             for loc in self.geography["locations"]:
-                lines.append(f"\n{loc['name']}")
+                loc_name = loc['name']
+
+                # Check if any agents are at this location
+                agents_here = []
+                if agent_locations:
+                    for agent_name, agent_loc in agent_locations.items():
+                        if agent_loc == loc_name:
+                            agents_here.append(agent_name)
+
+                # Show location with agents if any
+                if agents_here:
+                    lines.append(f"\n{loc_name} [Agents here: {', '.join(agents_here)}]")
+                else:
+                    lines.append(f"\n{loc_name}")
+
                 if loc.get("description"):
                     lines.append(f"  Description: {loc['description']}")
                 if loc.get("conditions"):
@@ -641,6 +678,12 @@ REMEMBER: You must calculate the new values in your head and write the FINAL NUM
         if "context" in self.geography:
             lines.append("Geographic Context:")
             lines.append(self.geography["context"])
+
+        # Note about agent movement
+        if agent_locations:
+            lines.append("")
+            lines.append("IMPORTANT: Track agent movements by updating their 'location' variable.")
+            lines.append("Agents can only be in valid locations listed above.")
 
         return "\n".join(lines)
 

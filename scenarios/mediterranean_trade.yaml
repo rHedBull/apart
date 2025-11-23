@@ -79,6 +79,9 @@ engine:
     - Local conditions (grain shortages, civil unrest) create opportunities and risks
     - Sea routes are faster but weather-dependent
     - Political events in one location affect prices elsewhere
+    - Track agent movement by updating their 'location' variable
+    - Agents can only move to valid locations defined in geography
+    - Consider travel time when moving agents between locations
 
   context_window_size: 5
 
