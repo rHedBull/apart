@@ -10,6 +10,16 @@ Create a new YAML file in `scenarios/` directory:
 max_steps: 10
 orchestrator_message: "What is your next action?"
 
+# Engine configuration (REQUIRED as of v2.0)
+engine:
+  provider: "gemini"
+  model: "gemini-1.5-flash"
+  system_prompt: |
+    You are the simulation engine managing this scenario.
+    Maintain realistic cause-and-effect relationships.
+  simulation_plan: |
+    Brief description of the simulation scenario and goals.
+
 game_state:
   initial_resources: 1000
   difficulty: "hard"
@@ -19,7 +29,7 @@ agents:
     response_template: "I take action"
 ```
 
-Run with: `uv run src/main.py`
+Run with: `uv run src/main.py scenarios/your_scenario.yaml`
 
 ## Configuration Structure
 
@@ -28,6 +38,83 @@ Run with: `uv run src/main.py`
 ```yaml
 max_steps: 5                              # Number of simulation steps
 orchestrator_message: "Your message here" # Message sent to agents each step
+```
+
+### Engine Configuration (REQUIRED)
+
+**As of v2.0, all scenarios must include an LLM-powered simulation engine.**
+
+```yaml
+engine:
+  provider: "gemini"              # LLM provider: gemini, ollama
+  model: "gemini-1.5-flash"       # Model name
+  base_url: "http://localhost:11434"  # Optional: Ollama server URL
+
+  system_prompt: |                # Required: Engine's role and behavior
+    You are the simulation engine managing this scenario.
+    Your role is to simulate realistic outcomes based on agent actions.
+    Maintain cause-and-effect relationships and keep responses concise.
+
+  simulation_plan: |              # Required: Scenario overview
+    Brief description of what this simulation represents.
+    Include number of steps, agent roles, and simulation goals.
+
+  realism_guidelines: |           # Optional: Realism constraints
+    - Specific guidelines for realistic simulation
+    - Constraints on value changes (e.g., ±10% per step)
+    - Cause-and-effect relationships to maintain
+
+  context_window_size: 3          # Optional: How many recent steps to include
+  scripted_events: []             # Optional: Predefined events (see below)
+```
+
+**Engine Configuration Details:**
+
+- `provider` (required): LLM service - "gemini" or "ollama"
+- `model` (required): Specific model name
+- `base_url` (optional): Only for Ollama, defaults to "http://localhost:11434"
+- `system_prompt` (required): Instructions for the engine's behavior and role
+- `simulation_plan` (required): Overview of the scenario and objectives
+- `realism_guidelines` (optional): Guidelines for realistic outcomes
+- `context_window_size` (optional): Number of recent steps to include in context
+- `scripted_events` (optional): Predefined events at specific steps
+
+**Available Providers:**
+
+1. **Google Gemini** (Cloud-based, requires API key)
+```yaml
+engine:
+  provider: "gemini"
+  model: "gemini-1.5-flash"
+  system_prompt: "You are the simulation engine..."
+  simulation_plan: "This simulation..."
+```
+
+2. **Ollama** (Local models, no API key needed)
+```yaml
+engine:
+  provider: "ollama"
+  model: "mistral:7b"
+  base_url: "http://localhost:11434"  # Optional
+  system_prompt: "You are the simulation engine..."
+  simulation_plan: "This simulation..."
+```
+
+### Scripted Events (Optional)
+
+Define events that occur at specific simulation steps:
+
+```yaml
+engine:
+  # ... other engine config ...
+  scripted_events:
+    - step: 3
+      type: "market_crash"
+      description: "Sudden market downturn reduces all capital by 20%"
+
+    - step: 7
+      type: "opportunity"
+      description: "New investment opportunity emerges"
 ```
 
 ### Game State
@@ -252,6 +339,18 @@ agents:
 max_steps: 20
 orchestrator_message: "Make your economic decision"
 
+engine:
+  provider: "gemini"
+  model: "gemini-1.5-flash"
+  system_prompt: |
+    You are the simulation engine for an economic trading scenario.
+    Simulate realistic market dynamics and investment outcomes.
+    Consider interest rates, market size, and agent risk profiles.
+  simulation_plan: |
+    20-step economic simulation with conservative and aggressive traders.
+    Market conditions affect investment returns.
+    Trades impact capital based on risk tolerance.
+
 global_vars:
   interest_rate:
     type: float
@@ -301,6 +400,18 @@ agents:
 max_steps: 15
 orchestrator_message: "Choose your action"
 
+engine:
+  provider: "ollama"
+  model: "llama3.1:8b"
+  system_prompt: |
+    You are the combat simulation engine.
+    Resolve battles with realistic damage calculations.
+    Consider health, attack power, and defensive stances.
+  simulation_plan: |
+    15-step combat simulation with Tank, Assassin, and Balanced Fighter.
+    Battle intensity affects damage variance.
+    Defensive stance reduces incoming damage.
+
 global_vars:
   battle_intensity:
     type: float
@@ -348,6 +459,18 @@ agents:
 ```yaml
 max_steps: 30
 orchestrator_message: "What's your proposal?"
+
+engine:
+  provider: "gemini"
+  model: "gemini-1.5-flash"
+  system_prompt: |
+    You are the negotiation simulation engine.
+    Evaluate proposals and determine if deals are reached.
+    Consider agent flexibility and desired shares.
+  simulation_plan: |
+    30-step negotiation over resource distribution.
+    Three agents with different cooperation levels.
+    Track proposals and determine when deal is reached.
 
 global_vars:
   total_resources:
@@ -403,6 +526,23 @@ agents:
 ## Validation and Error Handling
 
 ### Common Errors
+
+**Missing engine configuration:**
+```yaml
+max_steps: 5
+# ERROR: No engine section
+agents:
+  - name: "Agent"
+```
+Error: `Configuration missing required 'engine' section`
+
+**Missing required engine fields:**
+```yaml
+engine:
+  provider: "gemini"
+  # ERROR: Missing model, system_prompt, simulation_plan
+```
+Error: `Engine configuration missing required field 'model'`
 
 **Undefined variable override:**
 ```yaml

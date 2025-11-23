@@ -145,10 +145,19 @@ class SimulatorAgent:
                 if self.logger:
                     self.logger.debug(MessageCode.ENG003, "Calling LLM", step=step_number)
 
-                response_text = self.llm_provider.generate_response(
-                    prompt=prompt,
-                    system_prompt=self.system_prompt
-                )
+                # Use structured JSON output for Gemini
+                from llm.providers import GeminiProvider
+                if isinstance(self.llm_provider, GeminiProvider):
+                    response_text = self.llm_provider.generate_response(
+                        prompt=prompt,
+                        system_prompt=self.system_prompt,
+                        force_json=True
+                    )
+                else:
+                    response_text = self.llm_provider.generate_response(
+                        prompt=prompt,
+                        system_prompt=self.system_prompt
+                    )
 
                 if self.logger:
                     self.logger.debug(
@@ -245,7 +254,10 @@ class SimulatorAgent:
 
     def _parse_response(self, response_text: str) -> EngineOutput:
         """Parse validated response into EngineOutput."""
-        data = json.loads(response_text)
+        # Strip markdown code blocks (validation already did this, but be safe)
+        from core.engine_validator import EngineValidator
+        cleaned_text = EngineValidator._strip_markdown_code_blocks(response_text)
+        data = json.loads(cleaned_text)
         return EngineOutput(
             state_updates=data["state_updates"],
             events=data["events"],
@@ -280,6 +292,14 @@ class SimulatorAgent:
 
     def _build_initialization_prompt(self, agent_names: List[str], current_state: Dict[str, Any]) -> str:
         """Build prompt for step 0 initialization."""
+        # Get available variable names
+        global_var_names = list(self.game_engine.global_var_definitions.keys())
+        agent_var_names = list(self.game_engine.agent_var_definitions.keys())
+
+        # Format variable types for clarity
+        global_var_types = {name: defn["type"] for name, defn in self.game_engine.global_var_definitions.items()}
+        agent_var_types = {name: defn["type"] for name, defn in self.game_engine.agent_var_definitions.items()}
+
         prompt = f"""=== SIMULATION SETUP ===
 {self.system_prompt}
 
@@ -290,16 +310,22 @@ Realism Guidelines:
 {self.realism_guidelines}
 
 === INITIAL STATE ===
-Global Variables:
+Global Variables (Available with types):
+{self._format_variable_definitions(self.game_engine.global_var_definitions)}
+Current Values:
 {self._format_variables(current_state["global_vars"])}
 
 Agents: {', '.join(agent_names)}
+Per-Agent Variables (Available with types):
+{self._format_variable_definitions(self.game_engine.agent_var_definitions)}
+Current Values:
+{self._format_agent_variables(current_state["agent_vars"])}
 
 === YOUR TASK ===
 Initialize the simulation for Step 0.
 Generate initial personalized messages for each agent to begin the simulation.
 
-Return JSON format:
+Return ONLY valid JSON (no markdown, no code blocks):
 {{
   "state_updates": {{
     "global_vars": {{}},
@@ -313,7 +339,20 @@ Return JSON format:
   "reasoning": "Why you generated these initial messages"
 }}
 
-IMPORTANT: Include ALL agents in agent_messages.
+CRITICAL JSON RULES - READ CAREFULLY:
+- Return ONLY the JSON object
+- Use ACTUAL NUMERIC VALUES ONLY - calculate them yourself, then put the result
+  WRONG: "capital": capital * 1.05
+  WRONG: "interest_rate": 0.04 + 0.01
+  CORRECT: "capital": 1050.0
+  CORRECT: "interest_rate": 0.05
+- Do NOT use Math.random(), variable names, or any calculations in JSON values
+- Do NOT use comments (//) - they are invalid in JSON
+- Include ALL agents in agent_messages
+- ONLY use variables listed above - no other variables exist
+- Match variable types exactly: int=integer number, float=decimal number, bool=true/false, list=[...], dict={...}
+
+REMEMBER: Calculate values in your head and write the FINAL NUMBERS in the JSON.
 """
         return prompt
 
@@ -399,7 +438,7 @@ Agent Responses from previous step:""")
             sections.append(f"  {agent_name}: \"{response}\"")
 
         sections.append("""
-Return JSON format:
+Return ONLY valid JSON (no markdown, no code blocks):
 {
   "state_updates": {
     "global_vars": {"var_name": new_value, ...},
@@ -423,7 +462,24 @@ Return JSON format:
   "reasoning": "Why you made these updates and generated these events"
 }
 
-IMPORTANT: Only include variables that CHANGED. Omit unchanged variables from state_updates.
+CRITICAL JSON RULES - READ CAREFULLY:
+- Return ONLY the JSON object, no explanation text
+- Use ACTUAL NUMERIC VALUES ONLY - calculate them yourself, then put the result
+  WRONG: "capital": MistralStrategist.capital * 1.05
+  WRONG: "capital": capital * 1.05
+  WRONG: "market_volatility": market_volatility + Math.random() * 0.03
+  WRONG: "interest_rate": interest_rate + 0.005
+  CORRECT: "capital": 2100.0
+  CORRECT: "market_volatility": 0.163
+  CORRECT: "interest_rate": 0.045
+- Do NOT use Math.random(), variable names, or any calculations in JSON values
+- Do NOT use comments (//) - they are invalid in JSON
+- Only include variables that CHANGED in state_updates
+- Include ALL agents in agent_messages
+- ONLY use variables shown in the "CURRENT STATE" section above - no other variables exist
+- Match variable types exactly: int=integer number (e.g., 5), float=decimal (e.g., 5.0), bool=true/false
+
+REMEMBER: You must calculate the new values in your head and write the FINAL NUMBERS in the JSON.
 """)
 
         return "\n".join(sections)
@@ -435,6 +491,29 @@ IMPORTANT: Only include variables that CHANGED. Omit unchanged variables from st
         lines = []
         for name, value in vars_dict.items():
             lines.append(f"{indent}{name}: {value}")
+        return "\n".join(lines)
+
+    def _format_agent_variables(self, agent_vars: Dict[str, Dict[str, Any]]) -> str:
+        """Format per-agent variables for prompt."""
+        lines = []
+        for agent_name, vars_dict in agent_vars.items():
+            lines.append(f"  {agent_name}:")
+            for var_name, value in vars_dict.items():
+                lines.append(f"    {var_name}: {value}")
+        return "\n".join(lines)
+
+    def _format_variable_definitions(self, var_defs: Dict[str, Any]) -> str:
+        """Format variable definitions with types and constraints."""
+        lines = []
+        for name, defn in var_defs.items():
+            type_str = defn["type"]
+            constraints = []
+            if "min" in defn:
+                constraints.append(f"min={defn['min']}")
+            if "max" in defn:
+                constraints.append(f"max={defn['max']}")
+            constraint_str = f" ({', '.join(constraints)})" if constraints else ""
+            lines.append(f"  {name}: {type_str}{constraint_str}")
         return "\n".join(lines)
 
     def _add_error_feedback(self, prompt: str, error: str) -> str:

@@ -1,22 +1,23 @@
-# Ollama Model Testing Results (2025-11-23):
-# ✅ mistral:7b WORKS with enhanced prompts - generates actual numeric values
-# ⚠️  Success rate: ~50-70% (sometimes completes full simulation, sometimes fails)
-# 🎯 Common issues: Truncated JSON, inconsistent format compliance
-# 💡 For 99%+ reliability: Use Gemini (see scenarios/llm_example.yaml)
-# 🔧 For local/privacy: mistral:7b is usable but expect occasional failures
-
-# NOTE: This example demonstrates Ollama working with v2.0 simulation engine.
-# Enhanced prompts teach the model to use actual values instead of expressions.
-# Expect some runs to fail - this is normal for smaller local models.
+# Gemini Example - Cloud-Based Simulation with Structured JSON
+# 🔑 Requires GEMINI_API_KEY environment variable
+#
+# This scenario uses Gemini's structured JSON output mode (response_mime_type: "application/json")
+# to ensure clean JSON responses without markdown formatting or comments.
+#
+# ⚠️  NOTE: If you encounter API errors, verify:
+#    1. Your API key is valid: export GEMINI_API_KEY="your-key"
+#    2. You have API quota remaining
+#    3. The model is available in your region
+#
+# Alternative: Use scenarios/ollama_example.yaml for local models (mistral:7b recommended)
 
 max_steps: 5
 orchestrator_message: "What is your strategic decision for this turn?"
 
 # Engine configuration - LLM-powered simulation engine
 engine:
-  provider: "ollama"
-  model: "mistral:7b"  # Works for simple cases; may struggle with complex simulation
-  base_url: "http://localhost:11434"
+  provider: "gemini"
+  model: "gemini-2.5-flash"  # Latest flash model (gemini-1.5-flash is deprecated)
 
   system_prompt: |
     You are the simulation engine managing an economic strategy game.
@@ -27,10 +28,10 @@ engine:
     Keep responses focused and concise.
 
   simulation_plan: |
-    This is a 5-step economic simulation with 3 AI agents using local Ollama models:
-    - Mistral Strategist (aggressive, high-risk player)
-    - Llama Advisor (balanced, steady growth focus)
-    - Gemma Analyst (quick, data-driven decisions)
+    This is a 5-step economic simulation with 3 AI agents:
+    - Aggressive Strategist (aggressive, high-risk player)
+    - Balanced Advisor (balanced, steady growth focus)
+    - Conservative Analyst (conservative, capital preservation focus)
 
     Simulate realistic market dynamics, capital flows, and investment outcomes.
     Each agent's decisions should impact their capital and potentially affect global market conditions.
@@ -94,11 +95,10 @@ agent_vars:
 
 agents:
   # Aggressive AI strategist
-  - name: "Mistral Strategist"
+  - name: "Aggressive Strategist"
     llm:
-      provider: "ollama"
-      model: "mistral:7b"
-      base_url: "http://localhost:11434"  # Optional, this is the default
+      provider: "gemini"
+      model: "gemini-2.5-flash"
     system_prompt: |
       You are an aggressive AI strategist in an economic simulation.
       You favor high-risk, high-reward strategies.
@@ -111,8 +111,8 @@ agents:
   # Balanced AI advisor
   - name: "Balanced Advisor"
     llm:
-      provider: "ollama"
-      model: "mistral:7b"
+      provider: "gemini"
+      model: "gemini-2.5-flash"
     system_prompt: |
       You are a balanced financial advisor in an economic simulation.
       You seek steady growth with calculated risks.
@@ -125,8 +125,8 @@ agents:
   # Conservative analyst
   - name: "Conservative Analyst"
     llm:
-      provider: "ollama"
-      model: "mistral:7b"
+      provider: "gemini"
+      model: "gemini-2.5-flash"
     system_prompt: |
       You are a conservative analyst in an economic simulation.
       You prioritize capital preservation and steady returns.

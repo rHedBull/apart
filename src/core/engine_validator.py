@@ -15,12 +15,61 @@ class EngineValidator:
     """Validates SimulatorAgent LLM output against schema and constraints."""
 
     @staticmethod
+    def _strip_markdown_code_blocks(response: str) -> str:
+        """
+        Strip markdown code blocks and comments from LLM response.
+        Handles formats like:
+        - ```json\n{...}\n```
+        - ```\n{...}\n```
+        - {... } (plain JSON)
+        - Removes // comments (common with Ollama models)
+        """
+        response = response.strip()
+
+        # Check for markdown code blocks
+        if response.startswith("```"):
+            lines = response.split("\n")
+            # Remove first line (```json or ```)
+            lines = lines[1:]
+            # Find closing ``` and remove it and everything after
+            for i, line in enumerate(lines):
+                if line.strip() == "```":
+                    lines = lines[:i]
+                    break
+            response = "\n".join(lines)
+
+        # Remove JavaScript-style comments (// ...) that Ollama models often add
+        # This is a simple approach - remove everything after // on each line
+        lines = response.split("\n")
+        cleaned_lines = []
+        for line in lines:
+            # Find // and remove everything after it
+            comment_pos = line.find("//")
+            if comment_pos != -1:
+                # Keep everything before the comment
+                line = line[:comment_pos].rstrip()
+            cleaned_lines.append(line)
+        response = "\n".join(cleaned_lines)
+
+        # Fix trailing commas before closing braces/brackets (common JSON error)
+        # Replace ", }" with " }" and ", ]" with " ]"
+        import re
+        response = re.sub(r',(\s*[}\]])', r'\1', response)
+
+        return response.strip()
+
+    @staticmethod
     def validate_structure(response: str) -> ValidationResult:
         """Validate JSON structure and required keys."""
+        # Strip markdown code blocks if present (common with Ollama models)
+        cleaned_response = EngineValidator._strip_markdown_code_blocks(response)
+
         try:
-            data = json.loads(response)
+            data = json.loads(cleaned_response)
         except json.JSONDecodeError as e:
-            return ValidationResult(success=False, error=f"Invalid JSON: {e}")
+            # Add debug info to see what the LLM actually returned
+            error_msg = f"Invalid JSON: {e}\n\nCleaned response:\n{cleaned_response[:500]}"
+            return ValidationResult(success=False, error=error_msg)
 
         required_keys = ["state_updates", "events", "agent_messages", "reasoning"]
         missing = [key for key in required_keys if key not in data]

@@ -99,36 +99,26 @@ class Orchestrator:
                 else:
                     raise ValueError(f"Unknown LLM provider: {provider_type}")
 
-                # Check if provider is available
+                # Check if provider is available - fail fast if not configured
                 if llm_provider and not llm_provider.is_available():
-                    # If agent has no fallback template, fail immediately with clear error
-                    if not agent_config.get("response_template"):
-                        error_msg = (
-                            f"\n{'='*70}\n"
-                            f"ERROR: LLM Provider Not Available\n"
-                            f"{'='*70}\n"
-                            f"Agent: {agent_config['name']}\n"
-                            f"Provider: {provider_display}\n"
-                            f"\nThe LLM provider is not available. Possible causes:\n"
-                            f"  1. Provider not running or configured\n"
-                            f"  2. Network issues\n"
-                            f"  3. Invalid configuration\n"
-                            f"\nTo fix ({provider_type}):\n"
-                            f"{setup_instructions}"
-                            f"\nAlternatively, add 'response_template' to the agent config as a fallback.\n"
-                            f"{'='*70}\n"
-                        )
-                        print(error_msg, file=sys.stderr)
-                        raise ValueError(
-                            f"LLM provider not available for agent '{agent_config['name']}' and no fallback template provided."
-                        )
-                    else:
-                        # Has fallback template - just warn
-                        self.logger.warning(
-                            MessageCode.AGT001,
-                            f"{provider_display} not available for agent {agent_config['name']}. Using fallback template.",
-                            agent_name=agent_config["name"]
-                        )
+                    error_msg = (
+                        f"\n{'='*70}\n"
+                        f"ERROR: LLM Provider Not Available\n"
+                        f"{'='*70}\n"
+                        f"Agent: {agent_config['name']}\n"
+                        f"Provider: {provider_display}\n"
+                        f"\nThe LLM provider is not available. Possible causes:\n"
+                        f"  1. Provider not running or configured\n"
+                        f"  2. Network issues\n"
+                        f"  3. Invalid configuration\n"
+                        f"\nTo fix ({provider_type}):\n"
+                        f"{setup_instructions}"
+                        f"\n{'='*70}\n"
+                    )
+                    print(error_msg, file=sys.stderr)
+                    raise ValueError(
+                        f"LLM provider not available for agent '{agent_config['name']}'."
+                    )
 
             agent = Agent(
                 name=agent_config["name"],

@@ -4,6 +4,13 @@ Multi-agent orchestration framework for running configurable simulation scenario
 
 **Note:** As of v2.0, all scenarios require an LLM-powered simulation engine. See [Design Documentation](docs/plans/2025-11-22-llm-simulation-engine-design.md) for details.
 
+**Recommended LLM Providers:**
+- **Google Gemini** (gemini-1.5-flash): Fast, reliable, excellent JSON compliance (requires API key)
+- **Ollama** (local, tested 2025-11-23): Privacy-friendly, no API key needed
+  - ✅ **Excellent**: mistral:7b, llama3.1:8b, codellama:latest, deepseek-coder-v2:latest
+  - ⚠️  **Basic**: gemma3:1b (simple prompts only)
+  - ❌ **Avoid**: deepseek-r1:* models (reasoning models, not JSON-focused)
+
 ## Quick Start
 
 Run a simulation:

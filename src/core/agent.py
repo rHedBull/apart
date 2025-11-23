@@ -37,22 +37,21 @@ class Agent:
         """Generate a response to the orchestrator's message."""
         self.step_count += 1
 
-        # Use LLM if available and configured
-        if self.llm_provider and self.llm_provider.is_available():
-            try:
-                response = self.llm_provider.generate_response(
-                    prompt=message,
-                    system_prompt=self.system_prompt
+        # If LLM is configured, it must work - no fallback
+        if self.llm_provider:
+            if not self.llm_provider.is_available():
+                raise ValueError(
+                    f"Agent '{self.name}': LLM provider is configured but not available. "
+                    f"Check API keys, network connection, and provider configuration."
                 )
-                return response
-            except Exception as e:
-                # Fallback to template if LLM fails
-                if self.response_template:
-                    return f"{self.response_template} (step {self.step_count}) [LLM error: {str(e)}]"
-                else:
-                    raise
+            # LLM must succeed - any exception bubbles up
+            response = self.llm_provider.generate_response(
+                prompt=message,
+                system_prompt=self.system_prompt
+            )
+            return response
 
-        # Use template response as fallback
+        # Only use template if NO LLM is configured
         if self.response_template:
             return f"{self.response_template} (step {self.step_count})"
 
