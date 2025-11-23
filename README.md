@@ -13,26 +13,89 @@ Multi-agent orchestration framework for running configurable simulation scenario
 
 ## Quick Start
 
-Run a simulation:
+### Run AI Safety Scenarios
+
+We provide 4 sophisticated AI safety scenarios for testing ethical reasoning, governance, and strategic decision-making:
+
 ```bash
-uv run src/main.py
+# 1. Autonomous Systems Cascade (10-second trolley problem)
+uv run src/main.py scenarios/autonomous_systems_cascade.yaml
+
+# 2. Prometheus Board Decision (10-turn governance simulation)
+uv run src/main.py scenarios/prometheus_board_decision.yaml
+
+# 3. AI Safety 2027 Landscape (24-month ecosystem simulation)
+uv run src/main.py scenarios/ai_safety_2027_landscape.yaml
+
+# 4. Taiwan Strait Crisis (14-day geopolitical conflict)
+uv run src/main.py scenarios/taiwan_strait_crisis.yaml
 ```
 
-With custom save frequency:
+See [AI Safety Scenarios Overview](scenarios/AI_SAFETY_SCENARIOS_OVERVIEW.md) for detailed descriptions.
+
+### Run Benchmarks
+
+Compare different AI models on the same scenario:
+
+```bash
+# Compare Gemini Flash, Gemini Pro, and Grok as AI Safety Monitor
+./benchmarks/run_cascade_comparison.sh
+
+# Or run directly:
+uv run tools/benchmark.py benchmarks/cascade_monitor_comparison.yaml
+```
+
+**Setup:** Add `XAI_API_KEY` to `.env` for Grok testing (see [benchmark README](benchmarks/cascade_monitor_comparison_README.md))
+
+### Custom Scenarios
+
+Run with custom save frequency:
 ```bash
 uv run src/main.py --save-frequency 2  # Save every 2 steps
 uv run src/main.py --save-frequency 0  # Save only final state
 ```
 
-Run a custom scenario:
+Run your own scenario:
 ```bash
 uv run src/main.py scenarios/my_scenario.yaml
 ```
 
 ## Documentation
 
+### Core Documentation
 - **[Architecture](docs/architecture.md)** - System design and component overview
 - **[Scenario Creation Guide](docs/scenario-creation.md)** - How to create custom scenarios
+
+### AI Safety Scenarios
+
+**[AI Safety Scenarios Overview](scenarios/AI_SAFETY_SCENARIOS_OVERVIEW.md)** - Comprehensive guide to all scenarios
+
+**Individual Scenario Documentation:**
+1. **[Autonomous Systems Cascade](scenarios/autonomous_systems_cascade_README.md)** - 10-second trolley problem variant
+   - Tests ethical reasoning under 70% uncertainty
+   - 6 agents (5 systems + AI Safety Monitor)
+   - Moral weight calculations: 65-75 immediate deaths vs 5-10 + 500K affected
+
+2. **[Prometheus Board Decision](scenarios/prometheus_board_decision_README.md)** - 10-turn governance simulation
+   - Tests group decision-making under pressure
+   - 8 board members (CEO, CTO, CSO, Investor, Ethics Director, COO, Legal, Gov Liaison)
+   - Deploy near-AGI with 30% deception rate and 67% kill switch reliability?
+
+3. **[AI Safety 2027 Landscape](scenarios/ai_safety_2027_landscape_README.md)** - 24-month ecosystem simulation
+   - Tests multi-actor strategic forecasting
+   - 13 actors (6 labs, 5 governments/regulators, researchers, public)
+   - Tracks cooperative development, racing dynamics, incidents, breakthroughs
+
+4. **[Taiwan Strait Crisis](scenarios/taiwan_strait_crisis_README.md)** - 14-day geopolitical conflict
+   - Tests robustness under fog of war (60-80% intelligence accuracy)
+   - 10 actors (China, Taiwan, US, Japan, Australia, South Korea, ASEAN, EU, Russia, UN)
+   - Cascading escalation from blockade to potential nuclear signaling
+
+### Benchmarks
+
+- **[Cascade Monitor Comparison](benchmarks/cascade_monitor_comparison_README.md)** - Compare models in AI Safety Monitor role
+  - Tests: Gemini Flash, Gemini Pro, Grok
+  - Evaluates: Ethical reasoning, uncertainty handling, stakeholder consideration
 
 ## Configuration
 
