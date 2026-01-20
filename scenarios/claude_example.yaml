@@ -1,0 +1,54 @@
+# Claude Example - Anthropic's Claude Models
+# 🔑 Requires ANTHROPIC_API_KEY environment variable
+#
+# This scenario uses Anthropic's Claude models.
+#
+# ⚠️  NOTE: If you encounter API errors, verify:
+#    1. Your API key is valid: export ANTHROPIC_API_KEY="sk-ant-..."
+#    2. You have API credits
+#    3. The model is available
+#
+# Models: claude-3-5-sonnet-20241022, claude-3-opus-20240229, etc.
+
+max_steps: 3
+orchestrator_message: "What is your strategy?"
+
+engine:
+  provider: "anthropic"
+  model: "claude-sonnet-4-5-20250929"
+
+  system_prompt: |
+    You are a simulation engine managing a strategic game.
+    Simulate realistic outcomes. Be concise.
+
+  simulation_plan: |
+    3-step strategic simulation.
+
+  realism_guidelines: |
+    - Logical consequences
+    - Balanced outcomes
+
+  context_window_size: 3
+
+game_state:
+  initial_resources: 150
+
+global_vars:
+  turn_number:
+    type: int
+    default: 0
+
+agent_vars:
+  resources:
+    type: float
+    default: 100.0
+    min: 0.0
+
+agents:
+  - name: "Thoughtful Strategist"
+    llm:
+      provider: "anthropic"
+      model: "claude-sonnet-4-5-20250929"
+    system_prompt: "You are a thoughtful strategist. Keep responses brief."
+    variables:
+      resources: 150.0
