@@ -8,7 +8,7 @@ from core.simulator_agent import SimulatorAgent, SimulationError
 from core.event_emitter import emit, enable_event_emitter, disable_event_emitter, EventTypes
 from utils.persistence import RunPersistence
 from utils.logging_config import MessageCode, PerformanceTimer
-from utils.config_parser import parse_scripted_events, parse_geography
+from utils.config_parser import parse_scripted_events, parse_geography, parse_spatial_graph
 from llm.providers import GeminiProvider, OllamaProvider, UnifiedLLMProvider
 
 
@@ -45,6 +45,9 @@ class Orchestrator:
         # Parse geography if present
         geography = parse_geography(self.config.get("geography"))
 
+        # Parse spatial graph if present (for graph-based spatial modeling)
+        self.spatial_graph, movement_config = parse_spatial_graph(self.config.get("geography"))
+
         self.simulator_agent = SimulatorAgent(
             llm_provider=simulator_llm,
             game_engine=self.game_engine,
@@ -57,6 +60,8 @@ class Orchestrator:
             simulator_awareness=self.simulator_awareness,
             enable_compute_resources=self.enable_compute_resources,
             geography=geography,
+            spatial_graph=self.spatial_graph,
+            movement_config=movement_config,
             logger=self.logger
         )
 
@@ -230,12 +235,17 @@ Example of a BAD response: "I think about going to the market" (this is just int
         )
 
         # Emit simulation started event
+        spatial_graph_data = None
+        if self.spatial_graph:
+            spatial_graph_data = self.spatial_graph.to_dict()
+
         emit(
             EventTypes.SIMULATION_STARTED,
             num_agents=len(self.agents),
             max_steps=self.max_steps,
             agent_names=[a.name for a in self.agents],
-            run_dir=str(self.persistence.run_dir)
+            run_dir=str(self.persistence.run_dir),
+            spatial_graph=spatial_graph_data
         )
 
         print(f"Starting simulation with {len(self.agents)} agent(s) for {self.max_steps} steps")

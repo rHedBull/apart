@@ -1,10 +1,13 @@
 import json
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 from llm.llm_provider import LLMProvider
 from core.game_engine import GameEngine
 from core.engine_models import ScriptedEvent, EngineOutput, ConstraintHit, StepRecord
 from core.engine_validator import EngineValidator, ValidationResult
 from utils.logging_config import MessageCode
+from utils.spatial_graph import SpatialGraph
+from utils.spatial_queries import SpatialQueryEngine
+from utils.movement_validator import MovementValidator, MovementConfig
 
 
 class SimulationError(Exception):
@@ -28,6 +31,8 @@ class SimulatorAgent:
         simulator_awareness: bool = True,
         enable_compute_resources: bool = False,
         geography: Optional[Dict[str, Any]] = None,
+        spatial_graph: Optional[SpatialGraph] = None,
+        movement_config: Optional[MovementConfig] = None,
         logger=None
     ):
         self.llm_provider = llm_provider
@@ -42,6 +47,18 @@ class SimulatorAgent:
         self.enable_compute_resources = enable_compute_resources
         self.geography = geography or {}
         self.logger = logger
+
+        # Spatial graph components
+        self.spatial_graph = spatial_graph
+        self.spatial_query_engine: Optional[SpatialQueryEngine] = None
+        self.movement_validator: Optional[MovementValidator] = None
+
+        if spatial_graph:
+            self.spatial_query_engine = SpatialQueryEngine(spatial_graph)
+            self.movement_validator = MovementValidator(
+                spatial_graph,
+                movement_config or MovementConfig()
+            )
 
         self.step_history: List[StepRecord] = []
         self.constraint_feedback: List[ConstraintHit] = []
@@ -99,9 +116,15 @@ class SimulatorAgent:
         # Call LLM with retry logic
         output = self._call_llm_with_retry(prompt, step_number, agent_names)
 
+        # Validate movements against spatial graph (if configured)
+        validated_updates, movement_warnings = self._validate_movements(
+            output.state_updates,
+            step_number
+        )
+
         # Apply constraints and get clamped updates
         clamped_updates, constraint_hits = EngineValidator.apply_constraints(
-            output.state_updates,
+            validated_updates,
             self.game_engine.global_var_definitions,
             self.game_engine.agent_var_definitions
         )
@@ -607,6 +630,8 @@ REMEMBER: You must calculate the new values in your head and write the FINAL NUM
         """
         Extract location information from agent variables.
 
+        Handles both direct string values and dict format {"value": "location"}.
+
         Args:
             agent_vars: Dictionary of agent variables
 
@@ -616,7 +641,12 @@ REMEMBER: You must calculate the new values in your head and write the FINAL NUM
         locations = {}
         for agent_name, vars_dict in agent_vars.items():
             if "location" in vars_dict:
-                locations[agent_name] = vars_dict["location"]
+                location = vars_dict["location"]
+                # Handle dict format {"value": "location_id"}
+                if isinstance(location, dict) and "value" in location:
+                    locations[agent_name] = location["value"]
+                else:
+                    locations[agent_name] = location
         return locations
 
     def _format_geography(self, agent_locations: Optional[Dict[str, str]] = None) -> str:
@@ -626,6 +656,11 @@ REMEMBER: You must calculate the new values in your head and write the FINAL NUM
         Args:
             agent_locations: Optional dict mapping agent names to their current locations
         """
+        # Use spatial query engine if spatial graph is configured
+        if self.spatial_graph and self.spatial_query_engine:
+            return self.spatial_query_engine.get_spatial_summary(agent_locations)
+
+        # Fall back to narrative geography
         if not self.geography:
             return ""
 
@@ -721,3 +756,47 @@ REMEMBER: You must calculate the new values in your head and write the FINAL NUM
         analysis_lines.append("  - Lower compute agents need clever strategies to overcome this disadvantage")
 
         return "\n".join(analysis_lines)
+
+    def _validate_movements(
+        self,
+        state_updates: Dict[str, Any],
+        step_number: int
+    ) -> Tuple[Dict[str, Any], List[str]]:
+        """
+        Validate location changes against the spatial graph.
+
+        Args:
+            state_updates: State updates from LLM including agent_vars
+            step_number: Current step number for logging
+
+        Returns:
+            Tuple of (corrected_updates, list of warning messages)
+        """
+        if not self.movement_validator:
+            return state_updates, []
+
+        # Reset movement budgets for this step
+        agent_names = list(state_updates.get("agent_vars", {}).keys())
+        self.movement_validator.reset_budgets(agent_names)
+
+        # Update validator with current locations before validation
+        current_state = self.game_engine.get_current_state()
+        self.movement_validator.update_locations_from_state(
+            current_state.get("agent_vars", {})
+        )
+
+        # Validate and correct location updates
+        corrected_updates, warnings = self.movement_validator.validate_location_updates(
+            state_updates
+        )
+
+        # Log warnings
+        for warning in warnings:
+            if self.logger:
+                self.logger.warning(
+                    MessageCode.ENG009,
+                    f"Movement validation: {warning}",
+                    step=step_number
+                )
+
+        return corrected_updates, warnings

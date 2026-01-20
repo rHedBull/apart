@@ -255,3 +255,42 @@ class EngineValidator:
             return max_val, hit
 
         return value, None
+
+    @staticmethod
+    def validate_locations(
+        output: Dict[str, Any],
+        spatial_graph: Any  # Optional[SpatialGraph] - use Any to avoid circular import
+    ) -> ValidationResult:
+        """
+        Validate that location values in state updates are valid node IDs.
+
+        Args:
+            output: The parsed LLM output
+            spatial_graph: The spatial graph to validate against (can be None)
+
+        Returns:
+            ValidationResult indicating if locations are valid
+        """
+        if spatial_graph is None:
+            return ValidationResult(success=True)
+
+        agent_vars = output.get("state_updates", {}).get("agent_vars", {})
+
+        for agent_name, vars_dict in agent_vars.items():
+            if "location" in vars_dict:
+                location = vars_dict["location"]
+                if location not in spatial_graph:
+                    valid_nodes = spatial_graph.get_node_ids()
+                    valid_str = ", ".join(valid_nodes[:5])
+                    if len(valid_nodes) > 5:
+                        valid_str += f"... ({len(valid_nodes)} total)"
+
+                    return ValidationResult(
+                        success=False,
+                        error=(
+                            f"Invalid location '{location}' for agent '{agent_name}'. "
+                            f"Valid locations: {valid_str}"
+                        )
+                    )
+
+        return ValidationResult(success=True)

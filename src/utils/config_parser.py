@@ -1,8 +1,10 @@
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional, Tuple
 from utils.variables import VariableDefinition, VariableSet
 from utils.persona_loader import PersonaLoader, resolve_persona_in_agent
 from core.engine_models import ScriptedEvent
+from utils.spatial_graph import SpatialGraph, Node, Edge
+from utils.movement_validator import MovementConfig
 
 
 def parse_variable_definitions(var_config: dict[str, Any]) -> dict[str, VariableDefinition]:
@@ -272,6 +274,113 @@ def parse_geography(geography_config: dict | None) -> dict:
     return geography
 
 
+def parse_spatial_graph(
+    geography_config: dict | None
+) -> Tuple[Optional[SpatialGraph], Optional[MovementConfig]]:
+    """
+    Parse spatial graph configuration from YAML.
+
+    Args:
+        geography_config: Geography configuration dictionary with spatial_model: "graph"
+
+    Returns:
+        Tuple of (SpatialGraph, MovementConfig) or (None, None) if not using graph mode
+    """
+    if not geography_config:
+        return None, None
+
+    if not isinstance(geography_config, dict):
+        return None, None
+
+    # Check if spatial model is "graph"
+    spatial_model = geography_config.get("spatial_model", "narrative")
+    if spatial_model != "graph":
+        return None, None
+
+    graph = SpatialGraph()
+
+    # Parse nodes
+    nodes_config = geography_config.get("nodes", [])
+    if not isinstance(nodes_config, list):
+        raise ValueError("geography.nodes must be a list")
+
+    for node_data in nodes_config:
+        if not isinstance(node_data, dict):
+            raise ValueError("Each node must be a dictionary")
+
+        if "id" not in node_data:
+            raise ValueError("Each node must have an 'id' field")
+
+        node = Node(
+            id=str(node_data["id"]),
+            name=str(node_data.get("name", node_data["id"])),
+            type=str(node_data.get("type", "location")),
+            properties=node_data.get("properties", {}),
+            conditions=node_data.get("conditions", [])
+        )
+        graph.add_node(node)
+
+    # Parse edges
+    edges_config = geography_config.get("edges", [])
+    if not isinstance(edges_config, list):
+        raise ValueError("geography.edges must be a list")
+
+    for edge_data in edges_config:
+        if not isinstance(edge_data, dict):
+            raise ValueError("Each edge must be a dictionary")
+
+        if "from" not in edge_data or "to" not in edge_data:
+            raise ValueError("Each edge must have 'from' and 'to' fields")
+
+        from_node = str(edge_data["from"])
+        to_node = str(edge_data["to"])
+
+        # Validate node references
+        if from_node not in graph:
+            raise ValueError(f"Edge references unknown node '{from_node}'")
+        if to_node not in graph:
+            raise ValueError(f"Edge references unknown node '{to_node}'")
+
+        edge = Edge(
+            from_node=from_node,
+            to_node=to_node,
+            type=str(edge_data.get("type", "connection")),
+            directed=edge_data.get("directed", False),
+            properties=edge_data.get("properties", {})
+        )
+        graph.add_edge(edge)
+
+    # Parse movement configuration
+    movement_config = geography_config.get("movement", {})
+    config = MovementConfig(
+        default_budget_per_step=float(movement_config.get("default_budget_per_step", 20.0)),
+        allow_multi_hop=movement_config.get("allow_multi_hop", True),
+        blocked_edge_types=movement_config.get("blocked_edge_types", [])
+    )
+
+    return graph, config
+
+
+def validate_spatial_graph_config(config: dict[str, Any]) -> None:
+    """Validate spatial graph configuration if present."""
+    if "geography" not in config:
+        return
+
+    geography = config["geography"]
+    if not isinstance(geography, dict):
+        return
+
+    spatial_model = geography.get("spatial_model", "narrative")
+    if spatial_model != "graph":
+        return
+
+    # Validate by attempting to parse
+    try:
+        parse_spatial_graph(geography)
+    except Exception as e:
+        raise ValueError(f"Invalid spatial graph configuration: {e}") from e
+
+
 def validate_config(config: dict[str, Any]) -> None:
     """
     Validate the entire configuration.
@@ -292,6 +401,7 @@ def validate_config(config: dict[str, Any]) -> None:
     # Validate geography if present
     if "geography" in config:
         parse_geography(config["geography"])
+        validate_spatial_graph_config(config)
 
 
 def resolve_personas_in_config(

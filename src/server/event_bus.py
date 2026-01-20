@@ -258,3 +258,8 @@ def emit_event(
     """
     event = SimulationEvent.create(event_type, run_id, step, **data)
     EventBus.get_instance().emit(event)
+
+
+def get_event_bus() -> EventBus:
+    """Get the EventBus singleton instance."""
+    return EventBus.get_instance()

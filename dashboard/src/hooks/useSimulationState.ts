@@ -28,6 +28,29 @@ interface VariableHistory {
   values: Record<string, unknown>;
 }
 
+// Spatial graph types
+interface SpatialNode {
+  id: string;
+  name: string;
+  type: string;
+  properties: Record<string, unknown>;
+  conditions: string[];
+}
+
+interface SpatialEdge {
+  from: string;
+  to: string;
+  type: string;
+  directed: boolean;
+  properties: Record<string, unknown>;
+}
+
+export interface SpatialGraph {
+  nodes: SpatialNode[];
+  edges: SpatialEdge[];
+  blocked_edge_types: string[];
+}
+
 interface SimulationState {
   // Connection status
   connected: boolean;
@@ -42,6 +65,9 @@ interface SimulationState {
   currentStep: number;
   maxSteps: number | null;
   agentNames: string[];
+
+  // Spatial graph (for map visualization)
+  spatialGraph: SpatialGraph | null;
 
   // Messages
   messages: AgentMessage[];
@@ -78,6 +104,7 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
   currentStep: 0,
   maxSteps: null,
   agentNames: [],
+  spatialGraph: null,
   messages: [],
   dangerSignals: [],
   globalVarsHistory: [],
@@ -148,6 +175,7 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
           currentStep: 0,
           maxSteps: data.max_steps as number,
           agentNames: (data.agent_names as string[]) || [],
+          spatialGraph: (data.spatial_graph as SpatialGraph) || null,
           messages: [],
           dangerSignals: [],
           globalVarsHistory: [],
@@ -219,6 +247,7 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
       currentStep: 0,
       maxSteps: null,
       agentNames: [],
+      spatialGraph: null,
       messages: [],
       dangerSignals: [],
       globalVarsHistory: [],

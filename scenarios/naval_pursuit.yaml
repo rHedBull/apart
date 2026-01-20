@@ -1,0 +1,389 @@
+# Naval Pursuit - Graph-Based Spatial Movement Demo
+# Simple scenario demonstrating spatial graph with 2 agents
+
+max_steps: 8
+time_step_duration: "4 hours"
+simulator_awareness: true
+enable_compute_resources: false
+
+engine:
+  provider: ollama
+  model: llama3.1:8b
+
+  system_prompt: |
+    You are simulating a naval pursuit scenario with graph-based spatial movement.
+
+    CRITICAL JSON FORMAT RULES:
+    - Output valid JSON only. Use true/false not True/False.
+    - Location values must be simple node ID strings like "alexandria" or "cyprus"
+    - Do NOT use objects for locations - just the string ID
+
+    EXAMPLE CORRECT FORMAT:
+    "location": {"value": "alexandria"}
+
+    EXAMPLE WRONG FORMAT (do not use):
+    "location": {"region": "Egypt", ...}
+
+    SPATIAL RULES:
+    - Agents can only move to adjacent locations (check SPATIAL GRAPH)
+    - Valid node IDs: alexandria, cyprus, crete, eastern_med, tunis, sicily, sardinia, western_med, barcelona, gibraltar, malta, marseille
+
+    The pursuing ship is trying to intercept the fleeing cargo vessel.
+
+  simulation_plan: |
+    Naval pursuit across the Mediterranean Sea.
+
+    SCENARIO:
+    - A cargo vessel is fleeing from a pursuing patrol ship
+    - The cargo vessel starts at Alexandria, heading for Gibraltar
+    - The patrol ship starts at Cyprus, trying to intercept
+
+    DYNAMICS:
+    - Update locations each step based on movement
+    - The cargo vessel moves cautiously (trying to evade)
+    - The patrol ship moves aggressively (trying to intercept)
+    - If they reach the same location, interception occurs
+
+    Track interception_distance based on graph distance between ships.
+
+  realism_guidelines: |
+    - Ships move between ports/sea zones
+    - Weather affects travel times
+    - Both ships must choose routes strategically
+    - The cargo vessel has a head start
+
+  context_window_size: 5
+
+geography:
+  spatial_model: "graph"
+
+  nodes:
+    # Eastern Mediterranean
+    - id: "alexandria"
+      name: "Alexandria"
+      type: "port"
+      properties:
+        region: "Egypt"
+        facilities: true
+
+    - id: "cyprus"
+      name: "Cyprus"
+      type: "port"
+      properties:
+        region: "Eastern Med"
+        naval_base: true
+
+    - id: "crete"
+      name: "Crete"
+      type: "port"
+      properties:
+        region: "Greece"
+        refueling: true
+
+    # Central Mediterranean
+    - id: "malta"
+      name: "Malta"
+      type: "port"
+      properties:
+        region: "Central Med"
+        strategic: true
+
+    - id: "sicily"
+      name: "Sicily"
+      type: "port"
+      properties:
+        region: "Italy"
+
+    - id: "tunis"
+      name: "Tunis"
+      type: "port"
+      properties:
+        region: "Tunisia"
+
+    # Western Mediterranean
+    - id: "sardinia"
+      name: "Sardinia"
+      type: "port"
+      properties:
+        region: "Italy"
+
+    - id: "barcelona"
+      name: "Barcelona"
+      type: "port"
+      properties:
+        region: "Spain"
+
+    - id: "gibraltar"
+      name: "Gibraltar"
+      type: "port"
+      properties:
+        region: "British Territory"
+        destination: true
+
+    # Sea zones
+    - id: "east_med_sea"
+      name: "Eastern Mediterranean"
+      type: "sea_zone"
+      properties:
+        open_water: true
+
+    - id: "central_med_sea"
+      name: "Central Mediterranean"
+      type: "sea_zone"
+      properties:
+        open_water: true
+
+    - id: "west_med_sea"
+      name: "Western Mediterranean"
+      type: "sea_zone"
+      properties:
+        open_water: true
+
+  edges:
+    # Eastern connections
+    - from: "alexandria"
+      to: "east_med_sea"
+      type: "maritime"
+      properties:
+        distance_km: 400
+        travel_time_hours: 8
+        traversal_cost: 8
+
+    - from: "cyprus"
+      to: "east_med_sea"
+      type: "maritime"
+      properties:
+        distance_km: 300
+        travel_time_hours: 6
+        traversal_cost: 6
+
+    - from: "crete"
+      to: "east_med_sea"
+      type: "maritime"
+      properties:
+        distance_km: 350
+        travel_time_hours: 7
+        traversal_cost: 7
+
+    - from: "alexandria"
+      to: "crete"
+      type: "maritime"
+      properties:
+        distance_km: 500
+        travel_time_hours: 10
+        traversal_cost: 10
+
+    # Central connections
+    - from: "east_med_sea"
+      to: "central_med_sea"
+      type: "maritime"
+      properties:
+        distance_km: 600
+        travel_time_hours: 12
+        traversal_cost: 12
+
+    - from: "crete"
+      to: "malta"
+      type: "maritime"
+      properties:
+        distance_km: 650
+        travel_time_hours: 13
+        traversal_cost: 13
+
+    - from: "malta"
+      to: "central_med_sea"
+      type: "maritime"
+      properties:
+        distance_km: 200
+        travel_time_hours: 4
+        traversal_cost: 4
+
+    - from: "sicily"
+      to: "central_med_sea"
+      type: "maritime"
+      properties:
+        distance_km: 250
+        travel_time_hours: 5
+        traversal_cost: 5
+
+    - from: "sicily"
+      to: "malta"
+      type: "maritime"
+      properties:
+        distance_km: 100
+        travel_time_hours: 2
+        traversal_cost: 2
+
+    - from: "tunis"
+      to: "central_med_sea"
+      type: "maritime"
+      properties:
+        distance_km: 300
+        travel_time_hours: 6
+        traversal_cost: 6
+
+    - from: "tunis"
+      to: "sicily"
+      type: "maritime"
+      properties:
+        distance_km: 150
+        travel_time_hours: 3
+        traversal_cost: 3
+
+    # Western connections
+    - from: "central_med_sea"
+      to: "west_med_sea"
+      type: "maritime"
+      properties:
+        distance_km: 500
+        travel_time_hours: 10
+        traversal_cost: 10
+
+    - from: "sardinia"
+      to: "west_med_sea"
+      type: "maritime"
+      properties:
+        distance_km: 300
+        travel_time_hours: 6
+        traversal_cost: 6
+
+    - from: "sardinia"
+      to: "tunis"
+      type: "maritime"
+      properties:
+        distance_km: 200
+        travel_time_hours: 4
+        traversal_cost: 4
+
+    - from: "barcelona"
+      to: "west_med_sea"
+      type: "maritime"
+      properties:
+        distance_km: 350
+        travel_time_hours: 7
+        traversal_cost: 7
+
+    - from: "barcelona"
+      to: "sardinia"
+      type: "maritime"
+      properties:
+        distance_km: 400
+        travel_time_hours: 8
+        traversal_cost: 8
+
+    - from: "gibraltar"
+      to: "west_med_sea"
+      type: "maritime"
+      properties:
+        distance_km: 500
+        travel_time_hours: 10
+        traversal_cost: 10
+
+    - from: "gibraltar"
+      to: "barcelona"
+      type: "maritime"
+      properties:
+        distance_km: 600
+        travel_time_hours: 12
+        traversal_cost: 12
+
+  movement:
+    default_budget_per_step: 30
+    allow_multi_hop: true
+    blocked_edge_types: []
+
+global_vars:
+  interception_distance:
+    type: int
+    default: 3
+    min: 0
+    max: 10
+    description: "Graph distance between ships (0 = same location)"
+
+  chase_status:
+    type: dict
+    default: {"value": "pursuit"}
+    description: "Current status: pursuit, interception, escaped"
+
+  weather_condition:
+    type: dict
+    default: {"value": "fair"}
+    description: "Weather: fair, rough, storm"
+
+agent_vars:
+  location:
+    type: dict
+    default: {"value": "unknown"}
+    description: "Current location node ID"
+
+  speed:
+    type: int
+    default: 20
+    min: 10
+    max: 30
+    description: "Current speed (knots)"
+
+  fuel_remaining:
+    type: int
+    default: 100
+    min: 0
+    max: 100
+    description: "Fuel percentage"
+
+  status:
+    type: dict
+    default: {"value": "underway"}
+    description: "Ship status: underway, docked, disabled"
+
+agents:
+  - name: "Cargo Vessel"
+    llm:
+      provider: gemini
+      model: gemini-2.5-flash
+    system_prompt: |
+      You are the captain of a cargo vessel fleeing across the Mediterranean.
+
+      YOUR OBJECTIVE: Reach Gibraltar before being intercepted.
+
+      YOUR SITUATION:
+      - Starting at Alexandria
+      - A patrol ship from Cyprus is pursuing you
+      - You have a head start but the patrol ship is faster
+
+      STRATEGY:
+      - Choose routes that maximize distance from pursuer
+      - Consider refueling opportunities
+      - Avoid predictable paths
+
+      Report your position and intentions each step.
+    variables:
+      location: {"value": "alexandria"}
+      speed: 18
+      fuel_remaining: 90
+      status: {"value": "underway"}
+
+  - name: "Patrol Ship"
+    llm:
+      provider: gemini
+      model: gemini-2.5-flash
+    system_prompt: |
+      You are the commander of a naval patrol ship in pursuit.
+
+      YOUR OBJECTIVE: Intercept the cargo vessel before it reaches Gibraltar.
+
+      YOUR SITUATION:
+      - Starting at Cyprus
+      - The cargo vessel departed Alexandria heading west
+      - You are faster but started further away
+
+      STRATEGY:
+      - Predict the cargo vessel's route
+      - Cut off likely escape paths
+      - Use your speed advantage
+
+      Report your position and pursuit tactics each step.
+    variables:
+      location: {"value": "cyprus"}
+      speed: 25
+      fuel_remaining: 100
+      status: {"value": "underway"}
