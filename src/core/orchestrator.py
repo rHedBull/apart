@@ -15,7 +15,7 @@ from llm.providers import GeminiProvider, OllamaProvider, UnifiedLLMProvider
 class Orchestrator:
     """Orchestrator that manages multi-step simulation with agents."""
 
-    def __init__(self, config_path: str, scenario_name: str, save_frequency: int, engine_llm_provider=None):
+    def __init__(self, config_path: str, scenario_name: str, save_frequency: int, engine_llm_provider=None, run_id: str | None = None):
         # Load environment variables from .env file
         load_dotenv()
 
@@ -24,7 +24,7 @@ class Orchestrator:
         self.time_step_duration = self.config.get("time_step_duration", "1 turn")
         self.simulator_awareness = self.config.get("simulator_awareness", True)
         self.enable_compute_resources = self.config.get("enable_compute_resources", False)
-        self.persistence = RunPersistence(scenario_name, save_frequency)
+        self.persistence = RunPersistence(scenario_name, save_frequency, run_id=run_id)
         self.logger = self.persistence.logger  # Use the same logger instance
         self.agents = self._initialize_agents()
         self.game_engine = GameEngine(self.config)

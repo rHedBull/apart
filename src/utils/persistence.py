@@ -8,7 +8,7 @@ from utils.logging_config import StructuredLogger, LogLevel
 class RunPersistence:
     """Manages persistence of simulation run data."""
 
-    def __init__(self, scenario_name: str, save_frequency: int, min_log_level: LogLevel = LogLevel.INFO):
+    def __init__(self, scenario_name: str, save_frequency: int, min_log_level: LogLevel = LogLevel.INFO, run_id: str | None = None):
         """
         Initialize persistence layer.
 
@@ -16,10 +16,11 @@ class RunPersistence:
             scenario_name: Name of the scenario being run
             save_frequency: How often to save (0=final only, N=every N steps)
             min_log_level: Minimum log level for structured logging
+            run_id: Optional run ID (auto-generated if not provided)
         """
         self.scenario_name = self._sanitize_scenario_name(scenario_name)
         self.save_frequency = save_frequency
-        self.run_id = self._generate_run_id()
+        self.run_id = run_id if run_id else self._generate_run_id()
         self.run_dir = self._create_run_directory()
         self.state_file = self.run_dir / "state.json"
         self.log_file = self.run_dir / "simulation.jsonl"

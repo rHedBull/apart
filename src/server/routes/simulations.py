@@ -240,27 +240,84 @@ async def get_danger_signals(run_id: str):
 @router.post("/start", response_model=StartSimulationResponse)
 async def start_simulation(request: StartSimulationRequest):
     """
-    Start a new simulation.
+    Start a new simulation in a background task.
 
-    Note: This is a placeholder. Actual simulation starting would require
-    integrating with the orchestrator in a subprocess or background task.
+    The simulation runs in the same process as the server,
+    so events are emitted to the shared EventBus.
     """
     import uuid
+    import asyncio
+    from pathlib import Path
 
     run_id = request.run_id or str(uuid.uuid4())[:8]
+    scenario_path = request.scenario_path
 
-    # For now, just register placeholder - actual simulation would be started separately
-    register_simulation(
-        run_id=run_id,
-        scenario_name=request.scenario_path.split("/")[-1],
-        config_path=request.scenario_path
-    )
+    # Validate scenario file exists
+    if not Path(scenario_path).exists():
+        raise HTTPException(status_code=404, detail=f"Scenario file not found: {scenario_path}")
+
+    scenario_name = Path(scenario_path).stem
+
+    # Run simulation in background task
+    asyncio.create_task(_run_simulation_task(run_id, scenario_path, scenario_name))
 
     return StartSimulationResponse(
         run_id=run_id,
-        status=SimulationStatus.PENDING,
-        message=f"Simulation registered. Use CLI to start: uv run src/main.py {request.scenario_path}"
+        status=SimulationStatus.RUNNING,
+        message=f"Simulation started with run_id: {run_id}"
     )
+
+
+async def _run_simulation_task(run_id: str, scenario_path: str, scenario_name: str):
+    """Background task to run the simulation."""
+    import asyncio
+    import yaml
+    from pathlib import Path
+
+    try:
+        # Load config to get agent info for registration
+        with open(scenario_path) as f:
+            config = yaml.safe_load(f)
+
+        agents = []
+        for agent_config in config.get("agents", []):
+            agents.append({
+                "name": agent_config.get("name", "Unknown"),
+                "llm": agent_config.get("llm", {})
+            })
+
+        # Register simulation before starting
+        register_simulation(
+            run_id=run_id,
+            scenario_name=scenario_name,
+            config_path=scenario_path,
+            max_steps=config.get("max_steps", 5),
+            agents=agents
+        )
+
+        # Import here to avoid circular imports
+        from core.orchestrator import Orchestrator
+
+        # Run in executor to not block the event loop
+        def run_sync():
+            orchestrator = Orchestrator(
+                scenario_path,
+                scenario_name,
+                save_frequency=1,
+                run_id=run_id  # Pass run_id to orchestrator
+            )
+            orchestrator.run()
+
+        loop = asyncio.get_event_loop()
+        await loop.run_in_executor(None, run_sync)
+
+        # Mark as completed
+        complete_simulation(run_id, SimulationStatus.COMPLETED)
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        complete_simulation(run_id, SimulationStatus.FAILED, str(e))
 
 
 @router.post("/{run_id}/stop", response_model=StopSimulationResponse)
