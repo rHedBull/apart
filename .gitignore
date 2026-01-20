@@ -10,7 +10,7 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
+/lib/
 lib64/
 parts/
 sdist/
@@ -42,6 +42,15 @@ Thumbs.db
 .claude/
 results/
 .env
+
+# Node/Dashboard
+node_modules/
+.vite/
+dist/
+
+# Playwright/Browser testing
+.playwright-mcp/
+*.png
 
 # dev notes
 dev.coverage

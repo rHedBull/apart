@@ -1,5 +1,7 @@
+from pathlib import Path
 from typing import Any
 from utils.variables import VariableDefinition, VariableSet
+from utils.persona_loader import PersonaLoader, resolve_persona_in_agent
 from core.engine_models import ScriptedEvent
 
 
@@ -290,3 +292,50 @@ def validate_config(config: dict[str, Any]) -> None:
     # Validate geography if present
     if "geography" in config:
         parse_geography(config["geography"])
+
+
+def resolve_personas_in_config(
+    config: dict[str, Any],
+    personas_dir: Path | str | None = None
+) -> dict[str, Any]:
+    """
+    Resolve all persona references in a configuration.
+
+    Processes all agents with 'persona' keys, loading and merging
+    the persona definitions.
+
+    Args:
+        config: Full scenario configuration
+        personas_dir: Directory containing persona files (optional)
+
+    Returns:
+        Configuration with persona references resolved
+
+    Example:
+        Input config with:
+            agents:
+              - persona: geopolitical/usa_state_dept
+                variables:
+                  diplomatic_leverage: 90
+
+        Output config with:
+            agents:
+              - name: "US State Department"
+                system_prompt: "..."
+                variables:
+                  diplomatic_leverage: 90  # Agent override
+                  military_readiness: 70   # From persona
+    """
+    if "agents" not in config:
+        return config
+
+    loader = PersonaLoader(personas_dir)
+    result = config.copy()
+
+    resolved_agents = []
+    for agent_config in config["agents"]:
+        resolved = resolve_persona_in_agent(agent_config, loader)
+        resolved_agents.append(resolved)
+
+    result["agents"] = resolved_agents
+    return result

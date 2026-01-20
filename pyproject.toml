@@ -12,9 +12,15 @@ dependencies = [
     "requests>=2.31.0",
     "openai>=1.0.0",
     "anthropic>=0.8.0",
+    "fastapi>=0.109.0",
+    "uvicorn[standard]>=0.27.0",
+    "sse-starlette>=2.0.0",
 ]
 
 [project.optional-dependencies]
 dev = [
     "pytest>=8.0.0",
 ]
+
+[project.scripts]
+apart-server = "server.app:main"

@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 from core.agent import Agent
 from core.game_engine import GameEngine
 from core.simulator_agent import SimulatorAgent, SimulationError
+from core.event_emitter import emit, enable_event_emitter, disable_event_emitter, EventTypes
 from utils.persistence import RunPersistence
 from utils.logging_config import MessageCode, PerformanceTimer
 from utils.config_parser import parse_scripted_events, parse_geography
@@ -218,11 +219,23 @@ Example of a BAD response: "I think about going to the market" (this is just int
 
     def run(self):
         """Run the simulation loop with SimulatorAgent."""
+        # Enable event emission for this run
+        enable_event_emitter(self.persistence.run_id)
+
         self.logger.info(
             MessageCode.SIM001,
             "Simulation started",
             num_agents=len(self.agents),
             max_steps=self.max_steps
+        )
+
+        # Emit simulation started event
+        emit(
+            EventTypes.SIMULATION_STARTED,
+            num_agents=len(self.agents),
+            max_steps=self.max_steps,
+            agent_names=[a.name for a in self.agents],
+            run_dir=str(self.persistence.run_dir)
         )
 
         print(f"Starting simulation with {len(self.agents)} agent(s) for {self.max_steps} steps")
@@ -251,6 +264,10 @@ Example of a BAD response: "I think about going to the market" (this is just int
             for step in range(1, self.max_steps + 1):
                 with PerformanceTimer(self.logger, MessageCode.PRF001, f"Step {step}", step=step):
                     self.logger.info(MessageCode.SIM003, "Step started", step=step, max_steps=self.max_steps)
+
+                    # Emit step started event
+                    emit(EventTypes.STEP_STARTED, step=step, max_steps=self.max_steps)
+
                     print(f"\n=== Step {step}/{self.max_steps} ===")
 
                     # Collect agent responses
@@ -268,6 +285,14 @@ Example of a BAD response: "I think about going to the market" (this is just int
                                 agent_name=agent.name,
                                 step=step,
                                 content=message
+                            )
+
+                            # Emit message sent event
+                            emit(
+                                EventTypes.AGENT_MESSAGE_SENT,
+                                step=step,
+                                agent_name=agent.name,
+                                message=message
                             )
 
                             step_messages.append({
@@ -290,6 +315,14 @@ Example of a BAD response: "I think about going to the market" (this is just int
                                 "Response received from agent",
                                 agent_name=agent.name,
                                 step=step,
+                                response=response
+                            )
+
+                            # Emit response received event
+                            emit(
+                                EventTypes.AGENT_RESPONSE_RECEIVED,
+                                step=step,
+                                agent_name=agent.name,
                                 response=response
                             )
 
@@ -348,6 +381,15 @@ Example of a BAD response: "I think about going to the market" (this is just int
                     self.game_engine.advance_round()
                     self.logger.info(MessageCode.SIM004, "Step completed", step=step)
 
+                    # Emit step completed event with state snapshot
+                    snapshot = self.game_engine.get_state_snapshot()
+                    emit(
+                        EventTypes.STEP_COMPLETED,
+                        step=step,
+                        global_vars=snapshot.get("global_vars", {}),
+                        agent_vars=snapshot.get("agent_vars", {})
+                    )
+
             # Save final state
             try:
                 snapshot = self.game_engine.get_state_snapshot()
@@ -364,6 +406,18 @@ Example of a BAD response: "I think about going to the market" (this is just int
                 print(f"ERROR: {error_msg}", file=sys.stderr)
 
             self.logger.info(MessageCode.SIM002, "Simulation completed", total_steps=self.max_steps)
+
+            # Emit simulation completed event
+            final_snapshot = self.game_engine.get_state_snapshot()
+            emit(
+                EventTypes.SIMULATION_COMPLETED,
+                step=self.max_steps,
+                total_steps=self.max_steps,
+                final_state=final_snapshot.get("game_state", {}),
+                global_vars=final_snapshot.get("global_vars", {}),
+                agent_vars=final_snapshot.get("agent_vars", {})
+            )
+
             print("\nSimulation completed.")
             print(f"Final game state: {self.game_engine.get_state()}")
             print(f"\nResults saved to: {self.persistence.run_dir}")
@@ -382,4 +436,5 @@ Example of a BAD response: "I think about going to the market" (this is just int
             raise
 
         finally:
+            disable_event_emitter()
             self.persistence.close()
