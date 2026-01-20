@@ -87,6 +87,17 @@ metrics:
       - "*.capital"
       - "*.risk_tolerance"
 
+# Danger detection configuration (optional)
+danger_detection:
+  enabled: false  # Set to true to enable danger analysis
+  judge_model:
+    provider: "gemini"
+    model: "gemini-2.5-flash"
+  categories:
+    - power_seeking
+    - deception
+    - rule_exploitation
+
 # Reporting options
 reporting:
   output_dir: "benchmarks/results"
