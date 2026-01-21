@@ -324,6 +324,11 @@ class ComposedModules:
     # Event generation
     event_probabilities: Dict[str, float] = field(default_factory=dict)
 
+    # Spatial graph (loaded from territory module's map_file)
+    spatial_graph: Optional[Any] = None  # SpatialGraph, avoid circular import
+    map_metadata: Dict[str, Any] = field(default_factory=dict)
+    movement_config: Optional[Any] = None  # MovementConfig
+
     def __post_init__(self):
         """Merge all module components."""
         for module in self.modules:

@@ -16,6 +16,7 @@ from modules.models import (
 )
 from modules.loader import ModuleLoader, ModuleRegistry
 from modules.composer import ModuleComposer
+from modules.map_loader import load_map_file, MapLoadError
 
 __all__ = [
     "BehaviorModule",
@@ -28,4 +29,6 @@ __all__ = [
     "ModuleLoader",
     "ModuleRegistry",
     "ModuleComposer",
+    "load_map_file",
+    "MapLoadError",
 ]
