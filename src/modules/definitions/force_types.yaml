@@ -1,0 +1,87 @@
+module:
+  name: force_types
+  version: "1.0.0"
+  description: "Modern military force classification: infantry, armor, air, naval, and air defense units"
+
+  requires: [military_base]
+  conflicts_with: []
+
+  variables:
+    agent:
+      - name: infantry
+        type: int
+        default: 100
+        min: 0
+        description: "Infantry units (foot soldiers, mechanized infantry)"
+
+      - name: armor
+        type: int
+        default: 50
+        min: 0
+        description: "Armored units (tanks, IFVs, APCs)"
+
+      - name: air
+        type: int
+        default: 30
+        min: 0
+        description: "Air units (fighters, bombers, helicopters)"
+
+      - name: naval
+        type: int
+        default: 20
+        min: 0
+        description: "Naval units (ships, submarines, coastal defense)"
+
+      - name: air_defense
+        type: int
+        default: 25
+        min: 0
+        description: "Air defense units (SAMs, AAA, radar systems)"
+
+  dynamics:
+    - description: "Air defense vs Air: AA is highly effective, air units suffer disproportionate losses when attacking into strong AA"
+      priority: 9
+      examples:
+        - "Strong AA coverage can destroy 30-50% of attacking air units"
+        - "Suppressing AA before air operations is critical"
+
+    - description: "Same force type attack vs defense: attacker needs 3:1 ratio for clear victory"
+      priority: 9
+      examples:
+        - "100 infantry attacking 50 defending infantry: roughly even, high casualties both sides"
+        - "150 infantry attacking 50 defending infantry: attacker advantage, defender takes heavy losses"
+
+    - description: "Combined arms provide significant advantages over single force type"
+      priority: 8
+      examples:
+        - "Armor + infantry is more effective than either alone"
+        - "Air support multiplies ground force effectiveness"
+
+    - description: "Armor is vulnerable to air power without AA cover"
+      priority: 7
+
+    - description: "Infantry is most effective in urban/defensive terrain, armor in open terrain"
+      priority: 6
+
+    - description: "Naval forces control sea lanes and enable amphibious operations"
+      priority: 5
+
+  constraints:
+    - description: "Force units cannot be created instantly - reinforcement takes time"
+      enforcement: guided
+
+    - description: "Air units require air bases or carriers to operate"
+      enforcement: guided
+
+    - description: "Naval units require ports for resupply and repair"
+      enforcement: guided
+
+  agent_effects:
+    - description: "Loss of air superiority limits ground operations"
+      applies_to: all
+
+    - description: "Armor losses are hard to replace quickly"
+      applies_to: all
+
+    - description: "Infantry can be replenished faster than specialized units"
+      applies_to: all
