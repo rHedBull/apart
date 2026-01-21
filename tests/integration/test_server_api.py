@@ -21,9 +21,9 @@ class TestHealthEndpoints:
 
         data = response.json()
         assert "status" in data
-        assert "active_simulations" in data
-        assert "max_concurrent_simulations" in data
-        assert data["max_concurrent_simulations"] == 4
+        assert "queue_stats" in data
+        assert "event_bus_subscribers" in data
+        assert "total_run_ids" in data
 
 
 class TestSimulationEndpoints:
@@ -88,16 +88,20 @@ class TestSimulationEndpoints:
         assert "not found" in response.json()["detail"].lower()
 
 
-class TestConcurrencyLimits:
-    """Tests for concurrency limiting behavior."""
+class TestQueueEndpoints:
+    """Tests for job queue endpoints."""
 
-    def test_detailed_health_shows_limits(self, test_client, event_bus_reset):
-        """Health endpoint should show concurrency limits."""
-        response = test_client.get("/api/health/detailed")
+    def test_queue_stats(self, test_client, event_bus_reset):
+        """Queue stats endpoint should return queue information."""
+        response = test_client.get("/api/queue/stats")
+        assert response.status_code == 200
+
         data = response.json()
-
-        assert data["max_concurrent_simulations"] == 4
-        assert data["active_simulations"] == 0
+        # Should have stats for each priority queue plus total
+        assert "high" in data
+        assert "normal" in data
+        assert "low" in data
+        assert "total" in data
 
 
 class TestRunIdConsistency:

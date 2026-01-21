@@ -2,7 +2,6 @@
 Redis Queue (RQ) integration for distributed job processing.
 
 Enables horizontal scaling by offloading simulation jobs to Redis-backed workers.
-Only active when APART_USE_JOB_QUEUE=1 is set.
 """
 
 from rq import Queue, Retry

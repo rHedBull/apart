@@ -4,15 +4,12 @@ FastAPI application for the Apart Dashboard.
 Provides:
 - REST API for simulation management
 - SSE event streaming for real-time updates
-- Optional Redis job queue for distributed deployments
+- Redis job queue for distributed simulation processing
 """
 
-import asyncio
 import os
-from concurrent.futures import ThreadPoolExecutor, Future
 from contextlib import asynccontextmanager
 from pathlib import Path
-from threading import Lock
 from typing import Optional
 
 from fastapi import FastAPI, HTTPException
@@ -28,47 +25,6 @@ from server.models import (
     StartSimulationResponse,
 )
 
-# Check if job queue mode is enabled
-USE_JOB_QUEUE = os.environ.get("APART_USE_JOB_QUEUE", "").lower() in ("1", "true", "yes")
-
-
-# ============================================================================
-# Execution infrastructure
-# ============================================================================
-
-# Fixed pool size prevents unbounded thread creation
-MAX_CONCURRENT_SIMULATIONS = 4
-_executor = ThreadPoolExecutor(
-    max_workers=MAX_CONCURRENT_SIMULATIONS,
-    thread_name_prefix="sim-"
-)
-
-# Semaphore to limit concurrent simulations (matches executor size)
-_sim_semaphore = asyncio.Semaphore(MAX_CONCURRENT_SIMULATIONS)
-
-# Track running simulations: run_id -> {"future": Future, "status": str}
-_running_simulations: dict[str, dict] = {}
-_simulations_lock = Lock()
-
-# Shutdown coordination
-_shutdown_requested = False
-
-
-def _graceful_shutdown():
-    """Shut down the executor gracefully."""
-    global _shutdown_requested
-    _shutdown_requested = True
-
-    # Cancel pending futures (running ones will complete)
-    with _simulations_lock:
-        for run_id, sim_info in _running_simulations.items():
-            future = sim_info.get("future")
-            if future and not future.done():
-                future.cancel()
-
-    # Wait for running tasks to complete (with timeout)
-    _executor.shutdown(wait=True, cancel_futures=True)
-
 
 def _initialize_database():
     """Initialize database if database mode is enabled."""
@@ -80,11 +36,10 @@ def _initialize_database():
 
 
 def _initialize_job_queue():
-    """Initialize Redis job queue if job queue mode is enabled."""
-    if USE_JOB_QUEUE:
-        from server.job_queue import init_job_queue
-        redis_url = os.environ.get("REDIS_URL", "redis://localhost:6379")
-        init_job_queue(redis_url)
+    """Initialize Redis job queue (required)."""
+    from server.job_queue import init_job_queue
+    redis_url = os.environ.get("REDIS_URL", "redis://localhost:6379")
+    init_job_queue(redis_url)
 
 
 @asynccontextmanager
@@ -94,8 +49,6 @@ async def lifespan(app: FastAPI):
     _initialize_database()
     _initialize_job_queue()
     yield
-    # Shutdown
-    _graceful_shutdown()
 
 
 app = FastAPI(
@@ -126,21 +79,16 @@ async def health_check():
 async def detailed_health():
     """Detailed health check with system metrics."""
     from server.event_bus import EventBus
+    from server.job_queue import get_queue_stats
 
     event_bus = get_event_bus()
 
-    with _simulations_lock:
-        active_sims = sum(1 for s in _running_simulations.values() if s.get("status") == "running")
-        total_tracked = len(_running_simulations)
-
     result = {
-        "status": "healthy" if not _shutdown_requested else "shutting_down",
-        "active_simulations": active_sims,
-        "total_tracked_simulations": total_tracked,
-        "max_concurrent_simulations": MAX_CONCURRENT_SIMULATIONS,
+        "status": "healthy",
         "event_bus_subscribers": len(event_bus._subscribers),
         "total_run_ids": len(event_bus.get_all_run_ids()),
         "persistence_mode": "database" if EventBus._use_database else "jsonl",
+        "queue_stats": get_queue_stats(),
     }
 
     # Add database stats if using database mode
@@ -252,49 +200,11 @@ async def get_simulation(run_id: str):
     )
 
 
-def _run_simulation_sync(run_id: str, scenario_path: Path) -> None:
-    """
-    Synchronous simulation runner for executor.
-
-    This function runs in a thread pool worker and handles the full
-    simulation lifecycle including event emission.
-    """
-    from core.orchestrator import Orchestrator
-    from core.event_emitter import enable_event_emitter
-    from server.event_bus import emit_event
-
-    try:
-        # Enable event emission
-        enable_event_emitter(run_id)
-
-        # Run simulation
-        orchestrator = Orchestrator(
-            str(scenario_path),
-            scenario_path.stem,
-            save_frequency=1,
-            run_id=run_id
-        )
-        orchestrator.run()
-    except Exception as e:
-        emit_event("simulation_failed", run_id, error=str(e))
-    finally:
-        # Clean up tracking
-        with _simulations_lock:
-            if run_id in _running_simulations:
-                _running_simulations[run_id]["status"] = "completed"
-
-
 @app.post("/api/simulations", response_model=StartSimulationResponse)
 async def start_simulation(request: StartSimulationRequest):
-    """Start a new simulation.
-
-    When APART_USE_JOB_QUEUE is enabled, jobs are queued to Redis for worker processing.
-    Otherwise, uses a bounded thread pool to prevent resource exhaustion.
-    """
+    """Start a new simulation by enqueueing it to the Redis job queue."""
     import uuid
-
-    if _shutdown_requested:
-        raise HTTPException(status_code=503, detail="Server is shutting down")
+    from server.job_queue import enqueue_simulation
 
     # Validate scenario path
     scenario_path = Path(request.scenario_path)
@@ -304,44 +214,14 @@ async def start_simulation(request: StartSimulationRequest):
     # Generate run ID
     run_id = request.run_id or str(uuid.uuid4())[:8]
 
-    # Job queue mode: enqueue to Redis
-    if USE_JOB_QUEUE:
-        from server.job_queue import enqueue_simulation
-
-        priority = request.priority.value if request.priority else "normal"
-        job_id = enqueue_simulation(run_id, str(scenario_path), priority)
-
-        return StartSimulationResponse(
-            run_id=run_id,
-            status=SimulationStatus.PENDING,
-            message=f"Simulation queued (job_id: {job_id})"
-        )
-
-    # ThreadPool mode: run locally
-    # Check if we can accept more simulations (non-blocking check)
-    if _sim_semaphore.locked():
-        # All slots are in use - check if we should queue or reject
-        active_count = sum(
-            1 for s in _running_simulations.values()
-            if s.get("status") == "running"
-        )
-        if active_count >= MAX_CONCURRENT_SIMULATIONS:
-            raise HTTPException(
-                status_code=429,
-                detail=f"Too many concurrent simulations (max {MAX_CONCURRENT_SIMULATIONS})"
-            )
-
-    # Submit to executor
-    loop = asyncio.get_event_loop()
-    future = loop.run_in_executor(_executor, _run_simulation_sync, run_id, scenario_path)
-
-    with _simulations_lock:
-        _running_simulations[run_id] = {"future": future, "status": "running"}
+    # Enqueue to Redis
+    priority = request.priority.value if request.priority else "normal"
+    job_id = enqueue_simulation(run_id, str(scenario_path), priority)
 
     return StartSimulationResponse(
         run_id=run_id,
-        status=SimulationStatus.RUNNING,
-        message=f"Simulation started: {scenario_path.name}"
+        status=SimulationStatus.PENDING,
+        message=f"Simulation queued (job_id: {job_id})"
     )
 
 
@@ -375,19 +255,13 @@ async def event_stream_for_run(run_id: str, history: bool = False):
 
 
 # ============================================================================
-# Job Queue Endpoints (only active when APART_USE_JOB_QUEUE=1)
+# Job Queue Endpoints
 # ============================================================================
 
 
 @app.get("/api/jobs/{job_id}")
 async def get_job(job_id: str):
-    """Get status of a queued job.
-
-    Only available when job queue mode is enabled.
-    """
-    if not USE_JOB_QUEUE:
-        raise HTTPException(status_code=501, detail="Job queue not enabled")
-
+    """Get status of a queued job."""
     from server.job_queue import get_job_status
 
     try:
@@ -398,13 +272,7 @@ async def get_job(job_id: str):
 
 @app.get("/api/queue/stats")
 async def queue_stats():
-    """Get job queue statistics.
-
-    Only available when job queue mode is enabled.
-    """
-    if not USE_JOB_QUEUE:
-        raise HTTPException(status_code=501, detail="Job queue not enabled")
-
+    """Get job queue statistics."""
     from server.job_queue import get_queue_stats
 
     return get_queue_stats()
@@ -412,14 +280,7 @@ async def queue_stats():
 
 @app.delete("/api/jobs/{job_id}")
 async def cancel_job(job_id: str):
-    """Cancel a queued job.
-
-    Only works for jobs that haven't started yet.
-    Only available when job queue mode is enabled.
-    """
-    if not USE_JOB_QUEUE:
-        raise HTTPException(status_code=501, detail="Job queue not enabled")
-
+    """Cancel a queued job. Only works for jobs that haven't started yet."""
     from server.job_queue import cancel_job as do_cancel
 
     cancelled = do_cancel(job_id)
