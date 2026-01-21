@@ -8,9 +8,10 @@ from rq import Queue, Retry
 from rq.job import Job
 from redis import Redis
 from typing import Optional
-import logging
 
-logger = logging.getLogger(__name__)
+from utils.ops_logger import get_ops_logger
+
+logger = get_ops_logger("queue")
 
 # Module-level connections (initialized once)
 _redis_conn: Optional[Redis] = None
@@ -38,7 +39,7 @@ def init_job_queue(redis_url: str = "redis://localhost:6379") -> None:
         "low": Queue("simulations-low", connection=_redis_conn),
     }
 
-    logger.info(f"Job queue initialized with Redis at {redis_url}")
+    logger.info("Job queue initialized", extra={"redis_url": redis_url})
 
 
 def get_redis_connection() -> Redis:
@@ -88,7 +89,12 @@ def enqueue_simulation(
         meta={"scenario_path": scenario_path, "priority": priority},
     )
 
-    logger.info(f"Enqueued simulation {run_id} to {priority} queue")
+    logger.info("Simulation enqueued", extra={
+        "run_id": run_id,
+        "job_id": job.id,
+        "priority": priority,
+        "scenario": scenario_path,
+    })
     return job.id
 
 
@@ -198,10 +204,10 @@ def cancel_job(job_id: str) -> bool:
 
         if status == "queued":
             job.cancel()
-            logger.info(f"Cancelled job {job_id}")
+            logger.info("Job cancelled", extra={"job_id": job_id})
             return True
         else:
-            logger.warning(f"Cannot cancel job {job_id} with status {status}")
+            logger.warning("Cannot cancel job", extra={"job_id": job_id, "status": status})
             return False
     except Exception:
         return False

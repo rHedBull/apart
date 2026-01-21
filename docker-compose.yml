@@ -24,11 +24,13 @@ services:
       - APART_USE_DATABASE=1
       - REDIS_URL=redis://redis:6379
       - PYTHONUNBUFFERED=1
+      - APART_LOG_TO_FILE=1
     depends_on:
       redis:
         condition: service_healthy
     volumes:
       - ./data:/app/data  # Persist database and event logs
+      - ./logs:/app/logs  # Operational logs
       - ./scenarios:/app/scenarios:ro  # Mount scenarios read-only
       - ./personas:/app/personas:ro  # Mount personas read-only
 
@@ -40,11 +42,13 @@ services:
       - APART_USE_DATABASE=1
       - REDIS_URL=redis://redis:6379
       - PYTHONUNBUFFERED=1
+      - APART_LOG_TO_FILE=1
     depends_on:
       redis:
         condition: service_healthy
     volumes:
       - ./data:/app/data  # Share database with server
+      - ./logs:/app/logs  # Share logs with server
       - ./scenarios:/app/scenarios:ro
       - ./personas:/app/personas:ro
     deploy:
