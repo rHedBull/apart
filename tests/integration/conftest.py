@@ -19,19 +19,33 @@ from llm.llm_provider import LLMProvider
 
 @pytest.fixture
 def test_client():
-    """Create a test client for the FastAPI app."""
+    """Create a test client for the FastAPI app with mocked Redis."""
+    from unittest.mock import patch
     from fastapi.testclient import TestClient
-    from server import app as app_module
+    from fakeredis import FakeRedis
     from server.app import app
+    import server.job_queue as job_queue_module
 
-    # Reset shutdown state before test
-    app_module._shutdown_requested = False
+    # Create a fake Redis connection
+    fake_redis = FakeRedis()
 
-    with TestClient(app) as client:
-        yield client
+    # Mock the job queue initialization to use fake Redis
+    def mock_init_job_queue(redis_url: str):
+        from rq import Queue
+        job_queue_module._redis_conn = fake_redis
+        job_queue_module._queues = {
+            "high": Queue("simulations-high", connection=fake_redis),
+            "normal": Queue("simulations", connection=fake_redis),
+            "low": Queue("simulations-low", connection=fake_redis),
+        }
 
-    # Reset again after test
-    app_module._shutdown_requested = False
+    with patch.object(job_queue_module, 'init_job_queue', mock_init_job_queue):
+        with TestClient(app) as client:
+            yield client
+
+    # Reset job queue state after test
+    job_queue_module._redis_conn = None
+    job_queue_module._queues = {}
 
 
 @pytest.fixture

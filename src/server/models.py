@@ -72,7 +72,7 @@ class StartSimulationRequest(BaseModel):
     """Request to start a new simulation."""
     scenario_path: str
     run_id: str | None = None  # Optional custom run ID
-    priority: JobPriority | None = JobPriority.NORMAL  # Priority for job queue mode
+    priority: JobPriority | None = JobPriority.NORMAL  # Job queue priority
 
 
 class StartSimulationResponse(BaseModel):

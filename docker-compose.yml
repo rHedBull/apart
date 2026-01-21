@@ -22,7 +22,6 @@ services:
       - "8000:8000"
     environment:
       - APART_USE_DATABASE=1
-      - APART_USE_JOB_QUEUE=1
       - REDIS_URL=redis://redis:6379
       - PYTHONUNBUFFERED=1
     depends_on:
