@@ -61,7 +61,7 @@ class ModuleComposer:
         if not map_file:
             return
 
-        spatial_graph, metadata = load_map_file(map_file)
+        spatial_graph, metadata, _geojson = load_map_file(map_file)
         movement_config = create_movement_config(module.config_values)
 
         composed.spatial_graph = spatial_graph
