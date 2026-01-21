@@ -1,0 +1,137 @@
+map:
+  name: "Taiwan Strait"
+  description: "Taiwan Strait scenario with surrounding nations"
+  geojson: "taiwan_strait.geojson"
+
+nodes:
+  # Region nodes - match GeoJSON feature IDs
+  - id: TWN
+    name: Taiwan
+    type: region
+    properties:
+      population: 24000000
+
+  - id: CHN
+    name: China
+    type: region
+    properties:
+      population: 1400000000
+
+  - id: STRAIT
+    name: Taiwan Strait
+    type: water
+    properties:
+      strategic: true
+
+  - id: JPN
+    name: Japan
+    type: region
+    properties:
+      population: 125000000
+
+  - id: PHL
+    name: Philippines
+    type: region
+    properties:
+      population: 115000000
+
+  - id: SCS
+    name: South China Sea
+    type: water
+    properties:
+      strategic: true
+
+  # Point nodes with coordinates
+  - id: taipei
+    name: Taipei
+    type: city
+    coordinates: [121.5, 25.0]
+    properties:
+      capital: true
+
+  - id: beijing
+    name: Beijing
+    type: city
+    coordinates: [116.4, 39.9]
+    properties:
+      capital: true
+
+  - id: tokyo
+    name: Tokyo
+    type: city
+    coordinates: [139.7, 35.7]
+    properties:
+      capital: true
+
+  - id: usa_pacific
+    name: US Pacific Fleet
+    type: military
+    coordinates: [160.0, 20.0]
+    properties:
+      fleet: true
+
+edges:
+  - from: TWN
+    to: STRAIT
+    type: sea
+    properties:
+      distance_km: 130
+
+  - from: CHN
+    to: STRAIT
+    type: sea
+    properties:
+      distance_km: 130
+
+  - from: TWN
+    to: JPN
+    type: sea
+    properties:
+      distance_km: 700
+
+  - from: TWN
+    to: PHL
+    type: sea
+    properties:
+      distance_km: 350
+
+  - from: CHN
+    to: SCS
+    type: sea
+    properties:
+      distance_km: 500
+
+  - from: PHL
+    to: SCS
+    type: sea
+    properties:
+      distance_km: 200
+
+  - from: taipei
+    to: TWN
+    type: contains
+    properties:
+      distance_km: 0
+
+  - from: beijing
+    to: CHN
+    type: contains
+    properties:
+      distance_km: 0
+
+  - from: tokyo
+    to: JPN
+    type: contains
+    properties:
+      distance_km: 0
+
+  - from: usa_pacific
+    to: JPN
+    type: alliance
+    properties:
+      distance_km: 2500
+
+initial_control:
+  china: [CHN, SCS]
+  taiwan: [TWN]
+  contested: [STRAIT]
