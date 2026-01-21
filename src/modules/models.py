@@ -328,6 +328,7 @@ class ComposedModules:
     spatial_graph: Optional[Any] = None  # SpatialGraph, avoid circular import
     map_metadata: Dict[str, Any] = field(default_factory=dict)
     movement_config: Optional[Any] = None  # MovementConfig
+    geojson: Optional[Dict[str, Any]] = None  # GeoJSON data for map overlay
 
     def __post_init__(self):
         """Merge all module components."""
