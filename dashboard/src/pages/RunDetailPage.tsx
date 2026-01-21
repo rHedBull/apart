@@ -20,6 +20,7 @@ import Spinner from '@cloudscape-design/components/spinner';
 import { TopNav } from '../components/TopNav';
 import { VariableChart } from '../components/VariableChart';
 import { MapVisualization } from '../components/MapVisualization';
+import { GeoMapVisualization } from '../components/GeoMapVisualization';
 import { DangerTable } from '../components/DangerTable';
 import { MessagePanel } from '../components/MessagePanel';
 import { useSimulationEvents, SimulationEvent } from '../hooks/useSimulationEvents';
@@ -53,6 +54,7 @@ export function RunDetailPage() {
   const loadRunData = useSimulationStore((state) => state.loadRunData);
   const reset = useSimulationStore((state) => state.reset);
   const spatialGraph = useSimulationStore((state) => state.spatialGraph);
+  const geojson = useSimulationStore((state) => state.geojson);
 
   // Local state
   const [activeTab, setActiveTab] = useState('variables');
@@ -251,7 +253,11 @@ export function RunDetailPage() {
                   {
                     id: 'map',
                     label: spatialGraph ? `Map (${spatialGraph.nodes.length})` : 'Map',
-                    content: <MapVisualization onNodeClick={handleNodeClick} />,
+                    content: geojson ? (
+                      <GeoMapVisualization onNodeClick={handleNodeClick} />
+                    ) : (
+                      <MapVisualization onNodeClick={handleNodeClick} />
+                    ),
                     disabled: !spatialGraph,
                   },
                 ]}
