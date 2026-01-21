@@ -7,6 +7,106 @@ infrastructure:
 
 # Infrastructure nodes
 nodes:
+  # Major Oceans/Seas (region nodes that routes traverse)
+  - id: pacific
+    name: "Pacific Ocean"
+    type: ocean
+    properties:
+      area_million_km2: 165
+      major_routes: [asia_us_west, taiwan_us]
+    notes: "Largest ocean, key for Asia-Americas trade"
+
+  - id: atlantic
+    name: "Atlantic Ocean"
+    type: ocean
+    properties:
+      area_million_km2: 106
+      major_routes: [transatlantic, europe_americas]
+    notes: "Key for Europe-Americas trade"
+
+  - id: indian
+    name: "Indian Ocean"
+    type: ocean
+    properties:
+      area_million_km2: 70
+      major_routes: [asia_europe_suez, gulf_asia]
+    notes: "Critical for energy shipping from Persian Gulf"
+
+  - id: arctic
+    name: "Arctic Ocean"
+    type: ocean
+    properties:
+      area_million_km2: 14
+      navigable_months: 3-4
+      ice_coverage: seasonal
+    notes: "Northern Sea Route emerging as climate warms"
+
+  - id: southern
+    name: "Southern Ocean"
+    type: ocean
+    properties:
+      area_million_km2: 20
+    notes: "Cape routes traverse this"
+
+  - id: mediterranean
+    name: "Mediterranean Sea"
+    type: sea
+    properties:
+      connects: [atlantic, suez, black_sea]
+    notes: "Europe-Asia trade corridor via Suez"
+
+  - id: south_china_sea
+    name: "South China Sea"
+    type: sea
+    properties:
+      annual_trade_trillion_usd: 5
+      oil_traffic_pct_global: 30
+      contested_claims: [china, vietnam, philippines, malaysia, taiwan]
+    strategic_value: critical
+    notes: "One of busiest shipping lanes, territorial disputes"
+
+  - id: east_china_sea
+    name: "East China Sea"
+    type: sea
+    properties:
+      borders: [china, japan, taiwan, south_korea]
+    notes: "Taiwan Strait connects to this"
+
+  - id: baltic
+    name: "Baltic Sea"
+    type: sea
+    properties:
+      bordering_countries: 9
+      major_ports: [st_petersburg, gdansk, stockholm]
+    notes: "Russian exports, accessed via Danish Straits"
+
+  - id: black_sea
+    name: "Black Sea"
+    type: sea
+    properties:
+      access_via: bosphorus
+      major_exports: [grain, oil]
+    notes: "Ukrainian grain exports, Russian naval base"
+
+  - id: persian_gulf
+    name: "Persian Gulf"
+    type: sea
+    properties:
+      oil_reserves_pct_global: 50
+      lng_reserves_pct_global: 40
+      access_via: hormuz
+    strategic_value: critical
+    notes: "World's most important energy region"
+
+  - id: red_sea
+    name: "Red Sea"
+    type: sea
+    properties:
+      connects: [indian, mediterranean]
+      access_north: suez
+      access_south: bab_el_mandeb
+    notes: "Suez approach, Houthi attacks since 2024"
+
   # Major Canals
   - id: suez
     name: "Suez Canal"
@@ -80,6 +180,68 @@ nodes:
       width_km: 13
     strategic_value: medium
     notes: "Mediterranean access"
+
+  - id: taiwan_strait
+    name: "Taiwan Strait"
+    type: strait
+    properties:
+      location: Taiwan/China
+      width_km: 130
+      min_width_km: 130
+      length_km: 180
+      depth_meters: 60
+      annual_vessel_transits: 88000
+      global_container_traffic_pct: 50
+    strategic_value: critical
+    contested_by: [china, taiwan]
+    notes: "Half of global container fleet transits annually. Critical for semiconductors. Potential flashpoint."
+
+  - id: bab_el_mandeb
+    name: "Bab el-Mandeb Strait"
+    type: strait
+    properties:
+      location: Yemen/Djibouti/Eritrea
+      width_km: 26
+      oil_traffic_pct_global: 9
+      connects: [red_sea, indian]
+    strategic_value: high
+    notes: "Southern approach to Suez. Houthi missile attacks since 2024."
+
+  # Danish Straits (Baltic Sea access)
+  - id: oresund
+    name: "Øresund Strait"
+    type: strait
+    properties:
+      location: Denmark/Sweden
+      width_km: 4
+      min_depth_meters: 8
+      bridge: oresund_bridge
+    strategic_value: medium
+    controlling_actor: denmark
+    notes: "Denmark-Sweden, Øresund Bridge crosses it. Baltic access."
+
+  - id: great_belt
+    name: "Great Belt"
+    type: strait
+    properties:
+      location: Denmark
+      width_km: 16
+      min_depth_meters: 17
+      bridge: great_belt_bridge
+    strategic_value: medium
+    controlling_actor: denmark
+    notes: "Primary deep-water route to Baltic. Storebælt Bridge."
+
+  - id: little_belt
+    name: "Little Belt"
+    type: strait
+    properties:
+      location: Denmark
+      width_km: 1.3
+      min_depth_meters: 12
+    strategic_value: low
+    controlling_actor: denmark
+    notes: "Smallest Danish strait, limited traffic."
 
   - id: lombok
     name: "Lombok Strait"
@@ -232,19 +394,52 @@ edges:
   - id: taiwan_us
     from: kaohsiung
     to: los_angeles
+    via: [taiwan_strait, pacific]
     type: shipping_lane
     properties:
       transit_days: 12
       critical_for: semiconductors
+      annual_teu_millions: 8
 
   - id: taiwan_europe
     from: kaohsiung
     to: rotterdam
-    via: [singapore, malacca, suez]
+    via: [taiwan_strait, south_china_sea, singapore, malacca, indian, suez, mediterranean]
     type: shipping_lane
     properties:
       transit_days: 32
       critical_for: semiconductors
+      annual_teu_millions: 5
+
+  - id: taiwan_japan_korea
+    from: kaohsiung
+    to: busan
+    via: [taiwan_strait, east_china_sea]
+    type: shipping_lane
+    properties:
+      transit_days: 3
+      critical_for: semiconductors
+      notes: "Regional chip supply chain"
+
+  # Baltic routes
+  - id: baltic_europe
+    from: rotterdam
+    to: baltic
+    via: [great_belt]
+    type: shipping_lane
+    properties:
+      transit_days: 3
+      major_cargo: [energy, grain, manufactured_goods]
+
+  # Red Sea routes
+  - id: asia_europe_red_sea
+    from: singapore
+    to: rotterdam
+    via: [indian, bab_el_mandeb, red_sea, suez, mediterranean]
+    type: shipping_lane
+    properties:
+      transit_days: 25
+      notes: "Primary Asia-Europe route through Red Sea"
 
 # Rerouting alternatives
 rerouting:
@@ -276,6 +471,46 @@ rerouting:
     pipeline_alternatives:
       - "East-West Pipeline (Saudi Arabia): 5 million barrels/day"
       - "IPSA Pipeline (Iraq-Saudi): closed"
+
+  taiwan_strait:
+    alternatives:
+      - route: south_of_taiwan
+        penalty_days: 1
+        cost_increase_pct: 5
+        constraint: "Route south of Taiwan via Luzon Strait"
+      - route: north_of_taiwan
+        penalty_days: 2
+        cost_increase_pct: 10
+        constraint: "Route north via East China Sea (longer)"
+    notes: "Alternatives exist but monitoring/control by China still possible. Blockade would be catastrophic for chip supply."
+
+  bab_el_mandeb:
+    alternative: cape_good_hope
+    penalty_days: 14
+    cost_increase_pct: 30
+    notes: "Same reroute as Suez blockage - Cape route. Currently active due to Houthi attacks."
+
+  great_belt:
+    alternatives:
+      - route: oresund
+        penalty_days: 0
+        cost_increase_pct: 5
+        constraint: "Shallow draft only (8m max)"
+      - route: kiel_canal
+        penalty_days: 1
+        cost_increase_pct: 15
+        constraint: "Size restrictions, canal fees"
+    notes: "Baltic access has multiple options but all controlled by NATO members"
+
+  oresund:
+    alternative: great_belt
+    penalty_days: 0
+    cost_increase_pct: 0
+    notes: "Great Belt is deeper, preferred for large vessels"
+
+  bosphorus:
+    alternative: null
+    notes: "No alternative for Black Sea access. Montreux Convention governs transit."
 
 # Disruption scenarios (for reference)
 historical_disruptions:
