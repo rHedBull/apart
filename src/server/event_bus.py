@@ -108,6 +108,7 @@ class EventBus:
     _instance: "EventBus | None" = None
     _lock: asyncio.Lock | None = None
     _test_persist_path: Path | None = None  # Set by tests to override default
+    _use_database: bool = False  # Set to True to use SQLite instead of JSONL
 
     def __new__(cls) -> "EventBus":
         """Ensure singleton pattern."""
@@ -122,6 +123,7 @@ class EventBus:
         Args:
             persist_path: Path to JSONL file for event persistence.
                          Defaults to data/events.jsonl if not specified.
+                         Ignored when _use_database is True.
         """
         if self._initialized:
             return
@@ -131,8 +133,9 @@ class EventBus:
         self._event_history: dict[str, list[SimulationEvent]] = defaultdict(list)
         self._max_history_per_run = 1000
         self._callbacks: list[Callable[[SimulationEvent], None]] = []
+        self._db = None  # Database instance (lazy loaded)
 
-        # Persistence
+        # Persistence (JSONL mode)
         if persist_path is None:
             # Check for test override first
             if EventBus._test_persist_path is not None:
@@ -143,11 +146,30 @@ class EventBus:
         self._persist_path = Path(persist_path)
         self._persist_lock = threading.Lock()
 
-        # Load existing events from disk
+        # Load existing events from disk or database
         self._load_history()
 
     def _load_history(self) -> None:
-        """Load event history from persistence file."""
+        """Load event history from persistence (file or database)."""
+        if EventBus._use_database:
+            self._load_history_from_db()
+        else:
+            self._load_history_from_file()
+
+    def _load_history_from_db(self) -> None:
+        """Load event history from SQLite database."""
+        try:
+            from server.database import get_db
+            db = get_db()
+            for run_id in db.get_all_run_ids():
+                events = db.get_events(run_id, limit=self._max_history_per_run)
+                self._event_history[run_id] = events
+        except Exception:
+            # Database might not be initialized yet
+            pass
+
+    def _load_history_from_file(self) -> None:
+        """Load event history from JSONL file."""
         if not self._persist_path.exists():
             return
 
@@ -163,7 +185,7 @@ class EventBus:
                         history.append(event)
                         if len(history) > self._max_history_per_run:
                             history.pop(0)
-                    except (json.JSONDecodeError, KeyError) as e:
+                    except (json.JSONDecodeError, KeyError):
                         # Skip malformed lines
                         continue
         except IOError:
@@ -171,7 +193,24 @@ class EventBus:
             pass
 
     def _persist_event(self, event: SimulationEvent) -> None:
-        """Persist a single event to disk."""
+        """Persist a single event to storage (file or database)."""
+        if EventBus._use_database:
+            self._persist_event_to_db(event)
+        else:
+            self._persist_event_to_file(event)
+
+    def _persist_event_to_db(self, event: SimulationEvent) -> None:
+        """Persist event to SQLite database."""
+        try:
+            from server.database import get_db
+            db = get_db()
+            db.insert_event(event)
+        except Exception:
+            # Log but don't fail on persistence errors
+            pass
+
+    def _persist_event_to_file(self, event: SimulationEvent) -> None:
+        """Persist event to JSONL file."""
         # Ensure directory exists
         self._persist_path.parent.mkdir(parents=True, exist_ok=True)
 

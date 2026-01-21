@@ -67,10 +67,21 @@ def _graceful_shutdown():
     _executor.shutdown(wait=True, cancel_futures=True)
 
 
+def _initialize_database():
+    """Initialize database if database mode is enabled."""
+    import os
+    if os.environ.get("APART_USE_DATABASE", "").lower() in ("1", "true", "yes"):
+        from server.database import init_db
+        from server.event_bus import EventBus
+        EventBus._use_database = True
+        init_db()
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan handler for startup/shutdown."""
     # Startup
+    _initialize_database()
     yield
     # Shutdown
     _graceful_shutdown()
@@ -103,20 +114,34 @@ async def health_check():
 @app.get("/api/health/detailed")
 async def detailed_health():
     """Detailed health check with system metrics."""
+    from server.event_bus import EventBus
+
     event_bus = get_event_bus()
 
     with _simulations_lock:
         active_sims = sum(1 for s in _running_simulations.values() if s.get("status") == "running")
         total_tracked = len(_running_simulations)
 
-    return {
+    result = {
         "status": "healthy" if not _shutdown_requested else "shutting_down",
         "active_simulations": active_sims,
         "total_tracked_simulations": total_tracked,
         "max_concurrent_simulations": MAX_CONCURRENT_SIMULATIONS,
         "event_bus_subscribers": len(event_bus._subscribers),
         "total_run_ids": len(event_bus.get_all_run_ids()),
+        "persistence_mode": "database" if EventBus._use_database else "jsonl",
     }
+
+    # Add database stats if using database mode
+    if EventBus._use_database:
+        try:
+            from server.database import get_db
+            db = get_db()
+            result["database_stats"] = db.get_stats()
+        except Exception:
+            result["database_stats"] = {"error": "unavailable"}
+
+    return result
 
 
 @app.get("/api/simulations", response_model=list[SimulationSummary])
