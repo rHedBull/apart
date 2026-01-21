@@ -3,6 +3,8 @@ import sys
 import traceback
 from pathlib import Path
 from core.orchestrator import Orchestrator
+from modules.loader import ModuleDependencyError, ModuleLoadError
+from utils.config_parser import ModuleConfigError
 
 
 def main():
@@ -43,6 +45,23 @@ def main():
 
     except ValueError as e:
         print(f"Configuration Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    except ModuleDependencyError as e:
+        print(f"\n[MODULE ERROR] Missing dependency", file=sys.stderr)
+        print(f"  {e}", file=sys.stderr)
+        print(f"\nFix: Add the missing module to your scenario's 'modules' list.", file=sys.stderr)
+        sys.exit(1)
+
+    except ModuleLoadError as e:
+        print(f"\n[MODULE ERROR] Failed to load module", file=sys.stderr)
+        print(f"  {e}", file=sys.stderr)
+        sys.exit(1)
+
+    except ModuleConfigError as e:
+        print(f"\n[MODULE ERROR] Invalid module configuration", file=sys.stderr)
+        print(f"  {e}", file=sys.stderr)
+        print(f"\nFix: Add required config in 'module_config' section of your scenario.", file=sys.stderr)
         sys.exit(1)
 
     except KeyboardInterrupt:
