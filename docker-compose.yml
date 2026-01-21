@@ -1,0 +1,55 @@
+version: '3.8'
+
+services:
+  # Redis for job queue
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes  # Enable AOF persistence
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+
+  # API server
+  server:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - APART_USE_DATABASE=1
+      - APART_USE_JOB_QUEUE=1
+      - REDIS_URL=redis://redis:6379
+      - PYTHONUNBUFFERED=1
+    depends_on:
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./data:/app/data  # Persist database and event logs
+      - ./scenarios:/app/scenarios:ro  # Mount scenarios read-only
+      - ./personas:/app/personas:ro  # Mount personas read-only
+
+  # Simulation workers (horizontally scalable)
+  worker:
+    build: .
+    command: python run_worker.py
+    environment:
+      - APART_USE_DATABASE=1
+      - REDIS_URL=redis://redis:6379
+      - PYTHONUNBUFFERED=1
+    depends_on:
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./data:/app/data  # Share database with server
+      - ./scenarios:/app/scenarios:ro
+      - ./personas:/app/personas:ro
+    deploy:
+      replicas: 2  # Run 2 workers by default (adjust based on load)
+
+volumes:
+  redis_data:
