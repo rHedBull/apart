@@ -1,0 +1,92 @@
+module:
+  name: territory_graph
+  version: "1.0.0"
+  description: "Graph-based territory system with nodes (regions) and edges (connections)"
+
+  requires: []
+  conflicts_with: []
+
+  # Module configuration schema - scenario config provides values
+  config:
+    map_file:
+      type: string
+      required: true
+      description: "Path to map YAML file defining nodes and edges"
+    movement:
+      type: dict
+      required: false
+      default:
+        budget_per_step: 20.0
+        allow_multi_hop: true
+      description: "Movement configuration for agents"
+
+  variables:
+    global:
+      - name: contested_regions
+        type: list
+        default: []
+        description: "Regions currently being contested by multiple agents"
+
+      - name: total_regions
+        type: int
+        default: 0
+        description: "Total number of regions in the map"
+
+    agent:
+      - name: location
+        type: dict
+        default: { "value": "unknown" }
+        description: "Current location node ID"
+
+      - name: controlled_regions
+        type: list
+        default: []
+        description: "List of region IDs this agent controls"
+
+      - name: region_count
+        type: int
+        default: 0
+        min: 0
+        description: "Number of regions controlled"
+
+      - name: movement_budget
+        type: float
+        default: 20.0
+        min: 0.0
+        description: "Remaining movement points this step"
+
+  dynamics:
+    - description: "Agents can only move between connected nodes (edges)"
+      priority: 9
+
+    - description: "Movement costs vary by edge type and terrain"
+      priority: 8
+
+    - description: "Region control requires military presence and can be contested"
+      priority: 8
+
+    - description: "Supply lines depend on connected controlled territory"
+      priority: 7
+
+    - description: "Isolated regions (cut off from main territory) are harder to hold"
+      priority: 6
+
+  constraints:
+    - description: "Agents cannot teleport - must traverse edges"
+      enforcement: hard
+
+    - description: "Movement budget limits how far an agent can move per step"
+      enforcement: hard
+
+    - description: "Region control changes require explicit military action"
+      enforcement: guided
+
+  agent_effects:
+    - description: "Controlling more territory provides resource advantages"
+      applies_to: all
+
+    - description: "Overextended territory is vulnerable to counterattack"
+      applies_to: all
+
+    - description: "Strategic chokepoints (high-degree nodes) are valuable"
+      applies_to: all

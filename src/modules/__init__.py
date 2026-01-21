@@ -11,6 +11,7 @@ from modules.models import (
     ModuleDynamic,
     ModuleConstraint,
     ModuleAgentEffect,
+    ModuleConfigField,
     ComposedModules,
 )
 from modules.loader import ModuleLoader, ModuleRegistry
@@ -22,6 +23,7 @@ __all__ = [
     "ModuleDynamic",
     "ModuleConstraint",
     "ModuleAgentEffect",
+    "ModuleConfigField",
     "ComposedModules",
     "ModuleLoader",
     "ModuleRegistry",

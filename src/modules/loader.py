@@ -15,6 +15,7 @@ from modules.models import (
     ModuleDynamic,
     ModuleConstraint,
     ModuleAgentEffect,
+    ModuleConfigField,
     VariableType,
     ReinforcementType,
 )
@@ -150,6 +151,11 @@ class ModuleLoader:
         for effect_data in data.get("agent_effects", []):
             agent_effects.append(self._parse_agent_effect(effect_data))
 
+        # Parse config schema
+        config_schema = []
+        for field_name, field_data in data.get("config", {}).items():
+            config_schema.append(self._parse_config_field(field_name, field_data))
+
         return BehaviorModule(
             name=name,
             description=data.get("description", ""),
@@ -158,6 +164,7 @@ class ModuleLoader:
             dynamics=dynamics,
             constraints=constraints,
             agent_effects=agent_effects,
+            config_schema=config_schema,
             requires=data.get("requires", []),
             conflicts_with=data.get("conflicts_with", []),
             simulator_prompt_section=data.get("simulator_prompt_section"),
@@ -233,6 +240,16 @@ class ModuleLoader:
             agent_types=data.get("agent_types", []),
             information_bias=data.get("information_bias"),
             confidence_modifier=data.get("confidence_modifier"),
+        )
+
+    def _parse_config_field(self, name: str, data: dict) -> ModuleConfigField:
+        """Parse a config field definition."""
+        return ModuleConfigField(
+            name=name,
+            type=data.get("type", "string"),
+            description=data.get("description", ""),
+            required=data.get("required", False),
+            default=data.get("default"),
         )
 
     def _validate_dependencies(
