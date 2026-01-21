@@ -415,11 +415,15 @@ async def get_run_detail(run_id: str):
             elif event.event_type == "simulation_failed":
                 status = "failed"
 
-        # Try to get spatial graph from first snapshot's game_state or from EventBus
+        # Try to get spatial graph and geojson from EventBus
         spatial_graph = None
+        geojson = None
         for event in history:
-            if event.event_type == "simulation_started" and event.data.get("spatial_graph"):
-                spatial_graph = event.data["spatial_graph"]
+            if event.event_type == "simulation_started":
+                if event.data.get("spatial_graph"):
+                    spatial_graph = event.data["spatial_graph"]
+                if event.data.get("geojson"):
+                    geojson = event.data["geojson"]
                 break
 
         # Also check snapshots for spatial data hints
@@ -463,6 +467,7 @@ async def get_run_detail(run_id: str):
             "startedAt": state.get("started_at"),
             "agentNames": list(agent_names),
             "spatialGraph": spatial_graph,
+            "geojson": geojson,
             "messages": messages,
             "dangerSignals": danger_signals,
             "globalVarsHistory": global_vars_history,

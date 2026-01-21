@@ -423,13 +423,15 @@ Example of a BAD response: "I think about going to the market" (this is just int
 
         # Emit simulation started event
         spatial_graph_data = self.spatial_graph.to_dict() if self.spatial_graph else None
+        geojson_data = self.composed_modules.geojson if self.composed_modules else None
         emit(
             EventTypes.SIMULATION_STARTED,
             num_agents=len(self.agents),
             max_steps=self.max_steps,
             agent_names=[a.name for a in self.agents],
             run_dir=str(self.persistence.run_dir),
-            spatial_graph=spatial_graph_data
+            spatial_graph=spatial_graph_data,
+            geojson=geojson_data
         )
 
         print(f"Starting simulation with {len(self.agents)} agent(s) for {self.max_steps} steps")
