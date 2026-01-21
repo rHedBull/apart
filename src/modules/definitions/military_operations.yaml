@@ -1,0 +1,169 @@
+module:
+  name: military_operations
+  version: "1.0.0"
+  description: "Realistic military conflict dynamics including casualties, escalation, and capability degradation"
+
+  requires: []
+  conflicts_with: []
+
+  variables:
+    global:
+      - name: escalation_level
+        type: scale
+        default: 0
+        min: 0
+        max: 100
+        description: "Crisis escalation (0=peace, 100=total war)"
+
+      - name: military_casualties
+        type: count
+        default: 0
+        min: 0
+        description: "Total military casualties across all parties"
+
+      - name: civilian_casualties
+        type: count
+        default: 0
+        min: 0
+        description: "Total civilian casualties"
+
+      - name: conflict_intensity
+        type: scale
+        default: 0
+        min: 0
+        max: 100
+        description: "Current intensity of military operations (0=none, 100=maximum)"
+
+    agent:
+      - name: military_capability
+        type: percent
+        default: 100
+        min: 0
+        max: 100
+        description: "Remaining military capability as percentage of initial"
+
+      - name: forces_committed
+        type: percent
+        default: 0
+        min: 0
+        max: 100
+        description: "Percentage of total military forces committed to theater"
+
+      - name: military_readiness
+        type: percent
+        default: 80
+        min: 0
+        max: 100
+        description: "Operational readiness of military forces"
+
+      - name: own_casualties
+        type: count
+        default: 0
+        min: 0
+        description: "Casualties suffered by this party"
+
+      - name: territory_controlled
+        type: percent
+        default: 50
+        min: 0
+        max: 100
+        description: "Percentage of contested territory under control"
+
+  dynamics:
+    - description: "Casualties accumulate based on conflict intensity and forces committed"
+      priority: 8
+      conditions:
+        - "conflict_intensity > 0"
+        - "forces_committed > 0"
+      examples:
+        - "Higher intensity and more forces = more casualties per step"
+        - "Defensive positions reduce own casualties but slow territorial gains"
+
+    - description: "Escalation has momentum - de-escalation is harder than escalation"
+      priority: 8
+      conditions:
+        - "Active military operations"
+      examples:
+        - "Reducing escalation_level requires 2-3x more effort than increasing it"
+        - "Ceasefire attempts may fail if either side has recent momentum"
+
+    - description: "Military capability degrades under sustained combat proportional to casualties"
+      priority: 7
+      examples:
+        - "Each 1000 casualties reduces military_capability by 2-5%"
+        - "Equipment losses and fatigue compound capability reduction"
+
+    - description: "Geographic advantage significantly affects military outcomes"
+      priority: 6
+      examples:
+        - "Defenders in prepared positions inflict 2-3x more casualties"
+        - "Urban warfare favors defenders; open terrain favors attackers"
+
+    - description: "Supply lines and logistics constrain maximum forces_committed"
+      priority: 5
+      examples:
+        - "Forces far from supply bases have reduced effectiveness"
+        - "Stretched supply lines increase vulnerability to counterattack"
+
+    - description: "Military success depends on relative capability and commitment ratios"
+      priority: 6
+      examples:
+        - "3:1 force advantage typically needed for successful offensive"
+        - "Technology can offset numerical disadvantage to some extent"
+
+  constraints:
+    - description: "Casualties increase gradually, not exponentially per step"
+      enforcement: guided
+      variable: military_casualties
+      rule: "max_change_per_step: 1000"
+
+    - description: "Military capability cannot regenerate quickly during active conflict"
+      enforcement: guided
+      variable: military_capability
+      rule: "max_increase_per_step: 2"
+
+    - description: "Escalation changes should be gradual unless major event occurs"
+      enforcement: soft
+      variable: escalation_level
+      rule: "max_change_per_step: 15"
+
+    - description: "Territory control changes require time and forces to hold"
+      enforcement: guided
+      variable: territory_controlled
+      rule: "max_change_per_step: 10"
+
+    - description: "Forces cannot be committed or withdrawn instantaneously"
+      enforcement: soft
+      variable: forces_committed
+      rule: "max_change_per_step: 20"
+
+  agent_effects:
+    - description: "High casualties increase domestic pressure to end conflict"
+      applies_to: all
+
+    - description: "Military setbacks affect decision-maker risk tolerance - may become more cautious or more desperate"
+      applies_to: all
+
+    - description: "Low military_capability limits available options and bargaining position"
+      applies_to: all
+
+    - description: "Early military success may lead to overconfidence and strategic overreach"
+      applies_to: all
+
+  event_types:
+    - "major_battle"
+    - "territorial_gain"
+    - "territorial_loss"
+    - "ceasefire_attempt"
+    - "escalation_event"
+    - "supply_disruption"
+    - "reinforcement_arrival"
+
+  event_probabilities:
+    major_battle: 0.3
+    territorial_gain: 0.2
+    territorial_loss: 0.2
+    ceasefire_attempt: 0.1
+    escalation_event: 0.15
+    supply_disruption: 0.1
+    reinforcement_arrival: 0.15

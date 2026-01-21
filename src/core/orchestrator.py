@@ -8,7 +8,7 @@ from core.simulator_agent import SimulatorAgent, SimulationError
 from core.event_emitter import emit, enable_event_emitter, disable_event_emitter, EventTypes
 from utils.persistence import RunPersistence
 from utils.logging_config import MessageCode, PerformanceTimer
-from utils.config_parser import parse_scripted_events, parse_geography, parse_spatial_graph
+from utils.config_parser import parse_scripted_events, parse_geography, parse_spatial_graph, parse_modules, merge_module_variables
 from llm.providers import UnifiedLLMProvider
 
 
@@ -20,6 +20,12 @@ class Orchestrator:
         load_dotenv()
 
         self.config = self._load_config(config_path)
+
+        # Load and compose behavior modules if specified
+        self.composed_modules = parse_modules(self.config)
+        if self.composed_modules:
+            self.config = merge_module_variables(self.config, self.composed_modules)
+
         self.max_steps = self.config.get("max_steps", 5)
         self.time_step_duration = self.config.get("time_step_duration", "1 turn")
         self.simulator_awareness = self.config.get("simulator_awareness", True)
@@ -62,6 +68,7 @@ class Orchestrator:
             geography=geography,
             spatial_graph=self.spatial_graph,
             movement_config=movement_config,
+            composed_modules=self.composed_modules,
             logger=self.logger
         )
 

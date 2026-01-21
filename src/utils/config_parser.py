@@ -5,6 +5,9 @@ from utils.persona_loader import PersonaLoader, resolve_persona_in_agent
 from core.engine_models import ScriptedEvent
 from utils.spatial_graph import SpatialGraph, Node, Edge
 from utils.movement_validator import MovementConfig
+from modules.models import ComposedModules
+from modules.loader import ModuleLoader
+from modules.composer import ModuleComposer
 
 
 def parse_variable_definitions(var_config: dict[str, Any]) -> dict[str, VariableDefinition]:
@@ -448,4 +451,93 @@ def resolve_personas_in_config(
         resolved_agents.append(resolved)
 
     result["agents"] = resolved_agents
+    return result
+
+
+def parse_modules(
+    config: dict[str, Any],
+    modules_dir: Path | str | None = None
+) -> Optional[ComposedModules]:
+    """
+    Load and compose modules specified in configuration.
+
+    Args:
+        config: Full scenario configuration dictionary
+        modules_dir: Optional custom directory for module definitions
+
+    Returns:
+        ComposedModules if modules are specified, None otherwise
+
+    Example:
+        config = {"modules": ["military_operations", "fog_of_war"]}
+        composed = parse_modules(config)
+    """
+    module_names = config.get("modules", [])
+    if not module_names:
+        return None
+
+    modules_path = Path(modules_dir) if modules_dir else None
+    loader = ModuleLoader(modules_path)
+    modules = loader.load_many(module_names)
+
+    composer = ModuleComposer()
+    return composer.compose(modules)
+
+
+def merge_module_variables(
+    config: dict[str, Any],
+    composed: ComposedModules
+) -> dict[str, Any]:
+    """
+    Merge module variables into config global_vars/agent_vars.
+
+    Module variables are added to the config if they don't already exist.
+    Existing config variables take precedence.
+
+    Args:
+        config: Full scenario configuration dictionary
+        composed: ComposedModules with variables to merge
+
+    Returns:
+        Updated configuration dictionary with module variables merged
+
+    Example:
+        config = parse_modules(raw_config)
+        composed = parse_modules(raw_config)
+        config = merge_module_variables(config, composed)
+    """
+    result = config.copy()
+
+    # Merge global variables
+    global_var_defs = composed.to_global_var_definitions()
+    if global_var_defs:
+        existing_global = result.get("global_vars", {})
+        merged_global = {}
+
+        # Add module variables first (lower precedence)
+        for var_name, var_def in global_var_defs.items():
+            merged_global[var_name] = var_def
+
+        # Override with existing config variables (higher precedence)
+        for var_name, var_def in existing_global.items():
+            merged_global[var_name] = var_def
+
+        result["global_vars"] = merged_global
+
+    # Merge agent variables
+    agent_var_defs = composed.to_agent_var_definitions()
+    if agent_var_defs:
+        existing_agent = result.get("agent_vars", {})
+        merged_agent = {}
+
+        # Add module variables first (lower precedence)
+        for var_name, var_def in agent_var_defs.items():
+            merged_agent[var_name] = var_def
+
+        # Override with existing config variables (higher precedence)
+        for var_name, var_def in existing_agent.items():
+            merged_agent[var_name] = var_def
+
+        result["agent_vars"] = merged_agent
+
     return result
