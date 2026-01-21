@@ -82,7 +82,10 @@ def _generate_mock_data_if_empty():
 
 
 def _initialize_job_queue():
-    """Initialize Redis job queue (required)."""
+    """Initialize Redis job queue (optional in dev mode)."""
+    if os.environ.get("SKIP_REDIS", "").lower() in ("1", "true", "yes"):
+        logger.info("Skipping Redis job queue (SKIP_REDIS=1)")
+        return
     from server.job_queue import init_job_queue
     redis_url = os.environ.get("REDIS_URL", "redis://localhost:6379")
     init_job_queue(redis_url)
@@ -439,13 +442,13 @@ async def get_run_detail(run_id: str):
                 # Return a default spatial graph for mock data
                 spatial_graph = {
                     "nodes": [
-                        {"id": "taiwan", "name": "Taiwan", "type": "nation", "properties": {}, "conditions": []},
-                        {"id": "china", "name": "China", "type": "nation", "properties": {}, "conditions": []},
-                        {"id": "usa", "name": "United States", "type": "nation", "properties": {}, "conditions": []},
-                        {"id": "taiwan_strait", "name": "Taiwan Strait", "type": "sea_zone", "properties": {}, "conditions": []},
-                        {"id": "pacific", "name": "Pacific Ocean", "type": "sea_zone", "properties": {}, "conditions": []},
-                        {"id": "taipei", "name": "Taipei", "type": "city", "properties": {}, "conditions": []},
-                        {"id": "beijing", "name": "Beijing", "type": "city", "properties": {}, "conditions": []},
+                        {"id": "taiwan", "name": "Taiwan", "type": "region", "properties": {}, "conditions": [], "coordinates": None},
+                        {"id": "china", "name": "China", "type": "region", "properties": {}, "conditions": [], "coordinates": None},
+                        {"id": "usa", "name": "United States", "type": "nation", "properties": {}, "conditions": [], "coordinates": [-98.5, 39.8]},
+                        {"id": "taiwan_strait", "name": "Taiwan Strait", "type": "region", "properties": {}, "conditions": [], "coordinates": None},
+                        {"id": "pacific", "name": "Pacific Ocean", "type": "sea_zone", "properties": {}, "conditions": [], "coordinates": [160, 10]},
+                        {"id": "taipei", "name": "Taipei", "type": "city", "properties": {}, "conditions": [], "coordinates": [121.5, 25.0]},
+                        {"id": "beijing", "name": "Beijing", "type": "city", "properties": {}, "conditions": [], "coordinates": [116.4, 39.9]},
                     ],
                     "edges": [
                         {"from": "taiwan", "to": "taiwan_strait", "type": "maritime", "directed": False, "properties": {"distance_km": 100}},
@@ -456,6 +459,39 @@ async def get_run_detail(run_id: str):
                         {"from": "beijing", "to": "china", "type": "land", "directed": False, "properties": {}},
                     ],
                     "blocked_edge_types": [],
+                }
+                # Also add fallback GeoJSON for the geographic map visualization
+                geojson = {
+                    "type": "FeatureCollection",
+                    "features": [
+                        {
+                            "type": "Feature",
+                            "id": "taiwan",
+                            "properties": {"name": "Taiwan"},
+                            "geometry": {
+                                "type": "Polygon",
+                                "coordinates": [[[120, 22], [122, 22], [122, 25], [120, 25], [120, 22]]]
+                            }
+                        },
+                        {
+                            "type": "Feature",
+                            "id": "china",
+                            "properties": {"name": "China"},
+                            "geometry": {
+                                "type": "Polygon",
+                                "coordinates": [[[100, 20], [125, 20], [125, 45], [100, 45], [100, 20]]]
+                            }
+                        },
+                        {
+                            "type": "Feature",
+                            "id": "taiwan_strait",
+                            "properties": {"name": "Taiwan Strait"},
+                            "geometry": {
+                                "type": "Polygon",
+                                "coordinates": [[[118, 22], [120, 22], [120, 26], [118, 26], [118, 22]]]
+                            }
+                        },
+                    ]
                 }
 
         return {
