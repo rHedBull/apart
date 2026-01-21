@@ -27,3 +27,8 @@ dev = [
 
 [project.scripts]
 apart-server = "server.app:main"
+
+[tool.pytest.ini_options]
+markers = [
+    "redis: tests requiring a real Redis instance (deselect with '-m \"not redis\"')",
+]
