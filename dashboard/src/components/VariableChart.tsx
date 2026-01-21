@@ -1,5 +1,5 @@
 /**
- * VariableChart - Line chart for variable history
+ * VariableChart - Line chart for variable history with Cloudscape styling
  */
 
 import { useState } from 'react';
@@ -13,18 +13,23 @@ import {
   Legend,
   ResponsiveContainer,
 } from 'recharts';
+import Container from '@cloudscape-design/components/container';
+import Header from '@cloudscape-design/components/header';
+import Box from '@cloudscape-design/components/box';
+import SpaceBetween from '@cloudscape-design/components/space-between';
+import Button from '@cloudscape-design/components/button';
 import { useSimulationStore } from '../hooks/useSimulationState';
 
 // Colors for different variables
 const COLORS = [
-  '#3b82f6', // blue
-  '#10b981', // emerald
-  '#f59e0b', // amber
-  '#ef4444', // red
-  '#8b5cf6', // violet
-  '#ec4899', // pink
-  '#06b6d4', // cyan
-  '#84cc16', // lime
+  '#0972d3', // Cloudscape blue
+  '#1d8102', // Cloudscape green
+  '#d91515', // Cloudscape red
+  '#5f6b7a', // Cloudscape grey
+  '#9469d6', // purple
+  '#ec7211', // orange
+  '#2ea597', // teal
+  '#c33193', // pink
 ];
 
 interface ChartData {
@@ -32,7 +37,11 @@ interface ChartData {
   [key: string]: number;
 }
 
-export function VariableChart() {
+interface VariableChartProps {
+  onStepClick?: (step: number) => void;
+}
+
+export function VariableChart({ onStepClick }: VariableChartProps) {
   const globalVarsHistory = useSimulationStore((state) => state.globalVarsHistory);
   const agentVarsHistory = useSimulationStore((state) => state.agentVarsHistory);
   const agentNames = useSimulationStore((state) => state.agentNames);
@@ -98,114 +107,112 @@ export function VariableChart() {
     setSelectedVars(newSelected);
   };
 
-  return (
-    <div className="flex flex-col h-full min-h-0 bg-white dark:bg-slate-800 rounded-lg shadow-md">
-      {/* Header */}
-      <div className="px-4 py-3 border-b border-slate-200 dark:border-slate-700">
-        <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100">
-          Variables Over Time
-        </h2>
+  const handleChartClick = (data: { activePayload?: Array<{ payload: { step: number } }> }) => {
+    if (data?.activePayload?.[0]?.payload?.step !== undefined && onStepClick) {
+      onStepClick(data.activePayload[0].payload.step);
+    }
+  };
 
-        {/* Controls */}
-        <div className="flex flex-wrap gap-2 mt-2">
-          <button
+  return (
+    <Container
+      header={
+        <Header variant="h2">
+          Variables Over Time
+        </Header>
+      }
+      fitHeight
+    >
+      <SpaceBetween size="s">
+        {/* Source selector */}
+        <SpaceBetween direction="horizontal" size="xs">
+          <Button
+            variant={showGlobal ? 'primary' : 'normal'}
             onClick={() => {
               setShowGlobal(true);
               setSelectedAgent(null);
             }}
-            className={`px-3 py-1 text-sm rounded ${
-              showGlobal
-                ? 'bg-blue-500 text-white'
-                : 'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
-            }`}
           >
             Global
-          </button>
+          </Button>
           {agentNames.map((name) => (
-            <button
+            <Button
               key={name}
+              variant={!showGlobal && selectedAgent === name ? 'primary' : 'normal'}
               onClick={() => {
                 setShowGlobal(false);
                 setSelectedAgent(name);
               }}
-              className={`px-3 py-1 text-sm rounded ${
-                !showGlobal && selectedAgent === name
-                  ? 'bg-blue-500 text-white'
-                  : 'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
-              }`}
             >
               {name}
-            </button>
+            </Button>
           ))}
-        </div>
+        </SpaceBetween>
 
         {/* Variable toggles */}
         {availableVars.length > 0 && (
-          <div className="flex flex-wrap gap-1 mt-2">
+          <SpaceBetween direction="horizontal" size="xs">
             {availableVars.map((varName, idx) => (
-              <button
+              <Button
                 key={varName}
+                variant={selectedVars.size === 0 || selectedVars.has(varName) ? 'primary' : 'normal'}
                 onClick={() => toggleVar(varName)}
-                className={`px-2 py-0.5 text-xs rounded border ${
-                  selectedVars.size === 0 || selectedVars.has(varName)
-                    ? 'border-transparent text-white'
-                    : 'border-slate-300 dark:border-slate-600 text-slate-500 dark:text-slate-400 bg-transparent'
-                }`}
-                style={{
-                  backgroundColor:
-                    selectedVars.size === 0 || selectedVars.has(varName)
-                      ? COLORS[idx % COLORS.length]
-                      : undefined,
-                }}
+                iconSvg={
+                  <svg viewBox="0 0 16 16" width={16} height={16}>
+                    <circle cx="8" cy="8" r="6" fill={COLORS[idx % COLORS.length]} />
+                  </svg>
+                }
               >
                 {varName}
-              </button>
+              </Button>
             ))}
-          </div>
+          </SpaceBetween>
         )}
-      </div>
 
-      {/* Chart */}
-      <div className="flex-1 min-h-0 p-4">
-        {chartData.length === 0 ? (
-          <div className="flex items-center justify-center h-full text-slate-400 dark:text-slate-500">
-            No data yet...
-          </div>
-        ) : (
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-              <XAxis
-                dataKey="step"
-                stroke="#94a3b8"
-                label={{ value: 'Step', position: 'bottom' }}
-              />
-              <YAxis stroke="#94a3b8" />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: '#1e293b',
-                  border: 'none',
-                  borderRadius: '0.5rem',
-                }}
-                labelStyle={{ color: '#e2e8f0' }}
-                itemStyle={{ color: '#e2e8f0' }}
-              />
-              <Legend />
-              {varsToShow.map((varName, idx) => (
-                <Line
-                  key={varName}
-                  type="monotone"
-                  dataKey={varName}
-                  stroke={COLORS[idx % COLORS.length]}
-                  strokeWidth={2}
-                  dot={false}
-                  activeDot={{ r: 4 }}
-                />
-              ))}
-            </LineChart>
-          </ResponsiveContainer>
-        )}
-      </div>
-    </div>
+        {/* Chart */}
+        <Box padding="s">
+          {chartData.length === 0 ? (
+            <Box textAlign="center" color="text-status-inactive" padding="xxl">
+              No data yet...
+            </Box>
+          ) : (
+            <div style={{ width: '100%', height: 300 }}>
+              <ResponsiveContainer>
+                <LineChart data={chartData} onClick={handleChartClick}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e9ebed" />
+                  <XAxis
+                    dataKey="step"
+                    stroke="#5f6b7a"
+                    label={{ value: 'Step', position: 'bottom', offset: -5 }}
+                  />
+                  <YAxis stroke="#5f6b7a" />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: '#16191f',
+                      border: 'none',
+                      borderRadius: '8px',
+                    }}
+                    labelStyle={{ color: '#d1d5db' }}
+                    itemStyle={{ color: '#d1d5db' }}
+                    cursor={{ stroke: '#0972d3', strokeDasharray: '5 5' }}
+                  />
+                  <Legend />
+                  {varsToShow.map((varName, idx) => (
+                    <Line
+                      key={varName}
+                      type="monotone"
+                      dataKey={varName}
+                      stroke={COLORS[idx % COLORS.length]}
+                      strokeWidth={2}
+                      dot={false}
+                      activeDot={{ r: 6, cursor: 'pointer' }}
+                    />
+                  ))}
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </Box>
+      </SpaceBetween>
+    </Container>
   );
 }

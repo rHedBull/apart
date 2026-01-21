@@ -92,6 +92,20 @@ interface SimulationState {
   // Process an incoming event
   processEvent: (event: SimulationEvent) => void;
 
+  // Load full run data from API
+  loadRunData: (data: {
+    runId: string;
+    status: string;
+    currentStep: number;
+    maxSteps: number | null;
+    agentNames: string[];
+    spatialGraph: SpatialGraph | null;
+    messages: AgentMessage[];
+    dangerSignals: DangerSignal[];
+    globalVarsHistory: VariableHistory[];
+    agentVarsHistory: Record<string, VariableHistory[]>;
+  }) => void;
+
   // Reset all state
   reset: () => void;
 }
@@ -238,6 +252,20 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
         break;
     }
   },
+
+  loadRunData: (data) =>
+    set({
+      currentRunId: data.runId,
+      status: (data.status as 'idle' | 'running' | 'completed' | 'failed') || 'completed',
+      currentStep: data.currentStep,
+      maxSteps: data.maxSteps,
+      agentNames: data.agentNames,
+      spatialGraph: data.spatialGraph,
+      messages: data.messages,
+      dangerSignals: data.dangerSignals,
+      globalVarsHistory: data.globalVarsHistory,
+      agentVarsHistory: data.agentVarsHistory,
+    }),
 
   reset: () =>
     set({

@@ -1,0 +1,221 @@
+/**
+ * RunsListPage - Table view of all simulation runs
+ */
+
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import AppLayout from '@cloudscape-design/components/app-layout';
+import BreadcrumbGroup from '@cloudscape-design/components/breadcrumb-group';
+import Header from '@cloudscape-design/components/header';
+import Table from '@cloudscape-design/components/table';
+import Box from '@cloudscape-design/components/box';
+import Button from '@cloudscape-design/components/button';
+import TextFilter from '@cloudscape-design/components/text-filter';
+import Pagination from '@cloudscape-design/components/pagination';
+import StatusIndicator from '@cloudscape-design/components/status-indicator';
+import Link from '@cloudscape-design/components/link';
+import Select from '@cloudscape-design/components/select';
+import SpaceBetween from '@cloudscape-design/components/space-between';
+import { TopNav } from '../components/TopNav';
+import { useRunsList, RunSummary } from '../hooks/useRunsList';
+
+const STATUS_OPTIONS = [
+  { value: 'all', label: 'All statuses' },
+  { value: 'running', label: 'Running' },
+  { value: 'completed', label: 'Completed' },
+  { value: 'failed', label: 'Failed' },
+  { value: 'pending', label: 'Pending' },
+];
+
+function getStatusIndicator(status: RunSummary['status']) {
+  switch (status) {
+    case 'running':
+      return <StatusIndicator type="in-progress">Running</StatusIndicator>;
+    case 'completed':
+      return <StatusIndicator type="success">Completed</StatusIndicator>;
+    case 'failed':
+      return <StatusIndicator type="error">Failed</StatusIndicator>;
+    case 'pending':
+      return <StatusIndicator type="pending">Pending</StatusIndicator>;
+    default:
+      return <StatusIndicator type="info">{status}</StatusIndicator>;
+  }
+}
+
+function formatDuration(startedAt: string | null, completedAt: string | null): string {
+  if (!startedAt) return '-';
+  const start = new Date(startedAt).getTime();
+  const end = completedAt ? new Date(completedAt).getTime() : Date.now();
+  const seconds = Math.floor((end - start) / 1000);
+
+  if (seconds < 60) return `${seconds}s`;
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = seconds % 60;
+  return `${minutes}m ${remainingSeconds}s`;
+}
+
+function formatTimestamp(timestamp: string | null): string {
+  if (!timestamp) return '-';
+  return new Date(timestamp).toLocaleTimeString();
+}
+
+export function RunsListPage() {
+  const navigate = useNavigate();
+  const { runs, loading, connected, refresh } = useRunsList();
+
+  const [filterText, setFilterText] = useState('');
+  const [statusFilter, setStatusFilter] = useState(STATUS_OPTIONS[0]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
+
+  // Filter runs
+  const filteredRuns = runs.filter(run => {
+    const matchesText = !filterText ||
+      run.scenario.toLowerCase().includes(filterText.toLowerCase()) ||
+      run.runId.toLowerCase().includes(filterText.toLowerCase());
+    const matchesStatus = statusFilter.value === 'all' || run.status === statusFilter.value;
+    return matchesText && matchesStatus;
+  });
+
+  // Sort by start time (most recent first)
+  const sortedRuns = [...filteredRuns].sort((a, b) => {
+    if (!a.startedAt) return 1;
+    if (!b.startedAt) return -1;
+    return new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime();
+  });
+
+  // Paginate
+  const paginatedRuns = sortedRuns.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize
+  );
+
+  const columnDefinitions = [
+    {
+      id: 'scenario',
+      header: 'Scenario',
+      cell: (item: RunSummary) => (
+        <Link onFollow={() => navigate(`/runs/${item.runId}`)}>
+          {item.scenario}
+        </Link>
+      ),
+      sortingField: 'scenario',
+    },
+    {
+      id: 'status',
+      header: 'Status',
+      cell: (item: RunSummary) => getStatusIndicator(item.status),
+      sortingField: 'status',
+    },
+    {
+      id: 'steps',
+      header: 'Steps',
+      cell: (item: RunSummary) => (
+        <span>
+          {item.currentStep}
+          {item.totalSteps ? ` / ${item.totalSteps}` : ''}
+        </span>
+      ),
+    },
+    {
+      id: 'started',
+      header: 'Started',
+      cell: (item: RunSummary) => formatTimestamp(item.startedAt),
+      sortingField: 'startedAt',
+    },
+    {
+      id: 'duration',
+      header: 'Duration',
+      cell: (item: RunSummary) => formatDuration(item.startedAt, item.completedAt),
+    },
+    {
+      id: 'danger',
+      header: 'Danger signals',
+      cell: (item: RunSummary) => (
+        item.dangerCount > 0 ? (
+          <StatusIndicator type="warning">{item.dangerCount}</StatusIndicator>
+        ) : (
+          <span>0</span>
+        )
+      ),
+    },
+  ];
+
+  return (
+    <>
+      <TopNav />
+      <AppLayout
+        navigationHide
+        toolsHide
+        breadcrumbs={
+          <BreadcrumbGroup
+            items={[{ text: 'Runs', href: '/' }]}
+            onFollow={(e) => {
+              e.preventDefault();
+              navigate(e.detail.href);
+            }}
+          />
+        }
+        content={
+          <Table
+            header={
+              <Header
+                variant="h1"
+                counter={`(${filteredRuns.length})`}
+                actions={
+                  <SpaceBetween direction="horizontal" size="xs">
+                    <StatusIndicator type={connected ? 'success' : 'error'}>
+                      {connected ? 'Connected' : 'Disconnected'}
+                    </StatusIndicator>
+                    <Button iconName="refresh" onClick={refresh} loading={loading}>
+                      Refresh
+                    </Button>
+                  </SpaceBetween>
+                }
+              >
+                Simulation Runs
+              </Header>
+            }
+            columnDefinitions={columnDefinitions}
+            items={paginatedRuns}
+            loading={loading}
+            loadingText="Loading runs..."
+            empty={
+              <Box textAlign="center" color="inherit">
+                <b>No runs</b>
+                <Box padding={{ bottom: 's' }} variant="p" color="inherit">
+                  No simulation runs found.
+                </Box>
+              </Box>
+            }
+            filter={
+              <SpaceBetween direction="horizontal" size="xs">
+                <TextFilter
+                  filteringText={filterText}
+                  filteringPlaceholder="Find runs"
+                  onChange={({ detail }) => setFilterText(detail.filteringText)}
+                />
+                <Select
+                  selectedOption={statusFilter}
+                  onChange={({ detail }) => setStatusFilter(detail.selectedOption as typeof STATUS_OPTIONS[0])}
+                  options={STATUS_OPTIONS}
+                />
+              </SpaceBetween>
+            }
+            pagination={
+              <Pagination
+                currentPageIndex={currentPage}
+                pagesCount={Math.ceil(filteredRuns.length / pageSize)}
+                onChange={({ detail }) => setCurrentPage(detail.currentPageIndex)}
+              />
+            }
+            onRowClick={({ detail }) => {
+              navigate(`/runs/${detail.item.runId}`);
+            }}
+            selectionType="single"
+          />
+        }
+      />
+    </>
+  );
+}

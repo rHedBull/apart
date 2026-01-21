@@ -1,25 +1,15 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
-:root {
-  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
-
-  color-scheme: dark light;
-  color: #213547;
-  background-color: #f8fafc;
-
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+/* Minimal reset - Cloudscape provides most styling */
+*, *::before, *::after {
+  box-sizing: border-box;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    color: #e2e8f0;
-    background-color: #0f172a;
-  }
+body {
+  margin: 0;
+  padding: 0;
+}
+
+/* Pre-formatted text in messages */
+pre {
+  margin: 0;
+  font-family: inherit;
 }
