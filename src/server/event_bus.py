@@ -8,8 +8,10 @@ The EventBus is a singleton that:
 """
 
 import asyncio
+import threading
 from dataclasses import dataclass, field
 from datetime import datetime
+from pathlib import Path
 from typing import Any, AsyncIterator, Callable
 from collections import defaultdict
 import json
@@ -46,6 +48,22 @@ class SimulationEvent:
     def to_sse(self) -> str:
         """Format as SSE message."""
         return f"data: {json.dumps(self.to_dict())}\n\n"
+
+    def to_json(self) -> str:
+        """Serialize to JSON string for persistence."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_json(cls, json_str: str) -> "SimulationEvent":
+        """Deserialize from JSON string."""
+        data = json.loads(json_str)
+        return cls(
+            event_type=data["event_type"],
+            timestamp=data["timestamp"],
+            run_id=data["run_id"],
+            step=data.get("step"),
+            data=data.get("data", {})
+        )
 
     @classmethod
     def create(
@@ -89,6 +107,7 @@ class EventBus:
 
     _instance: "EventBus | None" = None
     _lock: asyncio.Lock | None = None
+    _test_persist_path: Path | None = None  # Set by tests to override default
 
     def __new__(cls) -> "EventBus":
         """Ensure singleton pattern."""
@@ -97,8 +116,13 @@ class EventBus:
             cls._instance._initialized = False
         return cls._instance
 
-    def __init__(self):
-        """Initialize the event bus (only once)."""
+    def __init__(self, persist_path: str | Path | None = None):
+        """Initialize the event bus (only once).
+
+        Args:
+            persist_path: Path to JSONL file for event persistence.
+                         Defaults to data/events.jsonl if not specified.
+        """
         if self._initialized:
             return
 
@@ -107,6 +131,57 @@ class EventBus:
         self._event_history: dict[str, list[SimulationEvent]] = defaultdict(list)
         self._max_history_per_run = 1000
         self._callbacks: list[Callable[[SimulationEvent], None]] = []
+
+        # Persistence
+        if persist_path is None:
+            # Check for test override first
+            if EventBus._test_persist_path is not None:
+                persist_path = EventBus._test_persist_path
+            else:
+                # Default to data directory relative to project root
+                persist_path = Path(__file__).parent.parent.parent / "data" / "events.jsonl"
+        self._persist_path = Path(persist_path)
+        self._persist_lock = threading.Lock()
+
+        # Load existing events from disk
+        self._load_history()
+
+    def _load_history(self) -> None:
+        """Load event history from persistence file."""
+        if not self._persist_path.exists():
+            return
+
+        try:
+            with open(self._persist_path, "r") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        event = SimulationEvent.from_json(line)
+                        history = self._event_history[event.run_id]
+                        history.append(event)
+                        if len(history) > self._max_history_per_run:
+                            history.pop(0)
+                    except (json.JSONDecodeError, KeyError) as e:
+                        # Skip malformed lines
+                        continue
+        except IOError:
+            # File might not exist yet, that's ok
+            pass
+
+    def _persist_event(self, event: SimulationEvent) -> None:
+        """Persist a single event to disk."""
+        # Ensure directory exists
+        self._persist_path.parent.mkdir(parents=True, exist_ok=True)
+
+        with self._persist_lock:
+            try:
+                with open(self._persist_path, "a") as f:
+                    f.write(event.to_json() + "\n")
+            except IOError:
+                # Log but don't fail on persistence errors
+                pass
 
     @classmethod
     def get_instance(cls) -> "EventBus":
@@ -128,6 +203,9 @@ class EventBus:
         Args:
             event: The simulation event to broadcast
         """
+        # Persist to disk first (for durability)
+        self._persist_event(event)
+
         # Store in history
         history = self._event_history[event.run_id]
         history.append(event)
@@ -225,17 +303,37 @@ class EventBus:
         """Get all run IDs with events."""
         return list(self._event_history.keys())
 
-    def clear_history(self, run_id: str | None = None) -> None:
+    def clear_history(self, run_id: str | None = None, clear_persistence: bool = False) -> None:
         """
         Clear event history.
 
         Args:
             run_id: Specific run to clear, or None to clear all
+            clear_persistence: If True, also clear the persistence file
         """
         if run_id:
             self._event_history.pop(run_id, None)
         else:
             self._event_history.clear()
+
+        if clear_persistence and self._persist_path.exists():
+            with self._persist_lock:
+                try:
+                    self._persist_path.unlink()
+                except IOError:
+                    pass
+
+    def set_persist_path(self, path: str | Path | None) -> None:
+        """
+        Set the persistence path (useful for testing).
+
+        Args:
+            path: New persistence path, or None to disable persistence
+        """
+        if path is None:
+            self._persist_path = Path("/dev/null")  # Effectively disable
+        else:
+            self._persist_path = Path(path)
 
 
 # Convenience function for emitting events from simulation code

@@ -4,12 +4,82 @@ import pytest
 import sys
 import json
 import re
+import tempfile
 from pathlib import Path
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
 from llm.llm_provider import LLMProvider
+
+
+# ============================================================================
+# Server API Test Fixtures
+# ============================================================================
+
+@pytest.fixture
+def test_client():
+    """Create a test client for the FastAPI app."""
+    from fastapi.testclient import TestClient
+    from server import app as app_module
+    from server.app import app
+
+    # Reset shutdown state before test
+    app_module._shutdown_requested = False
+
+    with TestClient(app) as client:
+        yield client
+
+    # Reset again after test
+    app_module._shutdown_requested = False
+
+
+@pytest.fixture
+def event_bus_reset(tmp_path):
+    """Reset EventBus with temporary persistence for integration tests."""
+    from server.event_bus import EventBus
+
+    # Set test persist path
+    EventBus._test_persist_path = tmp_path / "integration_events.jsonl"
+    EventBus.reset_instance()
+    bus = EventBus.get_instance()
+
+    yield bus
+
+    # Cleanup
+    EventBus._test_persist_path = None
+    EventBus.reset_instance()
+
+
+@pytest.fixture
+def sample_scenario(tmp_path):
+    """Create a minimal test scenario file."""
+    scenario_content = {
+        "name": "Test Scenario",
+        "max_steps": 2,
+        "agents": [
+            {
+                "name": "TestAgent",
+                "llm": {"provider": "mock", "model": "test"}
+            }
+        ],
+        "initial_state": {
+            "global_vars": {"test_var": 1}
+        }
+    }
+
+    scenario_path = tmp_path / "test_scenario.yaml"
+    import yaml
+    with open(scenario_path, "w") as f:
+        yaml.dump(scenario_content, f)
+
+    return scenario_path
+
+
+@pytest.fixture
+def persist_path(tmp_path):
+    """Provide a temporary path for event persistence testing."""
+    return tmp_path / "test_events.jsonl"
 
 
 class DynamicMockEngineProvider(LLMProvider):
