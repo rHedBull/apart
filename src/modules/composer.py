@@ -32,6 +32,7 @@ class ModuleComposer:
 
         The ComposedModules class handles the actual merging in __post_init__.
         If territory_graph module is present with map_file config, loads the map.
+        If supply_chain_base module is present with network_file config, loads the network.
 
         Args:
             modules: List of BehaviorModule objects to compose
@@ -41,11 +42,18 @@ class ModuleComposer:
         """
         composed = ComposedModules(modules=modules)
 
-        # Load spatial graph if territory_graph module has map_file config
         for module in modules:
+            # Load spatial graph if territory_graph module has map_file config
             if module.name == "territory_graph" and module.config_values.get("map_file"):
                 self._load_map_for_module(module, composed)
-                break
+
+            # Load supply chain network if supply_chain_base module has network_file config
+            if module.name == "supply_chain_base" and module.config_values.get("network_file"):
+                self._load_network_for_module(module, composed)
+
+            # Load trade infrastructure if trade_infrastructure module has infrastructure_file config
+            if module.name == "trade_infrastructure" and module.config_values.get("infrastructure_file"):
+                self._load_infrastructure_for_module(module, composed)
 
         return composed
 
@@ -68,6 +76,36 @@ class ModuleComposer:
         composed.map_metadata = metadata
         composed.movement_config = movement_config
         composed.geojson = geojson
+
+    def _load_network_for_module(
+        self,
+        module: BehaviorModule,
+        composed: ComposedModules
+    ) -> None:
+        """Load network file and populate supply chain network in composed modules."""
+        from modules.network_loader import load_network_file
+
+        network_file = module.config_values.get("network_file")
+        if not network_file:
+            return
+
+        network = load_network_file(network_file)
+        composed.supply_chain_network = network
+
+    def _load_infrastructure_for_module(
+        self,
+        module: BehaviorModule,
+        composed: ComposedModules
+    ) -> None:
+        """Load infrastructure file and populate trade infrastructure in composed modules."""
+        from modules.infrastructure_loader import load_infrastructure_file
+
+        infrastructure_file = module.config_values.get("infrastructure_file")
+        if not infrastructure_file:
+            return
+
+        infrastructure = load_infrastructure_file(infrastructure_file)
+        composed.trade_infrastructure = infrastructure
 
     def to_var_definitions(
         self,

@@ -1,0 +1,220 @@
+# Semiconductor Supply Chain Network
+# Strategic-level representation of global chip supply dependencies
+
+network:
+  name: "Global Semiconductor Supply Chain"
+  description: "Major actors and dependencies in the semiconductor supply chain (circa 2024)"
+  granularity: strategic
+  primary_commodity: semiconductors
+
+# Actors (nations/blocs) and their positions
+actors:
+  - id: usa
+    name: "United States"
+    type: consumer_producer
+    properties:
+      gdp_trillion: 25.5
+      tech_sector_pct: 8
+
+  - id: china
+    name: "China"
+    type: consumer_producer
+    properties:
+      gdp_trillion: 17.9
+      tech_sector_pct: 7
+
+  - id: taiwan
+    name: "Taiwan"
+    type: producer
+    properties:
+      gdp_trillion: 0.8
+      chip_manufacturing_pct: 65  # % of global advanced chip manufacturing
+
+  - id: south_korea
+    name: "South Korea"
+    type: producer
+    properties:
+      gdp_trillion: 1.7
+      chip_manufacturing_pct: 18
+
+  - id: japan
+    name: "Japan"
+    type: producer
+    properties:
+      gdp_trillion: 4.2
+      equipment_manufacturing_pct: 30  # % of chip manufacturing equipment
+
+  - id: netherlands
+    name: "Netherlands"
+    type: producer
+    properties:
+      gdp_trillion: 1.0
+      lithography_pct: 90  # ASML's EUV monopoly
+
+  - id: eu
+    name: "European Union"
+    type: consumer
+    properties:
+      gdp_trillion: 16.6
+      auto_sector_dependency: high
+
+# Supply dependencies by commodity (percentage-based)
+# Format: actor -> {commodity -> {source: percentage}}
+dependencies:
+  semiconductors:
+    usa:
+      taiwan: 65
+      south_korea: 15
+      domestic: 12
+      japan: 5
+      other: 3
+    china:
+      taiwan: 70
+      south_korea: 12
+      domestic: 10
+      other: 8
+    eu:
+      taiwan: 55
+      south_korea: 20
+      usa: 10
+      china: 10
+      domestic: 5
+    japan:
+      taiwan: 50
+      domestic: 30
+      south_korea: 15
+      usa: 5
+    south_korea:
+      domestic: 60
+      taiwan: 25
+      japan: 10
+      usa: 5
+    taiwan:
+      domestic: 90
+      japan: 5
+      usa: 5
+
+  # Chip manufacturing equipment dependencies
+  chip_equipment:
+    taiwan:
+      netherlands: 80  # EUV lithography
+      japan: 15
+      usa: 5
+    south_korea:
+      netherlands: 75
+      japan: 15
+      usa: 10
+    china:
+      netherlands: 60  # Before export controls
+      japan: 25
+      usa: 10
+      domestic: 5
+    usa:
+      netherlands: 50
+      japan: 30
+      domestic: 20
+
+  # Rare earths (for chip production)
+  rare_earths:
+    usa:
+      china: 80
+      australia: 10
+      domestic: 10
+    japan:
+      china: 60
+      australia: 20
+      domestic: 20
+    eu:
+      china: 85
+      other: 15
+    taiwan:
+      china: 70
+      other: 30
+    south_korea:
+      china: 65
+      australia: 20
+      other: 15
+
+# Export positions (global market share %)
+export_positions:
+  semiconductors:
+    taiwan: 65
+    south_korea: 18
+    usa: 8
+    china: 5
+    japan: 4
+  chip_equipment:
+    netherlands: 40
+    japan: 30
+    usa: 25
+    other: 5
+  rare_earths:
+    china: 60
+    australia: 10
+    usa: 5
+    other: 25
+
+# Stockpile data (current levels in commodity's unit)
+stockpiles:
+  usa:
+    semiconductors: 4  # weeks
+    rare_earths: 2     # months
+  china:
+    semiconductors: 6  # weeks (stockpiling)
+    rare_earths: 12    # months (domestic production)
+  eu:
+    semiconductors: 3  # weeks
+    rare_earths: 1     # months
+  japan:
+    semiconductors: 5  # weeks
+    rare_earths: 3     # months
+  taiwan:
+    semiconductors: 8  # weeks (production buffer)
+    chip_equipment: 6  # months
+  south_korea:
+    semiconductors: 6  # weeks
+    chip_equipment: 4  # months
+
+# Key vulnerability/leverage relationships
+# (Provided as data for simulator to interpret)
+leverage_relationships:
+  - source: taiwan
+    targets: [usa, china, eu, japan]
+    commodity: semiconductors
+    leverage_type: critical_supplier
+    notes: "Advanced chip manufacturing concentration"
+
+  - source: netherlands
+    targets: [taiwan, south_korea, china]
+    commodity: chip_equipment
+    leverage_type: monopoly_supplier
+    notes: "ASML EUV lithography monopoly"
+
+  - source: china
+    targets: [usa, eu, japan, taiwan, south_korea]
+    commodity: rare_earths
+    leverage_type: dominant_supplier
+    notes: "60% of global rare earth production and 90% of processing"
+
+# Historical restrictions (for reference)
+historical_restrictions:
+  - type: export_control
+    source: usa
+    target: china
+    commodity: chip_equipment
+    date: "2022-10"
+    description: "US restricts advanced chip equipment exports to China"
+
+  - type: export_control
+    source: netherlands
+    target: china
+    commodity: chip_equipment
+    date: "2023-01"
+    description: "Netherlands restricts ASML EUV exports to China"
+
+  - type: export_control
+    source: china
+    targets: [usa, eu]
+    commodity: rare_earths
+    date: "2023-07"
+    description: "China restricts gallium and germanium exports"
