@@ -35,6 +35,47 @@ def _initialize_database():
         init_db()
 
 
+def _generate_mock_data_if_empty():
+    """Generate mock data if results/ directory is empty.
+
+    This provides sample data for development/demo purposes.
+    """
+    results_dir = Path("results")
+    results_dir.mkdir(exist_ok=True)
+
+    # Check if there are any run directories
+    existing_runs = [
+        d for d in results_dir.iterdir()
+        if d.is_dir() and (d.name.startswith("run_") or d.name.startswith("mock_run_"))
+    ]
+
+    if existing_runs:
+        return  # Already have data
+
+    print("No simulation runs found. Generating mock data for development...")
+
+    try:
+        import subprocess
+        import sys
+
+        script_path = Path(__file__).parent.parent.parent / "scripts" / "generate_mock_data.py"
+        if script_path.exists():
+            result = subprocess.run(
+                [sys.executable, str(script_path)],
+                capture_output=True,
+                text=True,
+                cwd=str(Path(__file__).parent.parent.parent)
+            )
+            if result.returncode == 0:
+                print("Mock data generated successfully.")
+            else:
+                print(f"Failed to generate mock data: {result.stderr}")
+        else:
+            print(f"Mock data script not found at {script_path}")
+    except Exception as e:
+        print(f"Error generating mock data: {e}")
+
+
 def _initialize_job_queue():
     """Initialize Redis job queue (required)."""
     from server.job_queue import init_job_queue
@@ -48,6 +89,7 @@ async def lifespan(app: FastAPI):
     # Startup
     _initialize_database()
     _initialize_job_queue()
+    _generate_mock_data_if_empty()
     yield
 
 
@@ -101,6 +143,297 @@ async def detailed_health():
             result["database_stats"] = {"error": "unavailable"}
 
     return result
+
+
+@app.get("/api/runs")
+async def list_runs():
+    """List all simulation runs by scanning results/ directory and merging with EventBus data.
+
+    Returns runs from both:
+    - results/ directory (completed/historical runs)
+    - EventBus (in-memory, currently active runs)
+    """
+    import json
+    from pathlib import Path
+
+    event_bus = get_event_bus()
+    runs_by_id: dict[str, dict] = {}
+
+    # 1. Scan results/ directory for persisted runs
+    results_dir = Path("results")
+    if results_dir.exists():
+        for run_dir in results_dir.iterdir():
+            if not run_dir.is_dir():
+                continue
+            # Support both real runs (run_*) and mock runs (mock_run_*)
+            if not (run_dir.name.startswith("run_") or run_dir.name.startswith("mock_run_")):
+                continue
+
+            state_file = run_dir / "state.json"
+            if not state_file.exists():
+                continue
+
+            try:
+                with open(state_file, "r") as f:
+                    state = json.load(f)
+
+                run_id = state.get("run_id", run_dir.name)
+                scenario = state.get("scenario", "Unknown")
+                started_at = state.get("started_at")
+                snapshots = state.get("snapshots", [])
+
+                # Determine status and step from snapshots
+                current_step = 0
+                total_steps = None
+                danger_count = 0
+
+                if snapshots:
+                    last_snapshot = snapshots[-1]
+                    current_step = last_snapshot.get("step", 0)
+                    # Check for danger signals in snapshots
+                    for snapshot in snapshots:
+                        game_state = snapshot.get("game_state", {})
+                        if isinstance(game_state, dict):
+                            dangers = game_state.get("danger_signals", [])
+                            danger_count += len(dangers) if isinstance(dangers, list) else 0
+
+                # Default to completed if we have snapshots
+                status = "completed" if snapshots else "pending"
+
+                runs_by_id[run_id] = {
+                    "runId": run_id,
+                    "scenario": scenario,
+                    "status": status,
+                    "currentStep": current_step,
+                    "totalSteps": total_steps,
+                    "startedAt": started_at,
+                    "completedAt": None,  # Not tracked in state.json
+                    "dangerCount": danger_count,
+                }
+            except (json.JSONDecodeError, KeyError, TypeError):
+                # Skip corrupted files
+                continue
+
+    # 2. Merge with EventBus data (for real-time status updates)
+    for run_id in event_bus.get_all_run_ids():
+        history = event_bus.get_history(run_id)
+
+        status = "pending"
+        current_step = 0
+        total_steps = None
+        started_at = None
+        completed_at = None
+        scenario_name = None
+        danger_count = 0
+
+        for event in history:
+            if event.event_type == "simulation_started":
+                status = "running"
+                started_at = event.timestamp
+                total_steps = event.data.get("max_steps")
+                scenario_name = event.data.get("scenario_name")
+            elif event.event_type == "step_completed":
+                current_step = event.step or 0
+            elif event.event_type == "danger_signal":
+                danger_count += 1
+            elif event.event_type == "simulation_completed":
+                status = "completed"
+                completed_at = event.timestamp
+            elif event.event_type == "simulation_failed":
+                status = "failed"
+                completed_at = event.timestamp
+
+        # Update or create entry (EventBus has more recent data)
+        if run_id in runs_by_id:
+            # Merge: EventBus has live status info
+            runs_by_id[run_id].update({
+                "status": status,
+                "currentStep": current_step,
+                "totalSteps": total_steps or runs_by_id[run_id].get("totalSteps"),
+                "completedAt": completed_at,
+                "dangerCount": max(danger_count, runs_by_id[run_id].get("dangerCount", 0)),
+            })
+            if scenario_name:
+                runs_by_id[run_id]["scenario"] = scenario_name
+        else:
+            runs_by_id[run_id] = {
+                "runId": run_id,
+                "scenario": scenario_name or run_id,
+                "status": status,
+                "currentStep": current_step,
+                "totalSteps": total_steps,
+                "startedAt": started_at,
+                "completedAt": completed_at,
+                "dangerCount": danger_count,
+            }
+
+    # Sort by start time (most recent first)
+    runs_list = sorted(
+        runs_by_id.values(),
+        key=lambda r: r.get("startedAt") or "",
+        reverse=True
+    )
+
+    return {"runs": runs_list}
+
+
+@app.get("/api/runs/{run_id}")
+async def get_run_detail(run_id: str):
+    """Get full state data for a specific run from disk.
+
+    This reads the state.json file directly, providing historical data
+    even when the EventBus doesn't have the events in memory.
+    """
+    import json
+    from pathlib import Path
+
+    results_dir = Path("results")
+    run_dir = results_dir / run_id
+    state_file = run_dir / "state.json"
+
+    if not state_file.exists():
+        raise HTTPException(status_code=404, detail=f"Run {run_id} not found")
+
+    try:
+        with open(state_file, "r") as f:
+            state = json.load(f)
+
+        # Transform to frontend-expected format
+        snapshots = state.get("snapshots", [])
+
+        # Extract messages from all snapshots
+        messages = []
+        for snapshot in snapshots:
+            step = snapshot.get("step", 0)
+            for msg in snapshot.get("messages", []):
+                if msg.get("from") == "orchestrator":
+                    messages.append({
+                        "step": step,
+                        "timestamp": state.get("started_at", ""),
+                        "agentName": msg.get("to", "unknown"),
+                        "direction": "sent",
+                        "content": msg.get("content", ""),
+                    })
+                else:
+                    messages.append({
+                        "step": step,
+                        "timestamp": state.get("started_at", ""),
+                        "agentName": msg.get("from", "unknown"),
+                        "direction": "received",
+                        "content": msg.get("content", ""),
+                    })
+
+        # Extract danger signals
+        danger_signals = []
+        for snapshot in snapshots:
+            step = snapshot.get("step", 0)
+            game_state = snapshot.get("game_state", {})
+            for signal in game_state.get("danger_signals", []):
+                danger_signals.append({
+                    "step": signal.get("step", step),
+                    "timestamp": signal.get("timestamp", ""),
+                    "category": signal.get("category", "unknown"),
+                    "agentName": signal.get("agent_name"),
+                    "metric": signal.get("metric", ""),
+                    "value": signal.get("value", 0),
+                    "threshold": signal.get("threshold"),
+                })
+
+        # Extract variable history
+        global_vars_history = []
+        agent_vars_history = {}
+        agent_names = set()
+
+        for snapshot in snapshots:
+            step = snapshot.get("step", 0)
+
+            if "global_vars" in snapshot:
+                global_vars_history.append({
+                    "step": step,
+                    "values": snapshot["global_vars"],
+                })
+
+            if "agent_vars" in snapshot:
+                for agent_name, vars in snapshot["agent_vars"].items():
+                    agent_names.add(agent_name)
+                    if agent_name not in agent_vars_history:
+                        agent_vars_history[agent_name] = []
+                    agent_vars_history[agent_name].append({
+                        "step": step,
+                        "values": vars,
+                    })
+
+        # Determine status
+        current_step = snapshots[-1]["step"] if snapshots else 0
+
+        # Check EventBus for live status
+        event_bus = get_event_bus()
+        history = event_bus.get_history(run_id)
+        status = "completed"  # Default for disk-only runs
+        for event in history:
+            if event.event_type == "simulation_started":
+                status = "running"
+            elif event.event_type == "simulation_completed":
+                status = "completed"
+            elif event.event_type == "simulation_failed":
+                status = "failed"
+
+        # Try to get spatial graph from first snapshot's game_state or from EventBus
+        spatial_graph = None
+        for event in history:
+            if event.event_type == "simulation_started" and event.data.get("spatial_graph"):
+                spatial_graph = event.data["spatial_graph"]
+                break
+
+        # Also check snapshots for spatial data hints
+        if not spatial_graph and snapshots:
+            first_snapshot = snapshots[0]
+            agent_vars = first_snapshot.get("agent_vars", {})
+            # If agents have location data, we likely have a spatial scenario
+            has_locations = any(
+                "location" in vars
+                for vars in agent_vars.values()
+            )
+            if has_locations:
+                # Return a default spatial graph for mock data
+                spatial_graph = {
+                    "nodes": [
+                        {"id": "taiwan", "name": "Taiwan", "type": "nation", "properties": {}, "conditions": []},
+                        {"id": "china", "name": "China", "type": "nation", "properties": {}, "conditions": []},
+                        {"id": "usa", "name": "United States", "type": "nation", "properties": {}, "conditions": []},
+                        {"id": "taiwan_strait", "name": "Taiwan Strait", "type": "sea_zone", "properties": {}, "conditions": []},
+                        {"id": "pacific", "name": "Pacific Ocean", "type": "sea_zone", "properties": {}, "conditions": []},
+                        {"id": "taipei", "name": "Taipei", "type": "city", "properties": {}, "conditions": []},
+                        {"id": "beijing", "name": "Beijing", "type": "city", "properties": {}, "conditions": []},
+                    ],
+                    "edges": [
+                        {"from": "taiwan", "to": "taiwan_strait", "type": "maritime", "directed": False, "properties": {"distance_km": 100}},
+                        {"from": "china", "to": "taiwan_strait", "type": "maritime", "directed": False, "properties": {"distance_km": 150}},
+                        {"from": "taiwan_strait", "to": "pacific", "type": "maritime", "directed": False, "properties": {"distance_km": 500}},
+                        {"from": "usa", "to": "pacific", "type": "maritime", "directed": False, "properties": {"distance_km": 8000}},
+                        {"from": "taipei", "to": "taiwan", "type": "land", "directed": False, "properties": {}},
+                        {"from": "beijing", "to": "china", "type": "land", "directed": False, "properties": {}},
+                    ],
+                    "blocked_edge_types": [],
+                }
+
+        return {
+            "runId": run_id,
+            "scenario": state.get("scenario", run_id),
+            "status": status,
+            "currentStep": current_step,
+            "maxSteps": len(snapshots) if snapshots else None,
+            "startedAt": state.get("started_at"),
+            "agentNames": list(agent_names),
+            "spatialGraph": spatial_graph,
+            "messages": messages,
+            "dangerSignals": danger_signals,
+            "globalVarsHistory": global_vars_history,
+            "agentVarsHistory": agent_vars_history,
+        }
+
+    except (json.JSONDecodeError, KeyError) as e:
+        raise HTTPException(status_code=500, detail=f"Error reading run data: {str(e)}")
 
 
 @app.get("/api/simulations", response_model=list[SimulationSummary])

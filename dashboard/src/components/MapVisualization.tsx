@@ -1,5 +1,5 @@
 /**
- * Map Visualization Component
+ * Map Visualization Component with Cloudscape styling
  *
  * Renders a spatial graph as an interactive SVG visualization showing:
  * - Nodes (locations) with agent positions
@@ -8,6 +8,11 @@
  */
 
 import { useMemo, useState, useEffect, useRef } from 'react';
+import Container from '@cloudscape-design/components/container';
+import Header from '@cloudscape-design/components/header';
+import Box from '@cloudscape-design/components/box';
+import Badge from '@cloudscape-design/components/badge';
+import SpaceBetween from '@cloudscape-design/components/space-between';
 import { useSimulationStore, SpatialGraph } from '../hooks/useSimulationState';
 
 // Node position after layout
@@ -97,29 +102,33 @@ function computeLayout(graph: SpatialGraph, width: number, height: number): Layo
   return nodes;
 }
 
-// Color mapping for node types
+// Color mapping for node types (Cloudscape-aligned)
 const nodeColors: Record<string, string> = {
-  nation: '#3b82f6',      // blue
-  port: '#10b981',        // green
-  city: '#8b5cf6',        // purple
-  region: '#f59e0b',      // amber
-  base: '#ef4444',        // red
-  sea_zone: '#06b6d4',    // cyan
-  waterway: '#0891b2',    // darker cyan
-  location: '#6b7280',    // gray
+  nation: '#0972d3',      // blue
+  port: '#1d8102',        // green
+  city: '#9469d6',        // purple
+  region: '#ec7211',      // orange
+  base: '#d91515',        // red
+  sea_zone: '#2ea597',    // teal
+  waterway: '#067f68',    // dark teal
+  location: '#5f6b7a',    // grey
 };
 
 // Color mapping for edge types
 const edgeColors: Record<string, string> = {
-  maritime: '#0ea5e9',    // sky blue
-  land: '#84cc16',        // lime
-  air: '#a855f7',         // purple
-  road: '#78716c',        // stone
-  highway: '#fbbf24',     // yellow
-  connection: '#9ca3af',  // gray
+  maritime: '#2ea597',    // teal
+  land: '#1d8102',        // green
+  air: '#9469d6',         // purple
+  road: '#5f6b7a',        // grey
+  highway: '#ec7211',     // orange
+  connection: '#8d99a8',  // light grey
 };
 
-export function MapVisualization() {
+interface MapVisualizationProps {
+  onNodeClick?: (nodeId: string) => void;
+}
+
+export function MapVisualization({ onNodeClick }: MapVisualizationProps) {
   const spatialGraph = useSimulationStore((state) => state.spatialGraph);
   const agentVarsHistory = useSimulationStore((state) => state.agentVarsHistory);
 
@@ -133,7 +142,7 @@ export function MapVisualization() {
     const updateDimensions = () => {
       if (containerRef.current) {
         const rect = containerRef.current.getBoundingClientRect();
-        setDimensions({ width: rect.width, height: rect.height });
+        setDimensions({ width: rect.width, height: Math.max(rect.height - 60, 300) });
       }
     };
     updateDimensions();
@@ -188,14 +197,17 @@ export function MapVisualization() {
 
   if (!spatialGraph) {
     return (
-      <div className="h-full bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-4 flex items-center justify-center">
-        <div className="text-slate-400 dark:text-slate-500 text-center">
-          <div className="text-lg font-medium mb-2">No Spatial Graph</div>
-          <div className="text-sm">
-            Run a scenario with <code className="bg-slate-100 dark:bg-slate-700 px-1 rounded">spatial_model: "graph"</code> to see the map
-          </div>
-        </div>
-      </div>
+      <Container
+        header={<Header variant="h2">Spatial Map</Header>}
+        fitHeight
+      >
+        <Box textAlign="center" color="text-status-inactive" padding="xxl">
+          <Box variant="h3" margin={{ bottom: 's' }}>No Spatial Graph</Box>
+          <Box variant="p">
+            Run a scenario with <code>spatial_model: "graph"</code> to see the map
+          </Box>
+        </Box>
+      </Container>
     );
   }
 
@@ -203,171 +215,189 @@ export function MapVisualization() {
   const blockedEdgeTypes = new Set(spatialGraph.blocked_edge_types);
 
   return (
-    <div
-      ref={containerRef}
-      className="h-full bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden"
-    >
-      {/* Header */}
-      <div className="px-3 py-2 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
-        <h3 className="font-semibold text-slate-700 dark:text-slate-200">
+    <Container
+      header={
+        <Header
+          variant="h2"
+          counter={`${layoutNodes.length} locations`}
+        >
           Spatial Map
-        </h3>
-        <div className="text-xs text-slate-500 dark:text-slate-400">
-          {layoutNodes.length} locations | {spatialGraph.edges.length} connections
-        </div>
-      </div>
+        </Header>
+      }
+      fitHeight
+    >
+      <div ref={containerRef} style={{ height: '100%', minHeight: 350 }}>
+        <svg
+          width={width}
+          height={height}
+          style={{ backgroundColor: '#fafafa' }}
+        >
+          {/* Render edges */}
+          {spatialGraph.edges.map((edge, i) => {
+            const from = nodePositions[edge.from];
+            const to = nodePositions[edge.to];
+            if (!from || !to) return null;
 
-      {/* SVG Map */}
-      <svg
-        width={width}
-        height={height - 40}
-        className="bg-slate-50 dark:bg-slate-900"
-      >
-        {/* Render edges */}
-        {spatialGraph.edges.map((edge, i) => {
-          const from = nodePositions[edge.from];
-          const to = nodePositions[edge.to];
-          if (!from || !to) return null;
+            const isBlocked = blockedEdgeTypes.has(edge.type);
+            const isHovered = hoveredEdge === `${edge.from}-${edge.to}`;
+            const color = edgeColors[edge.type] || edgeColors.connection;
+            const distance = edge.properties.distance_km as number || 0;
 
-          const isBlocked = blockedEdgeTypes.has(edge.type);
-          const isHovered = hoveredEdge === `${edge.from}-${edge.to}`;
-          const color = edgeColors[edge.type] || edgeColors.connection;
-          const distance = edge.properties.distance_km as number || 0;
-
-          return (
-            <g key={`edge-${i}`}>
-              <line
-                x1={from.x}
-                y1={from.y}
-                x2={to.x}
-                y2={to.y}
-                stroke={isBlocked ? '#dc2626' : color}
-                strokeWidth={isHovered ? 3 : 2}
-                strokeDasharray={isBlocked ? '5,5' : undefined}
-                opacity={isBlocked ? 0.5 : 0.8}
-                className="cursor-pointer transition-all"
-                onMouseEnter={() => setHoveredEdge(`${edge.from}-${edge.to}`)}
-                onMouseLeave={() => setHoveredEdge(null)}
-              />
-              {/* Edge label on hover */}
-              {isHovered && (
-                <text
-                  x={(from.x + to.x) / 2}
-                  y={(from.y + to.y) / 2 - 8}
-                  textAnchor="middle"
-                  className="fill-slate-600 dark:fill-slate-300 text-xs font-medium pointer-events-none"
-                >
-                  {edge.type} {distance > 0 ? `(${distance}km)` : ''}
-                </text>
-              )}
-            </g>
-          );
-        })}
-
-        {/* Render nodes */}
-        {layoutNodes.map((node) => {
-          const agents = agentsAtNode[node.id] || [];
-          const isHovered = hoveredNode === node.id;
-          const hasAgents = agents.length > 0;
-          const color = nodeColors[node.type] || nodeColors.location;
-          const radius = hasAgents ? 24 : 18;
-
-          return (
-            <g
-              key={node.id}
-              transform={`translate(${node.x}, ${node.y})`}
-              className="cursor-pointer"
-              onMouseEnter={() => setHoveredNode(node.id)}
-              onMouseLeave={() => setHoveredNode(null)}
-            >
-              {/* Node circle */}
-              <circle
-                r={isHovered ? radius + 4 : radius}
-                fill={color}
-                stroke={hasAgents ? '#fbbf24' : '#fff'}
-                strokeWidth={hasAgents ? 3 : 2}
-                className="transition-all"
-                opacity={0.9}
-              />
-
-              {/* Agent indicator */}
-              {hasAgents && (
-                <circle
-                  r={8}
-                  cx={radius - 6}
-                  cy={-radius + 6}
-                  fill="#fbbf24"
-                  stroke="#fff"
-                  strokeWidth={2}
+            return (
+              <g key={`edge-${i}`}>
+                <line
+                  x1={from.x}
+                  y1={from.y}
+                  x2={to.x}
+                  y2={to.y}
+                  stroke={isBlocked ? '#d91515' : color}
+                  strokeWidth={isHovered ? 3 : 2}
+                  strokeDasharray={isBlocked ? '5,5' : undefined}
+                  opacity={isBlocked ? 0.5 : 0.8}
+                  style={{ cursor: 'pointer', transition: 'stroke-width 0.2s' }}
+                  onMouseEnter={() => setHoveredEdge(`${edge.from}-${edge.to}`)}
+                  onMouseLeave={() => setHoveredEdge(null)}
                 />
-              )}
-              {hasAgents && (
+                {/* Edge label on hover */}
+                {isHovered && (
+                  <text
+                    x={(from.x + to.x) / 2}
+                    y={(from.y + to.y) / 2 - 8}
+                    textAnchor="middle"
+                    fill="#16191f"
+                    fontSize="12"
+                    fontWeight="500"
+                    style={{ pointerEvents: 'none' }}
+                  >
+                    {edge.type} {distance > 0 ? `(${distance}km)` : ''}
+                  </text>
+                )}
+              </g>
+            );
+          })}
+
+          {/* Render nodes */}
+          {layoutNodes.map((node) => {
+            const agents = agentsAtNode[node.id] || [];
+            const isHovered = hoveredNode === node.id;
+            const hasAgents = agents.length > 0;
+            const color = nodeColors[node.type] || nodeColors.location;
+            const radius = hasAgents ? 24 : 18;
+
+            return (
+              <g
+                key={node.id}
+                transform={`translate(${node.x}, ${node.y})`}
+                style={{ cursor: 'pointer' }}
+                onMouseEnter={() => setHoveredNode(node.id)}
+                onMouseLeave={() => setHoveredNode(null)}
+                onClick={() => onNodeClick?.(node.id)}
+              >
+                {/* Node circle */}
+                <circle
+                  r={isHovered ? radius + 4 : radius}
+                  fill={color}
+                  stroke={hasAgents ? '#ec7211' : '#fff'}
+                  strokeWidth={hasAgents ? 3 : 2}
+                  style={{ transition: 'r 0.2s' }}
+                  opacity={0.9}
+                />
+
+                {/* Agent indicator */}
+                {hasAgents && (
+                  <circle
+                    r={8}
+                    cx={radius - 6}
+                    cy={-radius + 6}
+                    fill="#ec7211"
+                    stroke="#fff"
+                    strokeWidth={2}
+                  />
+                )}
+                {hasAgents && (
+                  <text
+                    x={radius - 6}
+                    y={-radius + 10}
+                    textAnchor="middle"
+                    fill="#16191f"
+                    fontSize="11"
+                    fontWeight="bold"
+                    style={{ pointerEvents: 'none' }}
+                  >
+                    {agents.length}
+                  </text>
+                )}
+
+                {/* Node type icon/letter */}
                 <text
-                  x={radius - 6}
-                  y={-radius + 10}
+                  y={5}
                   textAnchor="middle"
-                  className="fill-slate-800 text-xs font-bold pointer-events-none"
+                  fill="#fff"
+                  fontSize="14"
+                  fontWeight="bold"
+                  style={{ pointerEvents: 'none' }}
                 >
-                  {agents.length}
+                  {node.type[0].toUpperCase()}
                 </text>
-              )}
 
-              {/* Node type icon/letter */}
-              <text
-                y={5}
-                textAnchor="middle"
-                className="fill-white text-sm font-bold pointer-events-none"
-              >
-                {node.type[0].toUpperCase()}
-              </text>
-
-              {/* Node name label */}
-              <text
-                y={radius + 14}
-                textAnchor="middle"
-                className="fill-slate-700 dark:fill-slate-300 text-xs font-medium pointer-events-none"
-              >
-                {node.name}
-              </text>
-
-              {/* Tooltip on hover */}
-              {isHovered && (
-                <foreignObject
-                  x={-100}
-                  y={-80}
-                  width={200}
-                  height={70}
-                  className="pointer-events-none"
+                {/* Node name label */}
+                <text
+                  y={radius + 14}
+                  textAnchor="middle"
+                  fill="#16191f"
+                  fontSize="11"
+                  fontWeight="500"
+                  style={{ pointerEvents: 'none' }}
                 >
-                  <div className="bg-slate-800 text-white text-xs rounded px-2 py-1 shadow-lg">
-                    <div className="font-bold">{node.name}</div>
-                    <div className="text-slate-300">Type: {node.type}</div>
-                    {agents.length > 0 && (
-                      <div className="text-yellow-400">
-                        Agents: {agents.join(', ')}
-                      </div>
-                    )}
-                  </div>
-                </foreignObject>
-              )}
-            </g>
-          );
-        })}
-      </svg>
+                  {node.name}
+                </text>
 
-      {/* Legend */}
-      <div className="absolute bottom-2 left-2 bg-white/90 dark:bg-slate-800/90 rounded px-2 py-1 text-xs flex gap-3">
-        {blockedEdgeTypes.size > 0 && (
-          <span className="text-red-500 flex items-center gap-1">
-            <span className="w-4 h-0.5 bg-red-500" style={{ borderStyle: 'dashed' }}></span>
-            Blocked: {Array.from(blockedEdgeTypes).join(', ')}
-          </span>
-        )}
-        <span className="text-yellow-500 flex items-center gap-1">
-          <span className="w-3 h-3 rounded-full bg-yellow-500"></span>
-          Agent present
-        </span>
+                {/* Tooltip on hover */}
+                {isHovered && (
+                  <foreignObject
+                    x={-100}
+                    y={-80}
+                    width={200}
+                    height={70}
+                    style={{ pointerEvents: 'none' }}
+                  >
+                    <div style={{
+                      backgroundColor: '#16191f',
+                      color: '#fff',
+                      fontSize: '12px',
+                      borderRadius: '8px',
+                      padding: '8px 12px',
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.3)'
+                    }}>
+                      <div style={{ fontWeight: 'bold' }}>{node.name}</div>
+                      <div style={{ color: '#8d99a8' }}>Type: {node.type}</div>
+                      {agents.length > 0 && (
+                        <div style={{ color: '#ec7211' }}>
+                          Agents: {agents.join(', ')}
+                        </div>
+                      )}
+                    </div>
+                  </foreignObject>
+                )}
+              </g>
+            );
+          })}
+        </svg>
+
+        {/* Legend */}
+        <Box padding="xs">
+          <SpaceBetween direction="horizontal" size="s">
+            {blockedEdgeTypes.size > 0 && (
+              <Badge color="red">
+                Blocked: {Array.from(blockedEdgeTypes).join(', ')}
+              </Badge>
+            )}
+            <Badge color="blue">
+              {Object.keys(agentLocations).length} agents tracked
+            </Badge>
+          </SpaceBetween>
+        </Box>
       </div>
-    </div>
+    </Container>
   );
 }
