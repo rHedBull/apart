@@ -1,0 +1,362 @@
+map:
+  name: "Global Major Countries"
+  description: "World map with major countries and powers"
+  geojson: "global_major.geojson"
+
+nodes:
+  # North America
+  - id: USA
+    name: United States
+    type: region
+    properties:
+      population: 331000000
+      gdp_trillion: 25.5
+
+  - id: CAN
+    name: Canada
+    type: region
+    properties:
+      population: 38000000
+
+  - id: MEX
+    name: Mexico
+    type: region
+    properties:
+      population: 128000000
+
+  # South America
+  - id: BRA
+    name: Brazil
+    type: region
+    properties:
+      population: 214000000
+
+  - id: ARG
+    name: Argentina
+    type: region
+    properties:
+      population: 46000000
+
+  # Europe
+  - id: GBR
+    name: United Kingdom
+    type: region
+    properties:
+      population: 67000000
+
+  - id: FRA
+    name: France
+    type: region
+    properties:
+      population: 67000000
+
+  - id: DEU
+    name: Germany
+    type: region
+    properties:
+      population: 83000000
+
+  - id: ITA
+    name: Italy
+    type: region
+    properties:
+      population: 60000000
+
+  - id: ESP
+    name: Spain
+    type: region
+    properties:
+      population: 47000000
+
+  - id: POL
+    name: Poland
+    type: region
+    properties:
+      population: 38000000
+
+  - id: UKR
+    name: Ukraine
+    type: region
+    properties:
+      population: 43000000
+
+  # Russia & Asia
+  - id: RUS
+    name: Russia
+    type: region
+    properties:
+      population: 144000000
+
+  - id: CHN
+    name: China
+    type: region
+    properties:
+      population: 1400000000
+      gdp_trillion: 17.7
+
+  - id: IND
+    name: India
+    type: region
+    properties:
+      population: 1400000000
+
+  - id: JPN
+    name: Japan
+    type: region
+    properties:
+      population: 125000000
+
+  - id: KOR
+    name: South Korea
+    type: region
+    properties:
+      population: 52000000
+
+  - id: PRK
+    name: North Korea
+    type: region
+    properties:
+      population: 26000000
+
+  - id: IDN
+    name: Indonesia
+    type: region
+    properties:
+      population: 275000000
+
+  # Oceania
+  - id: AUS
+    name: Australia
+    type: region
+    properties:
+      population: 26000000
+
+  # Middle East
+  - id: SAU
+    name: Saudi Arabia
+    type: region
+    properties:
+      population: 35000000
+
+  - id: IRN
+    name: Iran
+    type: region
+    properties:
+      population: 87000000
+
+  - id: TUR
+    name: Turkey
+    type: region
+    properties:
+      population: 85000000
+
+  - id: EGY
+    name: Egypt
+    type: region
+    properties:
+      population: 104000000
+
+  # Africa
+  - id: ZAF
+    name: South Africa
+    type: region
+    properties:
+      population: 60000000
+
+  - id: NGA
+    name: Nigeria
+    type: region
+    properties:
+      population: 220000000
+
+  # Capital cities
+  - id: washington
+    name: Washington D.C.
+    type: city
+    coordinates: [-77.0, 38.9]
+    properties:
+      capital: true
+
+  - id: beijing
+    name: Beijing
+    type: city
+    coordinates: [116.4, 39.9]
+    properties:
+      capital: true
+
+  - id: moscow
+    name: Moscow
+    type: city
+    coordinates: [37.6, 55.8]
+    properties:
+      capital: true
+
+  - id: new_delhi
+    name: New Delhi
+    type: city
+    coordinates: [77.2, 28.6]
+    properties:
+      capital: true
+
+  - id: london
+    name: London
+    type: city
+    coordinates: [-0.1, 51.5]
+    properties:
+      capital: true
+
+  - id: tokyo
+    name: Tokyo
+    type: city
+    coordinates: [139.7, 35.7]
+    properties:
+      capital: true
+
+edges:
+  # North America
+  - from: USA
+    to: CAN
+    type: land
+    properties:
+      border: true
+
+  - from: USA
+    to: MEX
+    type: land
+    properties:
+      border: true
+
+  # Europe connections
+  - from: GBR
+    to: FRA
+    type: sea
+    properties:
+      distance_km: 50
+
+  - from: FRA
+    to: DEU
+    type: land
+    properties:
+      border: true
+
+  - from: FRA
+    to: ESP
+    type: land
+    properties:
+      border: true
+
+  - from: FRA
+    to: ITA
+    type: land
+    properties:
+      border: true
+
+  - from: DEU
+    to: POL
+    type: land
+    properties:
+      border: true
+
+  - from: POL
+    to: UKR
+    type: land
+    properties:
+      border: true
+
+  - from: UKR
+    to: RUS
+    type: land
+    properties:
+      border: true
+
+  # Asia
+  - from: RUS
+    to: CHN
+    type: land
+    properties:
+      border: true
+
+  - from: CHN
+    to: IND
+    type: land
+    properties:
+      border: true
+
+  - from: CHN
+    to: PRK
+    type: land
+    properties:
+      border: true
+
+  - from: PRK
+    to: KOR
+    type: land
+    properties:
+      border: true
+
+  - from: JPN
+    to: KOR
+    type: sea
+    properties:
+      distance_km: 200
+
+  # Middle East
+  - from: TUR
+    to: IRN
+    type: land
+    properties:
+      border: true
+
+  - from: SAU
+    to: IRN
+    type: sea
+    properties:
+      distance_km: 300
+
+  - from: EGY
+    to: SAU
+    type: sea
+    properties:
+      distance_km: 500
+
+  # City containment
+  - from: washington
+    to: USA
+    type: contains
+    properties:
+      distance_km: 0
+
+  - from: beijing
+    to: CHN
+    type: contains
+    properties:
+      distance_km: 0
+
+  - from: moscow
+    to: RUS
+    type: contains
+    properties:
+      distance_km: 0
+
+  - from: london
+    to: GBR
+    type: contains
+    properties:
+      distance_km: 0
+
+  - from: new_delhi
+    to: IND
+    type: contains
+    properties:
+      distance_km: 0
+
+  - from: tokyo
+    to: JPN
+    type: contains
+    properties:
+      distance_km: 0
+
+initial_control:
+  west: [USA, CAN, GBR, FRA, DEU, ITA, ESP, POL, JPN, KOR, AUS]
+  east: [RUS, CHN, PRK, IRN]
+  neutral: [IND, BRA, SAU, TUR, EGY, ZAF, NGA, IDN, MEX, ARG, UKR]

@@ -1,0 +1,311 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "id": "PRT",
+      "properties": { "name": "Portugal" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[-9.5, 37.0], [-6.2, 37.0], [-6.2, 42.1], [-9.5, 42.1], [-9.5, 37.0]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "ESP",
+      "properties": { "name": "Spain" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[-9.3, 36.0], [3.3, 36.0], [3.3, 43.8], [-9.3, 43.8], [-9.3, 36.0]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "FRA",
+      "properties": { "name": "France" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[-5.0, 42.3], [8.2, 42.3], [8.2, 51.1], [-5.0, 51.1], [-5.0, 42.3]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "GBR",
+      "properties": { "name": "United Kingdom" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[-8.0, 49.9], [1.8, 49.9], [1.8, 58.7], [-8.0, 58.7], [-8.0, 49.9]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "IRL",
+      "properties": { "name": "Ireland" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[-10.5, 51.4], [-6.0, 51.4], [-6.0, 55.4], [-10.5, 55.4], [-10.5, 51.4]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "BEL",
+      "properties": { "name": "Belgium" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[2.5, 49.5], [6.4, 49.5], [6.4, 51.5], [2.5, 51.5], [2.5, 49.5]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "NLD",
+      "properties": { "name": "Netherlands" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[3.4, 50.8], [7.2, 50.8], [7.2, 53.5], [3.4, 53.5], [3.4, 50.8]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "DEU",
+      "properties": { "name": "Germany" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[5.9, 47.3], [15.0, 47.3], [15.0, 55.1], [5.9, 55.1], [5.9, 47.3]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "CHE",
+      "properties": { "name": "Switzerland" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[6.0, 45.8], [10.5, 45.8], [10.5, 47.8], [6.0, 47.8], [6.0, 45.8]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "AUT",
+      "properties": { "name": "Austria" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[9.5, 46.4], [17.2, 46.4], [17.2, 49.0], [9.5, 49.0], [9.5, 46.4]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "ITA",
+      "properties": { "name": "Italy" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[6.6, 36.6], [18.5, 36.6], [18.5, 47.1], [6.6, 47.1], [6.6, 36.6]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "DNK",
+      "properties": { "name": "Denmark" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[8.1, 54.6], [12.7, 54.6], [12.7, 57.8], [8.1, 57.8], [8.1, 54.6]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "NOR",
+      "properties": { "name": "Norway" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[4.6, 58.0], [31.0, 58.0], [31.0, 71.2], [4.6, 71.2], [4.6, 58.0]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "SWE",
+      "properties": { "name": "Sweden" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[11.1, 55.3], [24.2, 55.3], [24.2, 69.1], [11.1, 69.1], [11.1, 55.3]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "FIN",
+      "properties": { "name": "Finland" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[20.6, 59.8], [31.6, 59.8], [31.6, 70.1], [20.6, 70.1], [20.6, 59.8]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "POL",
+      "properties": { "name": "Poland" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[14.1, 49.0], [24.1, 49.0], [24.1, 54.8], [14.1, 54.8], [14.1, 49.0]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "CZE",
+      "properties": { "name": "Czech Republic" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[12.1, 48.6], [18.9, 48.6], [18.9, 51.1], [12.1, 51.1], [12.1, 48.6]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "SVK",
+      "properties": { "name": "Slovakia" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[16.8, 47.7], [22.6, 47.7], [22.6, 49.6], [16.8, 49.6], [16.8, 47.7]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "HUN",
+      "properties": { "name": "Hungary" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[16.1, 45.7], [22.9, 45.7], [22.9, 48.6], [16.1, 48.6], [16.1, 45.7]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "ROU",
+      "properties": { "name": "Romania" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[20.3, 43.6], [29.7, 43.6], [29.7, 48.3], [20.3, 48.3], [20.3, 43.6]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "BGR",
+      "properties": { "name": "Bulgaria" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[22.4, 41.2], [28.6, 41.2], [28.6, 44.2], [22.4, 44.2], [22.4, 41.2]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "GRC",
+      "properties": { "name": "Greece" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[19.4, 34.8], [29.6, 34.8], [29.6, 41.7], [19.4, 41.7], [19.4, 34.8]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "TUR",
+      "properties": { "name": "Turkey" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[26.0, 36.0], [45.0, 36.0], [45.0, 42.1], [26.0, 42.1], [26.0, 36.0]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "UKR",
+      "properties": { "name": "Ukraine" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[22.1, 44.4], [40.2, 44.4], [40.2, 52.4], [22.1, 52.4], [22.1, 44.4]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "BLR",
+      "properties": { "name": "Belarus" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[23.2, 51.3], [32.8, 51.3], [32.8, 56.2], [23.2, 56.2], [23.2, 51.3]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "LTU",
+      "properties": { "name": "Lithuania" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[21.0, 53.9], [26.8, 53.9], [26.8, 56.4], [21.0, 56.4], [21.0, 53.9]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "LVA",
+      "properties": { "name": "Latvia" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[21.0, 55.7], [28.2, 55.7], [28.2, 58.1], [21.0, 58.1], [21.0, 55.7]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "EST",
+      "properties": { "name": "Estonia" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[21.8, 57.5], [28.2, 57.5], [28.2, 59.7], [21.8, 59.7], [21.8, 57.5]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "MDA",
+      "properties": { "name": "Moldova" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[26.6, 45.5], [30.2, 45.5], [30.2, 48.5], [26.6, 48.5], [26.6, 45.5]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "RUS_EUR",
+      "properties": { "name": "European Russia" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[28.0, 45.0], [60.0, 45.0], [60.0, 70.0], [28.0, 70.0], [28.0, 45.0]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "SRB",
+      "properties": { "name": "Serbia" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[18.8, 42.2], [23.0, 42.2], [23.0, 46.2], [18.8, 46.2], [18.8, 42.2]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "HRV",
+      "properties": { "name": "Croatia" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[13.5, 42.4], [19.4, 42.4], [19.4, 46.6], [13.5, 46.6], [13.5, 42.4]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "BIH",
+      "properties": { "name": "Bosnia and Herzegovina" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[15.7, 42.6], [19.6, 42.6], [19.6, 45.3], [15.7, 45.3], [15.7, 42.6]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "SVN",
+      "properties": { "name": "Slovenia" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[13.4, 45.4], [16.6, 45.4], [16.6, 46.9], [13.4, 46.9], [13.4, 45.4]]]
+      }
+    }
+  ]
+}

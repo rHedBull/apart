@@ -1,0 +1,780 @@
+map:
+  name: "Europe"
+  description: "European continent with European Russia"
+  geojson: "europe.geojson"
+
+nodes:
+  # Western Europe
+  - id: PRT
+    name: Portugal
+    type: region
+    properties:
+      population: 10000000
+      nato: true
+      eu: true
+
+  - id: ESP
+    name: Spain
+    type: region
+    properties:
+      population: 47000000
+      nato: true
+      eu: true
+
+  - id: FRA
+    name: France
+    type: region
+    properties:
+      population: 67000000
+      nato: true
+      eu: true
+      nuclear: true
+
+  - id: GBR
+    name: United Kingdom
+    type: region
+    properties:
+      population: 67000000
+      nato: true
+      nuclear: true
+
+  - id: IRL
+    name: Ireland
+    type: region
+    properties:
+      population: 5000000
+      eu: true
+
+  - id: BEL
+    name: Belgium
+    type: region
+    properties:
+      population: 11500000
+      nato: true
+      eu: true
+
+  - id: NLD
+    name: Netherlands
+    type: region
+    properties:
+      population: 17500000
+      nato: true
+      eu: true
+
+  # Central Europe
+  - id: DEU
+    name: Germany
+    type: region
+    properties:
+      population: 83000000
+      nato: true
+      eu: true
+
+  - id: CHE
+    name: Switzerland
+    type: region
+    properties:
+      population: 8700000
+      neutral: true
+
+  - id: AUT
+    name: Austria
+    type: region
+    properties:
+      population: 9000000
+      eu: true
+
+  - id: CZE
+    name: Czech Republic
+    type: region
+    properties:
+      population: 10500000
+      nato: true
+      eu: true
+
+  - id: SVK
+    name: Slovakia
+    type: region
+    properties:
+      population: 5500000
+      nato: true
+      eu: true
+
+  - id: HUN
+    name: Hungary
+    type: region
+    properties:
+      population: 9700000
+      nato: true
+      eu: true
+
+  - id: POL
+    name: Poland
+    type: region
+    properties:
+      population: 38000000
+      nato: true
+      eu: true
+
+  - id: SVN
+    name: Slovenia
+    type: region
+    properties:
+      population: 2100000
+      nato: true
+      eu: true
+
+  # Southern Europe
+  - id: ITA
+    name: Italy
+    type: region
+    properties:
+      population: 60000000
+      nato: true
+      eu: true
+
+  - id: GRC
+    name: Greece
+    type: region
+    properties:
+      population: 10500000
+      nato: true
+      eu: true
+
+  - id: TUR
+    name: Turkey
+    type: region
+    properties:
+      population: 85000000
+      nato: true
+
+  - id: HRV
+    name: Croatia
+    type: region
+    properties:
+      population: 4000000
+      nato: true
+      eu: true
+
+  - id: SRB
+    name: Serbia
+    type: region
+    properties:
+      population: 6900000
+
+  - id: BIH
+    name: Bosnia and Herzegovina
+    type: region
+    properties:
+      population: 3300000
+
+  - id: BGR
+    name: Bulgaria
+    type: region
+    properties:
+      population: 6900000
+      nato: true
+      eu: true
+
+  - id: ROU
+    name: Romania
+    type: region
+    properties:
+      population: 19000000
+      nato: true
+      eu: true
+
+  # Nordic
+  - id: DNK
+    name: Denmark
+    type: region
+    properties:
+      population: 5900000
+      nato: true
+      eu: true
+
+  - id: NOR
+    name: Norway
+    type: region
+    properties:
+      population: 5400000
+      nato: true
+
+  - id: SWE
+    name: Sweden
+    type: region
+    properties:
+      population: 10400000
+      nato: true
+      eu: true
+
+  - id: FIN
+    name: Finland
+    type: region
+    properties:
+      population: 5500000
+      nato: true
+      eu: true
+
+  # Baltic
+  - id: EST
+    name: Estonia
+    type: region
+    properties:
+      population: 1300000
+      nato: true
+      eu: true
+
+  - id: LVA
+    name: Latvia
+    type: region
+    properties:
+      population: 1900000
+      nato: true
+      eu: true
+
+  - id: LTU
+    name: Lithuania
+    type: region
+    properties:
+      population: 2800000
+      nato: true
+      eu: true
+
+  # Eastern Europe
+  - id: UKR
+    name: Ukraine
+    type: region
+    properties:
+      population: 43000000
+
+  - id: BLR
+    name: Belarus
+    type: region
+    properties:
+      population: 9400000
+      csto: true
+
+  - id: MDA
+    name: Moldova
+    type: region
+    properties:
+      population: 2600000
+
+  - id: RUS_EUR
+    name: European Russia
+    type: region
+    properties:
+      population: 110000000
+      nuclear: true
+      csto: true
+
+  # Capital cities
+  - id: london
+    name: London
+    type: city
+    coordinates: [-0.1, 51.5]
+    properties:
+      capital: true
+
+  - id: paris
+    name: Paris
+    type: city
+    coordinates: [2.35, 48.85]
+    properties:
+      capital: true
+
+  - id: berlin
+    name: Berlin
+    type: city
+    coordinates: [13.4, 52.5]
+    properties:
+      capital: true
+
+  - id: rome
+    name: Rome
+    type: city
+    coordinates: [12.5, 41.9]
+    properties:
+      capital: true
+
+  - id: moscow
+    name: Moscow
+    type: city
+    coordinates: [37.6, 55.8]
+    properties:
+      capital: true
+
+  - id: kyiv
+    name: Kyiv
+    type: city
+    coordinates: [30.5, 50.5]
+    properties:
+      capital: true
+
+  - id: warsaw
+    name: Warsaw
+    type: city
+    coordinates: [21.0, 52.2]
+    properties:
+      capital: true
+
+  - id: brussels
+    name: Brussels
+    type: city
+    coordinates: [4.35, 50.85]
+    properties:
+      capital: true
+      eu_hq: true
+      nato_hq: true
+
+edges:
+  # Western connections
+  - from: PRT
+    to: ESP
+    type: land
+    properties:
+      border: true
+
+  - from: ESP
+    to: FRA
+    type: land
+    properties:
+      border: true
+
+  - from: FRA
+    to: BEL
+    type: land
+    properties:
+      border: true
+
+  - from: FRA
+    to: DEU
+    type: land
+    properties:
+      border: true
+
+  - from: FRA
+    to: CHE
+    type: land
+    properties:
+      border: true
+
+  - from: FRA
+    to: ITA
+    type: land
+    properties:
+      border: true
+
+  - from: GBR
+    to: FRA
+    type: sea
+    properties:
+      channel: true
+
+  - from: GBR
+    to: IRL
+    type: sea
+    properties:
+      distance_km: 100
+
+  - from: BEL
+    to: NLD
+    type: land
+    properties:
+      border: true
+
+  - from: BEL
+    to: DEU
+    type: land
+    properties:
+      border: true
+
+  - from: NLD
+    to: DEU
+    type: land
+    properties:
+      border: true
+
+  # Central Europe
+  - from: DEU
+    to: CHE
+    type: land
+    properties:
+      border: true
+
+  - from: DEU
+    to: AUT
+    type: land
+    properties:
+      border: true
+
+  - from: DEU
+    to: CZE
+    type: land
+    properties:
+      border: true
+
+  - from: DEU
+    to: POL
+    type: land
+    properties:
+      border: true
+
+  - from: DEU
+    to: DNK
+    type: land
+    properties:
+      border: true
+
+  - from: CHE
+    to: AUT
+    type: land
+    properties:
+      border: true
+
+  - from: CHE
+    to: ITA
+    type: land
+    properties:
+      border: true
+
+  - from: AUT
+    to: ITA
+    type: land
+    properties:
+      border: true
+
+  - from: AUT
+    to: SVN
+    type: land
+    properties:
+      border: true
+
+  - from: AUT
+    to: HUN
+    type: land
+    properties:
+      border: true
+
+  - from: AUT
+    to: SVK
+    type: land
+    properties:
+      border: true
+
+  - from: AUT
+    to: CZE
+    type: land
+    properties:
+      border: true
+
+  - from: CZE
+    to: POL
+    type: land
+    properties:
+      border: true
+
+  - from: CZE
+    to: SVK
+    type: land
+    properties:
+      border: true
+
+  - from: SVK
+    to: POL
+    type: land
+    properties:
+      border: true
+
+  - from: SVK
+    to: HUN
+    type: land
+    properties:
+      border: true
+
+  - from: SVK
+    to: UKR
+    type: land
+    properties:
+      border: true
+
+  - from: HUN
+    to: ROU
+    type: land
+    properties:
+      border: true
+
+  - from: HUN
+    to: SRB
+    type: land
+    properties:
+      border: true
+
+  - from: HUN
+    to: HRV
+    type: land
+    properties:
+      border: true
+
+  - from: HUN
+    to: SVN
+    type: land
+    properties:
+      border: true
+
+  # Balkans
+  - from: SVN
+    to: HRV
+    type: land
+    properties:
+      border: true
+
+  - from: SVN
+    to: ITA
+    type: land
+    properties:
+      border: true
+
+  - from: HRV
+    to: SRB
+    type: land
+    properties:
+      border: true
+
+  - from: HRV
+    to: BIH
+    type: land
+    properties:
+      border: true
+
+  - from: SRB
+    to: BIH
+    type: land
+    properties:
+      border: true
+
+  - from: SRB
+    to: BGR
+    type: land
+    properties:
+      border: true
+
+  - from: SRB
+    to: ROU
+    type: land
+    properties:
+      border: true
+
+  - from: BGR
+    to: ROU
+    type: land
+    properties:
+      border: true
+
+  - from: BGR
+    to: GRC
+    type: land
+    properties:
+      border: true
+
+  - from: BGR
+    to: TUR
+    type: land
+    properties:
+      border: true
+
+  - from: GRC
+    to: TUR
+    type: land
+    properties:
+      border: true
+
+  # Nordic
+  - from: DNK
+    to: SWE
+    type: sea
+    properties:
+      bridge: true
+
+  - from: NOR
+    to: SWE
+    type: land
+    properties:
+      border: true
+
+  - from: NOR
+    to: FIN
+    type: land
+    properties:
+      border: true
+
+  - from: SWE
+    to: FIN
+    type: sea
+    properties:
+      distance_km: 300
+
+  - from: FIN
+    to: RUS_EUR
+    type: land
+    properties:
+      border: true
+
+  - from: FIN
+    to: EST
+    type: sea
+    properties:
+      distance_km: 80
+
+  # Baltic
+  - from: EST
+    to: LVA
+    type: land
+    properties:
+      border: true
+
+  - from: LVA
+    to: LTU
+    type: land
+    properties:
+      border: true
+
+  - from: LTU
+    to: POL
+    type: land
+    properties:
+      border: true
+
+  - from: LTU
+    to: BLR
+    type: land
+    properties:
+      border: true
+
+  - from: LVA
+    to: BLR
+    type: land
+    properties:
+      border: true
+
+  - from: EST
+    to: RUS_EUR
+    type: land
+    properties:
+      border: true
+
+  - from: LVA
+    to: RUS_EUR
+    type: land
+    properties:
+      border: true
+
+  # Eastern Europe
+  - from: POL
+    to: UKR
+    type: land
+    properties:
+      border: true
+
+  - from: POL
+    to: BLR
+    type: land
+    properties:
+      border: true
+
+  - from: UKR
+    to: BLR
+    type: land
+    properties:
+      border: true
+
+  - from: UKR
+    to: RUS_EUR
+    type: land
+    properties:
+      border: true
+
+  - from: UKR
+    to: MDA
+    type: land
+    properties:
+      border: true
+
+  - from: UKR
+    to: ROU
+    type: land
+    properties:
+      border: true
+
+  - from: UKR
+    to: HUN
+    type: land
+    properties:
+      border: true
+
+  - from: BLR
+    to: RUS_EUR
+    type: land
+    properties:
+      border: true
+
+  - from: MDA
+    to: ROU
+    type: land
+    properties:
+      border: true
+
+  # City containment
+  - from: london
+    to: GBR
+    type: contains
+    properties:
+      distance_km: 0
+
+  - from: paris
+    to: FRA
+    type: contains
+    properties:
+      distance_km: 0
+
+  - from: berlin
+    to: DEU
+    type: contains
+    properties:
+      distance_km: 0
+
+  - from: rome
+    to: ITA
+    type: contains
+    properties:
+      distance_km: 0
+
+  - from: moscow
+    to: RUS_EUR
+    type: contains
+    properties:
+      distance_km: 0
+
+  - from: kyiv
+    to: UKR
+    type: contains
+    properties:
+      distance_km: 0
+
+  - from: warsaw
+    to: POL
+    type: contains
+    properties:
+      distance_km: 0
+
+  - from: brussels
+    to: BEL
+    type: contains
+    properties:
+      distance_km: 0
+
+initial_control:
+  nato: [GBR, FRA, DEU, ITA, ESP, PRT, BEL, NLD, DNK, NOR, POL, CZE, SVK, HUN, ROU, BGR, GRC, TUR, EST, LVA, LTU, SVN, HRV, SWE, FIN]
+  russia: [RUS_EUR, BLR]
+  neutral: [CHE, AUT, IRL, SRB, BIH, UKR, MDA]
