@@ -333,6 +333,9 @@ class ComposedModules:
     # Supply chain network (loaded from supply_chain_base module's network_file)
     supply_chain_network: Optional[Any] = None  # SupplyChainNetwork, avoid circular import
 
+    # Trade infrastructure (loaded from trade_infrastructure module's infrastructure_file)
+    trade_infrastructure: Optional[Any] = None  # TradeInfrastructure, avoid circular import
+
     def __post_init__(self):
         """Merge all module components."""
         for module in self.modules:

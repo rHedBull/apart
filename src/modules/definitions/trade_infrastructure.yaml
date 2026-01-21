@@ -1,0 +1,237 @@
+module:
+  name: trade_infrastructure
+  version: "1.0.0"
+  description: "Physical trade infrastructure - shipping lanes, canals, straits, ports, pipelines. Models disruptions and rerouting."
+
+  requires: [supply_chain_base]
+  conflicts_with: []
+
+  config:
+    infrastructure_file:
+      type: string
+      required: true
+      description: "Path to YAML file defining infrastructure nodes and edges"
+
+  # Infrastructure node types
+  node_types:
+    canal:
+      description: "Man-made waterway (Suez, Panama)"
+      disruption_impact: high
+      reroute_possible: true
+      reroute_penalty_days: 7-14
+
+    strait:
+      description: "Natural chokepoint (Malacca, Hormuz, Bosphorus)"
+      disruption_impact: critical
+      reroute_possible: limited
+      reroute_penalty_days: 2-5
+
+    port:
+      description: "Major shipping port (Shanghai, Rotterdam, Singapore)"
+      disruption_impact: regional
+      reroute_possible: true
+      reroute_penalty_days: 1-3
+
+    pipeline:
+      description: "Oil/gas pipeline (Nord Stream, Druzhba)"
+      disruption_impact: high
+      reroute_possible: false
+      alternative: tanker_shipping
+
+    hub:
+      description: "Logistics hub or transshipment point"
+      disruption_impact: medium
+      reroute_possible: true
+
+  # Edge types (connections between infrastructure)
+  edge_types:
+    shipping_lane:
+      description: "Ocean shipping route"
+      mode: maritime
+      capacity_unit: teu_per_day  # Twenty-foot equivalent units
+
+    pipeline:
+      description: "Oil/gas pipeline connection"
+      mode: pipeline
+      capacity_unit: barrels_per_day
+
+    rail:
+      description: "Rail freight connection"
+      mode: rail
+      capacity_unit: tons_per_day
+
+    air_freight:
+      description: "Air cargo route"
+      mode: air
+      capacity_unit: tons_per_day
+      cost_multiplier: 10  # vs sea freight
+
+  variables:
+    global:
+      - name: infrastructure_status
+        type: dict
+        default: {}
+        description: "Map of node_id -> {status, capacity_pct, blocked_since}"
+
+      - name: blocked_chokepoints
+        type: list
+        default: []
+        description: "List of currently blocked infrastructure node IDs"
+
+      - name: degraded_routes
+        type: list
+        default: []
+        description: "List of routes with reduced capacity [{route_id, capacity_pct}]"
+
+      - name: global_shipping_delay
+        type: float
+        default: 0.0
+        min: 0.0
+        description: "Average additional transit days vs baseline"
+
+      - name: freight_cost_index
+        type: float
+        default: 100.0
+        min: 0.0
+        description: "Global freight cost index (100 = baseline)"
+
+      - name: active_blockades
+        type: list
+        default: []
+        description: "Military or political blockades [{blocker, target_node, since}]"
+
+    agent:
+      - name: route_dependencies
+        type: dict
+        default: {}
+        description: "Map of commodity -> list of critical route IDs"
+
+      - name: route_exposure
+        type: dict
+        default: {}
+        description: "Map of route_id -> exposure_pct (how much trade uses this route)"
+
+      - name: shipping_delay_impact
+        type: float
+        default: 0.0
+        description: "Current delay impact on this actor (additional days)"
+
+      - name: freight_cost_impact
+        type: float
+        default: 1.0
+        description: "Freight cost multiplier for this actor"
+
+      - name: rerouting_options
+        type: dict
+        default: {}
+        description: "Available alternative routes per primary route"
+
+      - name: blockade_imposing
+        type: list
+        default: []
+        description: "Blockades this actor is currently imposing"
+
+      - name: blockade_affected
+        type: list
+        default: []
+        description: "Blockades currently affecting this actor"
+
+  dynamics:
+    - description: "Blocked chokepoints force rerouting with time and cost penalties"
+      priority: 9
+      examples:
+        - "Suez blocked → Cape of Good Hope route adds 10-14 days, +30% fuel cost"
+        - "Malacca blocked → Lombok Strait adds 2-3 days for smaller vessels"
+        - "Panama blocked → Cape Horn or Suez alternative, +7-21 days"
+
+    - description: "Straits are harder to reroute around than canals"
+      priority: 9
+      examples:
+        - "Hormuz: no sea alternative, only pipelines bypass"
+        - "Malacca: Lombok/Sunda alternatives exist but capacity limited"
+        - "Bosphorus: no alternative for Black Sea access"
+
+    - description: "Port disruptions cause regional congestion as traffic diverts"
+      priority: 8
+      examples:
+        - "Shanghai port closure → Ningbo/Busan congestion"
+        - "Rotterdam disruption → Antwerp/Hamburg overflow"
+
+    - description: "Pipeline disruptions cannot be quickly rerouted - requires tanker infrastructure"
+      priority: 8
+      examples:
+        - "Nord Stream sabotage → LNG terminals needed, months to adapt"
+        - "Druzhba pipeline cut → tanker via Baltic/Black Sea"
+
+    - description: "Disruption duration determines impact severity"
+      priority: 8
+      conditions:
+        - "< 1 week: ships wait or minor reroute, minimal impact"
+        - "1-4 weeks: major rerouting, price spikes, some shortages"
+        - "1-3 months: supply chain stress, stockpile depletion"
+        - "> 3 months: structural adaptation, new routes established"
+
+    - description: "Rerouting capacity is limited - not all traffic can divert simultaneously"
+      priority: 7
+      examples:
+        - "Alternative routes have capacity limits"
+        - "Large vessels (VLCC, ULCC) cannot use all alternatives due to draft"
+        - "Congestion at alternative routes increases delays further"
+
+    - description: "Blockades are a deliberate act of economic warfare"
+      priority: 7
+      examples:
+        - "Naval blockade of ports cuts off sea trade"
+        - "Blockade effectiveness depends on naval power and geography"
+
+    - description: "Freight costs spike during disruptions due to rerouting and insurance"
+      priority: 6
+
+  constraints:
+    - description: "Traffic through a route cannot exceed its capacity"
+      enforcement: hard
+
+    - description: "Blocked routes have zero capacity until reopened"
+      enforcement: hard
+
+    - description: "Rerouting only possible if alternative path exists"
+      enforcement: hard
+
+    - description: "Large vessels cannot use shallow-draft alternatives"
+      enforcement: guided
+
+    - description: "Blockades require military capability to enforce"
+      enforcement: guided
+
+  agent_effects:
+    - description: "Actors dependent on disrupted routes face supply pressure"
+      applies_to: all
+
+    - description: "Actors with route diversity are more resilient to disruptions"
+      applies_to: all
+
+    - description: "Actors controlling chokepoints have strategic leverage"
+      applies_to: all
+
+    - description: "Freight cost increases disproportionately affect import-dependent actors"
+      applies_to: all
+
+    - description: "Actors imposing blockades face international pressure and potential retaliation"
+      applies_to: all
+
+  event_types:
+    - chokepoint_blocked
+    - chokepoint_reopened
+    - route_degraded
+    - route_restored
+    - blockade_imposed
+    - blockade_lifted
+    - port_congestion
+    - freight_spike
+    - rerouting_initiated
+
+  event_probabilities:
+    chokepoint_blocked: 0.02
+    route_degraded: 0.05
+    port_congestion: 0.08
+    freight_spike: 0.10

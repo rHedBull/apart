@@ -51,6 +51,10 @@ class ModuleComposer:
             if module.name == "supply_chain_base" and module.config_values.get("network_file"):
                 self._load_network_for_module(module, composed)
 
+            # Load trade infrastructure if trade_infrastructure module has infrastructure_file config
+            if module.name == "trade_infrastructure" and module.config_values.get("infrastructure_file"):
+                self._load_infrastructure_for_module(module, composed)
+
         return composed
 
     def _load_map_for_module(
@@ -87,6 +91,21 @@ class ModuleComposer:
 
         network = load_network_file(network_file)
         composed.supply_chain_network = network
+
+    def _load_infrastructure_for_module(
+        self,
+        module: BehaviorModule,
+        composed: ComposedModules
+    ) -> None:
+        """Load infrastructure file and populate trade infrastructure in composed modules."""
+        from modules.infrastructure_loader import load_infrastructure_file
+
+        infrastructure_file = module.config_values.get("infrastructure_file")
+        if not infrastructure_file:
+            return
+
+        infrastructure = load_infrastructure_file(infrastructure_file)
+        composed.trade_infrastructure = infrastructure
 
     def to_var_definitions(
         self,
