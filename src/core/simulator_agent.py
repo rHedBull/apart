@@ -8,6 +8,7 @@ from utils.logging_config import MessageCode
 from utils.spatial_graph import SpatialGraph
 from utils.spatial_queries import SpatialQueryEngine
 from utils.movement_validator import MovementValidator, MovementConfig
+from modules.models import ComposedModules
 
 
 class SimulationError(Exception):
@@ -33,6 +34,7 @@ class SimulatorAgent:
         geography: Optional[Dict[str, Any]] = None,
         spatial_graph: Optional[SpatialGraph] = None,
         movement_config: Optional[MovementConfig] = None,
+        composed_modules: Optional[ComposedModules] = None,
         logger=None
     ):
         self.llm_provider = llm_provider
@@ -46,6 +48,7 @@ class SimulatorAgent:
         self.simulator_awareness = simulator_awareness
         self.enable_compute_resources = enable_compute_resources
         self.geography = geography or {}
+        self.composed_modules = composed_modules
         self.logger = logger
 
         # Spatial graph components
@@ -374,8 +377,19 @@ Time Scale: Each step represents {self.time_step_duration}"""
         if geography_section:
             geography_section = f"\n{geography_section}\n"
 
+        # Build module sections if available
+        modules_section = ""
+        if self.composed_modules:
+            dynamics = self.composed_modules.to_dynamics_prompt()
+            constraints = self.composed_modules.to_constraints_prompt()
+            effects = self.composed_modules.to_agent_effects_prompt()
+
+            module_parts = [s for s in [dynamics, constraints, effects] if s]
+            if module_parts:
+                modules_section = "\n" + "\n\n".join(module_parts) + "\n"
+
         prompt = f"""{context_intro}
-{geography_section}
+{geography_section}{modules_section}
 === INITIAL STATE ===
 Global Variables (Available with types):
 {self._format_variable_definitions(self.game_engine.global_var_definitions)}
@@ -462,6 +476,20 @@ Time Scale: Each step represents {self.time_step_duration}""")
         geography_section = self._format_geography(agent_locations)
         if geography_section:
             sections.append(f"\n{geography_section}")
+
+        # Module dynamics and constraints
+        if self.composed_modules:
+            dynamics_section = self.composed_modules.to_dynamics_prompt()
+            if dynamics_section:
+                sections.append(f"\n{dynamics_section}")
+
+            constraints_section = self.composed_modules.to_constraints_prompt()
+            if constraints_section:
+                sections.append(f"\n{constraints_section}")
+
+            agent_effects_section = self.composed_modules.to_agent_effects_prompt()
+            if agent_effects_section:
+                sections.append(f"\n{agent_effects_section}")
 
         # Scripted events
         if self.scripted_events:

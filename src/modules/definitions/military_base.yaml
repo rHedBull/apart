@@ -1,0 +1,64 @@
+module:
+  name: military_base
+  version: "1.0.0"
+  description: "Core military simulation variables: territory, resources, and overall military strength"
+
+  requires: []
+  conflicts_with: []
+
+  variables:
+    global:
+      - name: territory
+        type: dict
+        default: {}
+        description: "Territory control mapping {region_name: controlling_agent}"
+
+      - name: contested_regions
+        type: list
+        default: []
+        description: "List of regions currently being contested"
+
+    agent:
+      - name: resources
+        type: int
+        default: 1000
+        min: 0
+        description: "Available resources for military operations"
+
+      - name: military_strength
+        type: percent
+        default: 100
+        min: 0
+        max: 100
+        description: "Overall military power as percentage of initial capacity"
+
+      - name: controlled_territory
+        type: list
+        default: []
+        description: "List of region names this agent controls"
+
+  dynamics:
+    - description: "Territory control shifts based on military engagements and force presence"
+      priority: 7
+
+    - description: "Resources are consumed by military operations and regenerate slowly during peace"
+      priority: 6
+
+    - description: "Military strength degrades with losses and recovers slowly with resources"
+      priority: 6
+
+  constraints:
+    - description: "Territory can only change hands through military action or negotiation"
+      enforcement: guided
+
+    - description: "Resources cannot go negative"
+      enforcement: hard
+      variable: resources
+      rule: "min: 0"
+
+  agent_effects:
+    - description: "Low resources limit operational options"
+      applies_to: all
+
+    - description: "Territory losses affect agent morale and decision-making"
+      applies_to: all

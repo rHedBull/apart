@@ -1,0 +1,107 @@
+module:
+  name: casualties
+  version: "1.0.0"
+  description: "Casualty tracking per force type with attrition effects on military strength"
+
+  requires: [force_types, military_base]
+  conflicts_with: []
+
+  variables:
+    global:
+      - name: total_casualties
+        type: count
+        default: 0
+        min: 0
+        description: "Total casualties across all parties and force types"
+
+    agent:
+      - name: infantry_losses
+        type: count
+        default: 0
+        min: 0
+        description: "Cumulative infantry casualties"
+
+      - name: armor_losses
+        type: count
+        default: 0
+        min: 0
+        description: "Cumulative armor casualties"
+
+      - name: air_losses
+        type: count
+        default: 0
+        min: 0
+        description: "Cumulative air casualties"
+
+      - name: naval_losses
+        type: count
+        default: 0
+        min: 0
+        description: "Cumulative naval casualties"
+
+      - name: air_defense_losses
+        type: count
+        default: 0
+        min: 0
+        description: "Cumulative air defense casualties"
+
+      - name: total_losses
+        type: count
+        default: 0
+        min: 0
+        description: "Sum of all force type losses for this agent"
+
+      - name: attrition_rate
+        type: float
+        default: 0.0
+        min: 0.0
+        max: 1.0
+        description: "Current rate of losses per engagement (0.0-1.0)"
+
+  dynamics:
+    - description: "Casualties reduce the corresponding force type count each step"
+      priority: 9
+      examples:
+        - "10 infantry_losses means infantry count decreases by 10"
+        - "Losses are subtracted from available forces"
+
+    - description: "High casualties degrade overall military_strength"
+      priority: 8
+      examples:
+        - "Losing 20% of forces reduces military_strength proportionally"
+        - "Elite unit losses have outsized impact on capability"
+
+    - description: "Attrition accumulates - sustained combat leads to increasing loss rates"
+      priority: 7
+
+    - description: "Asymmetric engagements produce asymmetric casualties (AA vs Air, 3:1 rule)"
+      priority: 8
+      examples:
+        - "Air attacking into AA: air_losses high, air_defense_losses low"
+        - "3:1 attacker advantage: defender takes 60-80% casualties, attacker 20-30%"
+
+    - description: "Retreating forces suffer additional casualties"
+      priority: 6
+
+  constraints:
+    - description: "Losses cannot exceed available forces of that type"
+      enforcement: hard
+
+    - description: "Casualties are permanent - lost units don't return"
+      enforcement: guided
+
+    - description: "Loss rates should reflect engagement intensity"
+      enforcement: guided
+
+  agent_effects:
+    - description: "High casualties increase domestic pressure to end conflict"
+      applies_to: all
+
+    - description: "Disproportionate losses in one force type limit tactical options"
+      applies_to: all
+
+    - description: "Mounting casualties may trigger calls for ceasefire or negotiation"
+      applies_to: all
+
+    - description: "Casualty-averse agents may avoid high-risk operations"
+      applies_to: all
