@@ -3,7 +3,7 @@ module:
   version: "1.0.0"
   description: "Casualty tracking per force type with attrition effects on military strength"
 
-  requires: [force_types]
+  requires: [force_types, military_base]
   conflicts_with: []
 
   variables:
