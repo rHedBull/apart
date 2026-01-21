@@ -186,9 +186,12 @@ class SimulatorAgent:
                 if self.logger:
                     self.logger.debug(MessageCode.ENG003, "Calling LLM", step=step_number)
 
-                # Use structured JSON output for Gemini
-                from llm.providers import GeminiProvider
-                if isinstance(self.llm_provider, GeminiProvider):
+                # Use structured JSON output for Gemini provider
+                is_gemini = (
+                    hasattr(self.llm_provider, 'provider_type')
+                    and self.llm_provider.provider_type == "gemini"
+                )
+                if is_gemini:
                     response_text = self.llm_provider.generate_response(
                         prompt=prompt,
                         system_prompt=self.system_prompt,

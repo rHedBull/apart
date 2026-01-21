@@ -9,7 +9,7 @@ from core.event_emitter import emit, enable_event_emitter, disable_event_emitter
 from utils.persistence import RunPersistence
 from utils.logging_config import MessageCode, PerformanceTimer
 from utils.config_parser import parse_scripted_events, parse_geography, parse_spatial_graph
-from llm.providers import GeminiProvider, OllamaProvider, UnifiedLLMProvider
+from llm.providers import UnifiedLLMProvider
 
 
 class Orchestrator:
@@ -113,7 +113,6 @@ class Orchestrator:
 
                 elif provider_type == "gemini":
                     model_name = llm_config.get("model", "gemini-1.5-flash")
-                    # Can use UnifiedLLMProvider or keep GeminiProvider for backwards compatibility
                     llm_provider = UnifiedLLMProvider(provider="gemini", model=model_name)
                     provider_display = f"Google Gemini ({model_name})"
                     setup_instructions = (
@@ -125,7 +124,6 @@ class Orchestrator:
                 elif provider_type == "ollama":
                     model_name = llm_config.get("model", "llama2")
                     base_url = llm_config.get("base_url")
-                    # Can use UnifiedLLMProvider or keep OllamaProvider for backwards compatibility
                     llm_provider = UnifiedLLMProvider(provider="ollama", model=model_name, base_url=base_url)
                     provider_display = f"Ollama ({model_name})"
                     setup_instructions = (
@@ -222,9 +220,186 @@ Example of a BAD response: "I think about going to the market" (this is just int
 
         return provider
 
+    def _initialize_simulation(self) -> dict:
+        """Initialize simulation (step 0) and return initial agent messages."""
+        print("=== Step 0: Initialization ===")
+        agent_names = [agent.name for agent in self.agents]
+
+        try:
+            agent_messages = self.simulator_agent.initialize_simulation(agent_names)
+            print("SimulatorAgent initialized simulation")
+        except SimulationError as e:
+            self.logger.critical(MessageCode.SIM002, "Initialization failed", error=str(e))
+            print(f"\nERROR: Simulation initialization failed:\n{e}", file=sys.stderr)
+            raise
+
+        # Initialize agent stats after simulation setup
+        initial_state = self.game_engine.get_state_snapshot()
+        for agent in self.agents:
+            agent_stats = initial_state["agent_vars"].get(agent.name, {})
+            agent.update_stats(agent_stats)
+
+        return agent_messages
+
+    def _collect_agent_responses(self, step: int, agent_messages: dict) -> tuple[dict, list]:
+        """Collect responses from all agents for a step."""
+        agent_responses = {}
+        step_messages = []
+
+        for agent in self.agents:
+            try:
+                message = agent_messages[agent.name]
+                print(f"SimulatorAgent -> {agent.name}: {message}")
+
+                self.logger.info(
+                    MessageCode.AGT002,
+                    "Message sent to agent",
+                    agent_name=agent.name,
+                    step=step,
+                    content=message
+                )
+
+                emit(
+                    EventTypes.AGENT_MESSAGE_SENT,
+                    step=step,
+                    agent_name=agent.name,
+                    message=message
+                )
+
+                step_messages.append({
+                    "from": "SimulatorAgent",
+                    "to": agent.name,
+                    "content": message
+                })
+
+                # Update agent's stats before they respond
+                current_state = self.game_engine.get_state_snapshot()
+                agent_stats = current_state["agent_vars"].get(agent.name, {})
+                agent.update_stats(agent_stats)
+
+                # Agent responds
+                response = agent.respond(message)
+                print(f"{agent.name} -> SimulatorAgent: {response}")
+
+                self.logger.info(
+                    MessageCode.AGT003,
+                    "Response received from agent",
+                    agent_name=agent.name,
+                    step=step,
+                    response=response
+                )
+
+                emit(
+                    EventTypes.AGENT_RESPONSE_RECEIVED,
+                    step=step,
+                    agent_name=agent.name,
+                    response=response
+                )
+
+                step_messages.append({
+                    "from": agent.name,
+                    "to": "SimulatorAgent",
+                    "content": response
+                })
+
+                agent_responses[agent.name] = response
+
+            except Exception as e:
+                error_msg = f"Agent {agent.name} failed: {e}"
+                self.logger.error(
+                    MessageCode.AGT005,
+                    error_msg,
+                    agent_name=agent.name,
+                    step=step,
+                    error=str(e)
+                )
+                print(f"ERROR: {error_msg}", file=sys.stderr)
+                agent_responses[agent.name] = f"ERROR: {str(e)}"
+
+        return agent_responses, step_messages
+
+    def _process_step_results(self, step: int, agent_responses: dict, step_messages: list) -> dict:
+        """Process step results and return next agent messages."""
+        try:
+            agent_messages = self.simulator_agent.process_step(step, agent_responses)
+            print(f"[SimulatorAgent processed step {step}]")
+        except SimulationError as e:
+            self.logger.critical(
+                MessageCode.SIM002,
+                "Simulation failed",
+                step=step,
+                error=str(e)
+            )
+            print(f"\nERROR: Simulation failed at step {step}:\n{e}", file=sys.stderr)
+            raise
+
+        # Save snapshot if needed
+        if self.persistence.should_save(step):
+            try:
+                snapshot = self.game_engine.get_state_snapshot()
+                self.persistence.save_snapshot(
+                    step,
+                    snapshot["game_state"],
+                    snapshot["global_vars"],
+                    snapshot["agent_vars"],
+                    step_messages
+                )
+                print(f"[Saved snapshot at step {step}]")
+            except Exception as e:
+                error_msg = f"Failed to save snapshot: {e}"
+                self.logger.error(MessageCode.PER004, error_msg, step=step, error=str(e))
+                print(f"WARNING: {error_msg}", file=sys.stderr)
+
+        # Advance round
+        self.game_engine.advance_round()
+        self.logger.info(MessageCode.SIM004, "Step completed", step=step)
+
+        # Emit step completed event with state snapshot
+        snapshot = self.game_engine.get_state_snapshot()
+        emit(
+            EventTypes.STEP_COMPLETED,
+            step=step,
+            global_vars=snapshot.get("global_vars", {}),
+            agent_vars=snapshot.get("agent_vars", {})
+        )
+
+        return agent_messages
+
+    def _save_final_state(self, step_messages: list):
+        """Save final simulation state."""
+        try:
+            snapshot = self.game_engine.get_state_snapshot()
+            self.persistence.save_final(
+                self.max_steps,
+                snapshot["game_state"],
+                snapshot["global_vars"],
+                snapshot["agent_vars"],
+                step_messages
+            )
+        except Exception as e:
+            error_msg = f"Failed to save final state: {e}"
+            self.logger.critical(MessageCode.PER004, error_msg, error=str(e))
+            print(f"ERROR: {error_msg}", file=sys.stderr)
+
+        self.logger.info(MessageCode.SIM002, "Simulation completed", total_steps=self.max_steps)
+
+        # Emit simulation completed event
+        final_snapshot = self.game_engine.get_state_snapshot()
+        emit(
+            EventTypes.SIMULATION_COMPLETED,
+            step=self.max_steps,
+            total_steps=self.max_steps,
+            final_state=final_snapshot.get("game_state", {}),
+            global_vars=final_snapshot.get("global_vars", {}),
+            agent_vars=final_snapshot.get("agent_vars", {})
+        )
+
+        print("\nSimulation completed.")
+        print(f"Final game state: {self.game_engine.get_state()}")
+        print(f"\nResults saved to: {self.persistence.run_dir}")
+
     def run(self):
         """Run the simulation loop with SimulatorAgent."""
-        # Enable event emission for this run
         enable_event_emitter(self.persistence.run_id)
 
         self.logger.info(
@@ -235,10 +410,7 @@ Example of a BAD response: "I think about going to the market" (this is just int
         )
 
         # Emit simulation started event
-        spatial_graph_data = None
-        if self.spatial_graph:
-            spatial_graph_data = self.spatial_graph.to_dict()
-
+        spatial_graph_data = self.spatial_graph.to_dict() if self.spatial_graph else None
         emit(
             EventTypes.SIMULATION_STARTED,
             num_agents=len(self.agents),
@@ -251,186 +423,20 @@ Example of a BAD response: "I think about going to the market" (this is just int
         print(f"Starting simulation with {len(self.agents)} agent(s) for {self.max_steps} steps")
         print(f"Results will be saved to: {self.persistence.run_dir}\n")
 
+        step_messages = []
         try:
-            # Step 0: Initialize simulation
-            print("=== Step 0: Initialization ===")
-            agent_names = [agent.name for agent in self.agents]
+            agent_messages = self._initialize_simulation()
 
-            try:
-                agent_messages = self.simulator_agent.initialize_simulation(agent_names)
-                print("SimulatorAgent initialized simulation")
-            except SimulationError as e:
-                self.logger.critical(MessageCode.SIM002, "Initialization failed", error=str(e))
-                print(f"\nERROR: Simulation initialization failed:\n{e}", file=sys.stderr)
-                raise
-
-            # Initialize agent stats after simulation setup
-            initial_state = self.game_engine.get_state_snapshot()
-            for agent in self.agents:
-                agent_stats = initial_state["agent_vars"].get(agent.name, {})
-                agent.update_stats(agent_stats)
-
-            # Main simulation loop
             for step in range(1, self.max_steps + 1):
                 with PerformanceTimer(self.logger, MessageCode.PRF001, f"Step {step}", step=step):
                     self.logger.info(MessageCode.SIM003, "Step started", step=step, max_steps=self.max_steps)
-
-                    # Emit step started event
                     emit(EventTypes.STEP_STARTED, step=step, max_steps=self.max_steps)
-
                     print(f"\n=== Step {step}/{self.max_steps} ===")
 
-                    # Collect agent responses
-                    agent_responses = {}
-                    step_messages = []
+                    agent_responses, step_messages = self._collect_agent_responses(step, agent_messages)
+                    agent_messages = self._process_step_results(step, agent_responses, step_messages)
 
-                    for agent in self.agents:
-                        try:
-                            message = agent_messages[agent.name]
-                            print(f"SimulatorAgent -> {agent.name}: {message}")
-
-                            self.logger.info(
-                                MessageCode.AGT002,
-                                "Message sent to agent",
-                                agent_name=agent.name,
-                                step=step,
-                                content=message
-                            )
-
-                            # Emit message sent event
-                            emit(
-                                EventTypes.AGENT_MESSAGE_SENT,
-                                step=step,
-                                agent_name=agent.name,
-                                message=message
-                            )
-
-                            step_messages.append({
-                                "from": "SimulatorAgent",
-                                "to": agent.name,
-                                "content": message
-                            })
-
-                            # Update agent's stats before they respond
-                            current_state = self.game_engine.get_state_snapshot()
-                            agent_stats = current_state["agent_vars"].get(agent.name, {})
-                            agent.update_stats(agent_stats)
-
-                            # Agent responds
-                            response = agent.respond(message)
-                            print(f"{agent.name} -> SimulatorAgent: {response}")
-
-                            self.logger.info(
-                                MessageCode.AGT003,
-                                "Response received from agent",
-                                agent_name=agent.name,
-                                step=step,
-                                response=response
-                            )
-
-                            # Emit response received event
-                            emit(
-                                EventTypes.AGENT_RESPONSE_RECEIVED,
-                                step=step,
-                                agent_name=agent.name,
-                                response=response
-                            )
-
-                            step_messages.append({
-                                "from": agent.name,
-                                "to": "SimulatorAgent",
-                                "content": response
-                            })
-
-                            agent_responses[agent.name] = response
-
-                        except Exception as e:
-                            error_msg = f"Agent {agent.name} failed: {e}"
-                            self.logger.error(
-                                MessageCode.AGT005,
-                                error_msg,
-                                agent_name=agent.name,
-                                step=step,
-                                error=str(e)
-                            )
-                            print(f"ERROR: {error_msg}", file=sys.stderr)
-                            agent_responses[agent.name] = f"ERROR: {str(e)}"
-
-                    # SimulatorAgent processes responses and generates next messages
-                    try:
-                        agent_messages = self.simulator_agent.process_step(step, agent_responses)
-                        print(f"[SimulatorAgent processed step {step}]")
-                    except SimulationError as e:
-                        self.logger.critical(
-                            MessageCode.SIM002,
-                            "Simulation failed",
-                            step=step,
-                            error=str(e)
-                        )
-                        print(f"\nERROR: Simulation failed at step {step}:\n{e}", file=sys.stderr)
-                        raise
-
-                    # Save snapshot if needed
-                    if self.persistence.should_save(step):
-                        try:
-                            snapshot = self.game_engine.get_state_snapshot()
-                            self.persistence.save_snapshot(
-                                step,
-                                snapshot["game_state"],
-                                snapshot["global_vars"],
-                                snapshot["agent_vars"],
-                                step_messages
-                            )
-                            print(f"[Saved snapshot at step {step}]")
-                        except Exception as e:
-                            error_msg = f"Failed to save snapshot: {e}"
-                            self.logger.error(MessageCode.PER004, error_msg, step=step, error=str(e))
-                            print(f"WARNING: {error_msg}", file=sys.stderr)
-
-                    # Advance round
-                    self.game_engine.advance_round()
-                    self.logger.info(MessageCode.SIM004, "Step completed", step=step)
-
-                    # Emit step completed event with state snapshot
-                    snapshot = self.game_engine.get_state_snapshot()
-                    emit(
-                        EventTypes.STEP_COMPLETED,
-                        step=step,
-                        global_vars=snapshot.get("global_vars", {}),
-                        agent_vars=snapshot.get("agent_vars", {})
-                    )
-
-            # Save final state
-            try:
-                snapshot = self.game_engine.get_state_snapshot()
-                self.persistence.save_final(
-                    self.max_steps,
-                    snapshot["game_state"],
-                    snapshot["global_vars"],
-                    snapshot["agent_vars"],
-                    step_messages
-                )
-            except Exception as e:
-                error_msg = f"Failed to save final state: {e}"
-                self.logger.critical(MessageCode.PER004, error_msg, error=str(e))
-                print(f"ERROR: {error_msg}", file=sys.stderr)
-
-            self.logger.info(MessageCode.SIM002, "Simulation completed", total_steps=self.max_steps)
-
-            # Emit simulation completed event
-            final_snapshot = self.game_engine.get_state_snapshot()
-            emit(
-                EventTypes.SIMULATION_COMPLETED,
-                step=self.max_steps,
-                total_steps=self.max_steps,
-                final_state=final_snapshot.get("game_state", {}),
-                global_vars=final_snapshot.get("global_vars", {}),
-                agent_vars=final_snapshot.get("agent_vars", {})
-            )
-
-            print("\nSimulation completed.")
-            print(f"Final game state: {self.game_engine.get_state()}")
-            print(f"\nResults saved to: {self.persistence.run_dir}")
+            self._save_final_state(step_messages)
 
         except KeyboardInterrupt:
             self.logger.warning(MessageCode.SIM002, "Simulation interrupted by user")
@@ -438,7 +444,6 @@ Example of a BAD response: "I think about going to the market" (this is just int
             raise
 
         except SimulationError:
-            # Already logged, just re-raise
             raise
 
         except Exception as e:
