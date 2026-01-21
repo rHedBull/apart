@@ -11,10 +11,12 @@ from modules.models import (
     ModuleDynamic,
     ModuleConstraint,
     ModuleAgentEffect,
+    ModuleConfigField,
     ComposedModules,
 )
 from modules.loader import ModuleLoader, ModuleRegistry
 from modules.composer import ModuleComposer
+from modules.map_loader import load_map_file, MapLoadError
 
 __all__ = [
     "BehaviorModule",
@@ -22,8 +24,11 @@ __all__ = [
     "ModuleDynamic",
     "ModuleConstraint",
     "ModuleAgentEffect",
+    "ModuleConfigField",
     "ComposedModules",
     "ModuleLoader",
     "ModuleRegistry",
     "ModuleComposer",
+    "load_map_file",
+    "MapLoadError",
 ]

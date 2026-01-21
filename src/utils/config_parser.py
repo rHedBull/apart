@@ -454,6 +454,11 @@ def resolve_personas_in_config(
     return result
 
 
+class ModuleConfigError(Exception):
+    """Error with module configuration."""
+    pass
+
+
 def parse_modules(
     config: dict[str, Any],
     modules_dir: Path | str | None = None
@@ -468,8 +473,18 @@ def parse_modules(
     Returns:
         ComposedModules if modules are specified, None otherwise
 
+    Raises:
+        ModuleConfigError: If required config is missing or invalid
+
     Example:
-        config = {"modules": ["military_operations", "fog_of_war"]}
+        config = {
+            "modules": ["territory_graph", "military_base"],
+            "module_config": {
+                "territory_graph": {
+                    "map_file": "modules/maps/sample_conflict.yaml"
+                }
+            }
+        }
         composed = parse_modules(config)
     """
     module_names = config.get("modules", [])
@@ -479,6 +494,25 @@ def parse_modules(
     modules_path = Path(modules_dir) if modules_dir else None
     loader = ModuleLoader(modules_path)
     modules = loader.load_many(module_names)
+
+    # Get module config from scenario
+    module_config = config.get("module_config", {})
+
+    # Validate and apply config to each module
+    all_errors = []
+    for module in modules:
+        if module.has_config_schema():
+            module_cfg = module_config.get(module.name, {})
+            errors = module.validate_config(module_cfg)
+            if errors:
+                all_errors.extend(errors)
+            else:
+                module.apply_config(module_cfg)
+
+    if all_errors:
+        raise ModuleConfigError(
+            "Module configuration errors:\n  " + "\n  ".join(all_errors)
+        )
 
     composer = ModuleComposer()
     return composer.compose(modules)

@@ -51,8 +51,13 @@ class Orchestrator:
         # Parse geography if present
         geography = parse_geography(self.config.get("geography"))
 
-        # Parse spatial graph if present (for graph-based spatial modeling)
-        self.spatial_graph, movement_config = parse_spatial_graph(self.config.get("geography"))
+        # Get spatial graph from modules or fall back to geography config
+        if self.composed_modules and self.composed_modules.spatial_graph:
+            self.spatial_graph = self.composed_modules.spatial_graph
+            movement_config = self.composed_modules.movement_config
+        else:
+            # Parse spatial graph from geography config (legacy)
+            self.spatial_graph, movement_config = parse_spatial_graph(self.config.get("geography"))
 
         self.simulator_agent = SimulatorAgent(
             llm_provider=simulator_llm,

@@ -1,23 +1,12 @@
 module:
   name: military_base
   version: "1.0.0"
-  description: "Core military simulation variables: territory, resources, and overall military strength"
+  description: "Core military simulation variables: resources and overall military strength"
 
-  requires: []
+  requires: [territory_graph]
   conflicts_with: []
 
   variables:
-    global:
-      - name: territory
-        type: dict
-        default: {}
-        description: "Territory control mapping {region_name: controlling_agent}"
-
-      - name: contested_regions
-        type: list
-        default: []
-        description: "List of regions currently being contested"
-
     agent:
       - name: resources
         type: int
@@ -31,11 +20,6 @@ module:
         min: 0
         max: 100
         description: "Overall military power as percentage of initial capacity"
-
-      - name: controlled_territory
-        type: list
-        default: []
-        description: "List of region names this agent controls"
 
   dynamics:
     - description: "Territory control shifts based on military engagements and force presence"

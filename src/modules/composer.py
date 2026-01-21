@@ -31,6 +31,7 @@ class ModuleComposer:
         Merge all modules into a unified ComposedModules object.
 
         The ComposedModules class handles the actual merging in __post_init__.
+        If territory_graph module is present with map_file config, loads the map.
 
         Args:
             modules: List of BehaviorModule objects to compose
@@ -38,7 +39,34 @@ class ModuleComposer:
         Returns:
             ComposedModules with all merged content
         """
-        return ComposedModules(modules=modules)
+        composed = ComposedModules(modules=modules)
+
+        # Load spatial graph if territory_graph module has map_file config
+        for module in modules:
+            if module.name == "territory_graph" and module.config_values.get("map_file"):
+                self._load_map_for_module(module, composed)
+                break
+
+        return composed
+
+    def _load_map_for_module(
+        self,
+        module: BehaviorModule,
+        composed: ComposedModules
+    ) -> None:
+        """Load map file and populate spatial graph in composed modules."""
+        from modules.map_loader import load_map_file, create_movement_config
+
+        map_file = module.config_values.get("map_file")
+        if not map_file:
+            return
+
+        spatial_graph, metadata = load_map_file(map_file)
+        movement_config = create_movement_config(module.config_values)
+
+        composed.spatial_graph = spatial_graph
+        composed.map_metadata = metadata
+        composed.movement_config = movement_config
 
     def to_var_definitions(
         self,

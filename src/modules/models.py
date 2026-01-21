@@ -30,6 +30,21 @@ class ReinforcementType(str, Enum):
 
 
 @dataclass
+class ModuleConfigField:
+    """
+    A configuration field for a behavior module.
+
+    Config fields define what configuration the module needs from the scenario.
+    For example, territory_graph needs a map_file path.
+    """
+    name: str
+    type: str  # "string", "int", "float", "bool", "dict", "list"
+    description: str
+    required: bool = False
+    default: Any = None
+
+
+@dataclass
 class ModuleVariable:
     """
     A variable provided by a behavior module.
@@ -182,6 +197,11 @@ class BehaviorModule:
     constraints: List[ModuleConstraint] = field(default_factory=list)
     agent_effects: List[ModuleAgentEffect] = field(default_factory=list)
 
+    # Configuration schema (what the scenario must provide)
+    config_schema: List[ModuleConfigField] = field(default_factory=list)
+    # Actual config values (populated when module is loaded with config)
+    config_values: Dict[str, Any] = field(default_factory=dict)
+
     # Dependencies on other modules
     requires: List[str] = field(default_factory=list)
     conflicts_with: List[str] = field(default_factory=list)
@@ -201,6 +221,53 @@ class BehaviorModule:
     def get_agent_variables(self) -> List[ModuleVariable]:
         """Get all agent-scope variables."""
         return [v for v in self.variables if v.scope == "agent"]
+
+    def get_config(self, key: str, default: Any = None) -> Any:
+        """Get a config value by key."""
+        return self.config_values.get(key, default)
+
+    def has_config_schema(self) -> bool:
+        """Check if this module requires configuration."""
+        return len(self.config_schema) > 0
+
+    def get_required_config_fields(self) -> List[str]:
+        """Get names of required config fields."""
+        return [f.name for f in self.config_schema if f.required]
+
+    def validate_config(self, config: Dict[str, Any]) -> List[str]:
+        """
+        Validate config values against schema.
+
+        Returns list of error messages (empty if valid).
+        """
+        errors = []
+
+        # Check required fields
+        for field in self.config_schema:
+            if field.required and field.name not in config:
+                errors.append(
+                    f"Module '{self.name}' requires config field '{field.name}'"
+                )
+
+        # Check for unknown fields
+        known_fields = {f.name for f in self.config_schema}
+        for key in config:
+            if key not in known_fields:
+                errors.append(
+                    f"Unknown config field '{key}' for module '{self.name}'"
+                )
+
+        return errors
+
+    def apply_config(self, config: Dict[str, Any]) -> None:
+        """
+        Apply config values, using defaults for missing optional fields.
+        """
+        for field in self.config_schema:
+            if field.name in config:
+                self.config_values[field.name] = config[field.name]
+            elif field.default is not None:
+                self.config_values[field.name] = field.default
 
     def to_prompt_sections(self) -> Dict[str, str]:
         """Generate prompt sections for this module."""
@@ -256,6 +323,11 @@ class ComposedModules:
 
     # Event generation
     event_probabilities: Dict[str, float] = field(default_factory=dict)
+
+    # Spatial graph (loaded from territory module's map_file)
+    spatial_graph: Optional[Any] = None  # SpatialGraph, avoid circular import
+    map_metadata: Dict[str, Any] = field(default_factory=dict)
+    movement_config: Optional[Any] = None  # MovementConfig
 
     def __post_init__(self):
         """Merge all module components."""

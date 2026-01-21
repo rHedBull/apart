@@ -1,0 +1,112 @@
+# Sample conflict map with strategic regions
+# This map defines a simple conflict zone with key strategic points
+
+map:
+  name: "Sample Conflict Zone"
+  description: "A simple map for testing territory mechanics"
+
+nodes:
+  - id: capital_a
+    name: "Nation A Capital"
+    type: capital
+    properties:
+      fortification: high
+      population: 5000000
+      resources: 100
+
+  - id: capital_b
+    name: "Nation B Capital"
+    type: capital
+    properties:
+      fortification: high
+      population: 4000000
+      resources: 80
+
+  - id: border_town
+    name: "Border Town"
+    type: city
+    properties:
+      fortification: medium
+      population: 500000
+      resources: 20
+
+  - id: mountain_pass
+    name: "Mountain Pass"
+    type: chokepoint
+    properties:
+      fortification: low
+      terrain: mountain
+      defensive_bonus: 50
+
+  - id: river_crossing
+    name: "River Crossing"
+    type: chokepoint
+    properties:
+      fortification: low
+      terrain: river
+      defensive_bonus: 30
+
+  - id: port_city
+    name: "Port City"
+    type: port
+    properties:
+      fortification: medium
+      population: 800000
+      resources: 40
+      naval_access: true
+
+edges:
+  - from: capital_a
+    to: border_town
+    type: highway
+    properties:
+      distance: 100
+      travel_cost: 5
+
+  - from: border_town
+    to: mountain_pass
+    type: road
+    properties:
+      distance: 50
+      travel_cost: 10
+
+  - from: mountain_pass
+    to: capital_b
+    type: road
+    properties:
+      distance: 80
+      travel_cost: 8
+
+  - from: border_town
+    to: river_crossing
+    type: road
+    properties:
+      distance: 60
+      travel_cost: 6
+
+  - from: river_crossing
+    to: port_city
+    type: highway
+    properties:
+      distance: 40
+      travel_cost: 4
+
+  - from: port_city
+    to: capital_b
+    type: highway
+    properties:
+      distance: 70
+      travel_cost: 7
+
+  - from: capital_a
+    to: river_crossing
+    type: road
+    properties:
+      distance: 120
+      travel_cost: 12
+
+# Initial territory assignment
+initial_control:
+  nation_a: [capital_a]
+  nation_b: [capital_b, port_city]
+  contested: [border_town, mountain_pass, river_crossing]
