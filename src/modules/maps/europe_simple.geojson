@@ -1,0 +1,32 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "id": "DEU",
+      "properties": { "name": "Germany" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[6, 47], [15, 47], [15, 55], [6, 55], [6, 47]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "FRA",
+      "properties": { "name": "France" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[-5, 42], [8, 42], [8, 51], [-5, 51], [-5, 42]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "POL",
+      "properties": { "name": "Poland" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[14, 49], [24, 49], [24, 55], [14, 55], [14, 49]]]
+      }
+    }
+  ]
+}
