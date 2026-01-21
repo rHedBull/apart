@@ -8,13 +8,15 @@ Provides:
 """
 
 import os
+import time
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Optional
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
+from starlette.middleware.base import BaseHTTPMiddleware
 
 from server.event_bus import get_event_bus
 from server.models import (
@@ -24,6 +26,9 @@ from server.models import (
     StartSimulationRequest,
     StartSimulationResponse,
 )
+from utils.ops_logger import get_ops_logger
+
+logger = get_ops_logger("api")
 
 
 def _initialize_database():
@@ -83,14 +88,43 @@ def _initialize_job_queue():
     init_job_queue(redis_url)
 
 
+class RequestLoggingMiddleware(BaseHTTPMiddleware):
+    """Middleware to log HTTP requests and responses."""
+
+    async def dispatch(self, request: Request, call_next):
+        start_time = time.time()
+
+        # Process request
+        response = await call_next(request)
+
+        # Calculate duration
+        duration_ms = (time.time() - start_time) * 1000
+
+        # Skip logging for health checks and SSE streams (too noisy)
+        path = request.url.path
+        if path not in ("/api/health", "/api/events/stream") and not path.startswith("/api/events/stream/"):
+            logger.info("Request", extra={
+                "method": request.method,
+                "path": path,
+                "status": response.status_code,
+                "duration_ms": round(duration_ms, 2),
+            })
+
+        return response
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan handler for startup/shutdown."""
     # Startup
+    logger.info("API server starting")
     _initialize_database()
     _initialize_job_queue()
     _generate_mock_data_if_empty()
+    logger.info("API server ready")
     yield
+    # Shutdown
+    logger.info("API server shutting down")
 
 
 app = FastAPI(
@@ -100,6 +134,9 @@ app = FastAPI(
     docs_url="/api/docs",
     lifespan=lifespan,
 )
+
+# Request logging middleware
+app.add_middleware(RequestLoggingMiddleware)
 
 # CORS for dashboard
 app.add_middleware(

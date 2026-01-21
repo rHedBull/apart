@@ -6,9 +6,10 @@ handling simulation execution independently of the main API server.
 """
 
 from pathlib import Path
-import logging
 
-logger = logging.getLogger(__name__)
+from utils.ops_logger import get_ops_logger
+
+logger = get_ops_logger("worker")
 
 
 def run_simulation_task(run_id: str, scenario_path: str) -> dict:
@@ -31,7 +32,11 @@ def run_simulation_task(run_id: str, scenario_path: str) -> dict:
 
     scenario_path = Path(scenario_path)
 
-    logger.info(f"Worker starting simulation {run_id} from {scenario_path}")
+    logger.info("Starting simulation", extra={
+        "run_id": run_id,
+        "scenario": scenario_path.stem,
+        "scenario_path": str(scenario_path),
+    })
 
     try:
         # Enable event emission for this run
@@ -46,7 +51,10 @@ def run_simulation_task(run_id: str, scenario_path: str) -> dict:
         )
         orchestrator.run()
 
-        logger.info(f"Simulation {run_id} completed successfully")
+        logger.info("Simulation completed", extra={
+            "run_id": run_id,
+            "scenario": scenario_path.stem,
+        })
         return {
             "run_id": run_id,
             "status": "completed",
@@ -54,6 +62,9 @@ def run_simulation_task(run_id: str, scenario_path: str) -> dict:
         }
 
     except Exception as e:
-        logger.error(f"Simulation {run_id} failed: {e}")
+        logger.error("Simulation failed", extra={
+            "run_id": run_id,
+            "error": str(e),
+        })
         emit_event("simulation_failed", run_id, error=str(e))
         raise  # Re-raise so RQ marks job as failed
