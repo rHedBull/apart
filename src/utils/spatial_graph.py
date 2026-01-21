@@ -19,6 +19,7 @@ class Node:
     type: str  # nation, city, region, etc.
     properties: Dict[str, Any] = field(default_factory=dict)
     conditions: List[str] = field(default_factory=list)
+    coordinates: Optional[Tuple[float, float]] = None  # (lng, lat) for point nodes
 
 
 @dataclass
@@ -336,7 +337,8 @@ class SpatialGraph:
                     "name": n.name,
                     "type": n.type,
                     "properties": n.properties,
-                    "conditions": n.conditions
+                    "conditions": n.conditions,
+                    "coordinates": n.coordinates,
                 }
                 for n in self._nodes.values()
             ],
@@ -362,12 +364,17 @@ class SpatialGraph:
 
         # Add nodes
         for node_data in data.get("nodes", []):
+            # Parse coordinates if present
+            coords = node_data.get("coordinates")
+            coordinates = tuple(coords) if coords else None
+
             node = Node(
                 id=node_data["id"],
                 name=node_data["name"],
                 type=node_data["type"],
                 properties=node_data.get("properties", {}),
-                conditions=node_data.get("conditions", [])
+                conditions=node_data.get("conditions", []),
+                coordinates=coordinates,
             )
             graph.add_node(node)
 
