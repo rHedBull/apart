@@ -83,6 +83,7 @@ export function RunDetailPage() {
           maxSteps: data.maxSteps,
           agentNames: data.agentNames || [],
           spatialGraph: data.spatialGraph,
+          geojson: data.geojson || null,
           messages: data.messages || [],
           dangerSignals: data.dangerSignals || [],
           globalVarsHistory: data.globalVarsHistory || [],

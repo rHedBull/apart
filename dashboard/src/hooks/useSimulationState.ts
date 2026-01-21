@@ -35,6 +35,7 @@ interface SpatialNode {
   type: string;
   properties: Record<string, unknown>;
   conditions: string[];
+  coordinates?: [number, number];  // [lng, lat] for point nodes
 }
 
 interface SpatialEdge {
@@ -49,6 +50,24 @@ export interface SpatialGraph {
   nodes: SpatialNode[];
   edges: SpatialEdge[];
   blocked_edge_types: string[];
+}
+
+// GeoJSON types for map overlay
+export interface GeoJSONGeometry {
+  type: 'Polygon' | 'MultiPolygon';
+  coordinates: number[][][] | number[][][][];
+}
+
+export interface GeoJSONFeature {
+  type: 'Feature';
+  id?: string | number;
+  properties: Record<string, unknown>;
+  geometry: GeoJSONGeometry;
+}
+
+export interface GeoJSONData {
+  type: 'FeatureCollection';
+  features: GeoJSONFeature[];
 }
 
 interface SimulationState {
@@ -68,6 +87,9 @@ interface SimulationState {
 
   // Spatial graph (for map visualization)
   spatialGraph: SpatialGraph | null;
+
+  // GeoJSON data (for map overlay)
+  geojson: GeoJSONData | null;
 
   // Messages
   messages: AgentMessage[];
@@ -100,6 +122,7 @@ interface SimulationState {
     maxSteps: number | null;
     agentNames: string[];
     spatialGraph: SpatialGraph | null;
+    geojson: GeoJSONData | null;
     messages: AgentMessage[];
     dangerSignals: DangerSignal[];
     globalVarsHistory: VariableHistory[];
@@ -119,6 +142,7 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
   maxSteps: null,
   agentNames: [],
   spatialGraph: null,
+  geojson: null,
   messages: [],
   dangerSignals: [],
   globalVarsHistory: [],
@@ -190,6 +214,7 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
           maxSteps: data.max_steps as number,
           agentNames: (data.agent_names as string[]) || [],
           spatialGraph: (data.spatial_graph as SpatialGraph) || null,
+          geojson: (data.geojson as GeoJSONData) || null,
           messages: [],
           dangerSignals: [],
           globalVarsHistory: [],
@@ -261,6 +286,7 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
       maxSteps: data.maxSteps,
       agentNames: data.agentNames,
       spatialGraph: data.spatialGraph,
+      geojson: data.geojson,
       messages: data.messages,
       dangerSignals: data.dangerSignals,
       globalVarsHistory: data.globalVarsHistory,
@@ -276,6 +302,7 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
       maxSteps: null,
       agentNames: [],
       spatialGraph: null,
+      geojson: null,
       messages: [],
       dangerSignals: [],
       globalVarsHistory: [],
