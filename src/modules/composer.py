@@ -32,6 +32,7 @@ class ModuleComposer:
 
         The ComposedModules class handles the actual merging in __post_init__.
         If territory_graph module is present with map_file config, loads the map.
+        If supply_chain_base module is present with network_file config, loads the network.
 
         Args:
             modules: List of BehaviorModule objects to compose
@@ -41,11 +42,14 @@ class ModuleComposer:
         """
         composed = ComposedModules(modules=modules)
 
-        # Load spatial graph if territory_graph module has map_file config
         for module in modules:
+            # Load spatial graph if territory_graph module has map_file config
             if module.name == "territory_graph" and module.config_values.get("map_file"):
                 self._load_map_for_module(module, composed)
-                break
+
+            # Load supply chain network if supply_chain_base module has network_file config
+            if module.name == "supply_chain_base" and module.config_values.get("network_file"):
+                self._load_network_for_module(module, composed)
 
         return composed
 
@@ -68,6 +72,21 @@ class ModuleComposer:
         composed.map_metadata = metadata
         composed.movement_config = movement_config
         composed.geojson = geojson
+
+    def _load_network_for_module(
+        self,
+        module: BehaviorModule,
+        composed: ComposedModules
+    ) -> None:
+        """Load network file and populate supply chain network in composed modules."""
+        from modules.network_loader import load_network_file
+
+        network_file = module.config_values.get("network_file")
+        if not network_file:
+            return
+
+        network = load_network_file(network_file)
+        composed.supply_chain_network = network
 
     def to_var_definitions(
         self,

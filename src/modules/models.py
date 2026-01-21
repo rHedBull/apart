@@ -330,6 +330,9 @@ class ComposedModules:
     movement_config: Optional[Any] = None  # MovementConfig
     geojson: Optional[Dict[str, Any]] = None  # GeoJSON data for map overlay
 
+    # Supply chain network (loaded from supply_chain_base module's network_file)
+    supply_chain_network: Optional[Any] = None  # SupplyChainNetwork, avoid circular import
+
     def __post_init__(self):
         """Merge all module components."""
         for module in self.modules:

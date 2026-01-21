@@ -1,0 +1,205 @@
+module:
+  name: supply_chain_base
+  version: "1.0.0"
+  description: "Foundation for supply chain simulations - models dependencies, leverage, and commodity flows between nations/blocs"
+
+  requires: []
+  conflicts_with: [territory_graph, military_base, force_types, casualties]
+
+  config:
+    network_file:
+      type: string
+      required: true
+      description: "Path to YAML file defining supply chain network and dependencies"
+
+  # Predefined commodity categories
+  # Each has different characteristics affecting simulation dynamics
+  commodity_types:
+    semiconductors:
+      description: "Advanced chips and manufacturing equipment"
+      relationship_model: bilateral  # strategic, explicit dependencies
+      stockpile_unit: weeks
+      typical_stockpile: 3
+      substitutability: low
+
+    energy:
+      description: "Oil, gas, LNG, electricity"
+      relationship_model: hybrid  # bilateral for pipelines, market for oil
+      stockpile_unit: days
+      typical_stockpile: 60
+      substitutability: medium
+
+    rare_earths:
+      description: "Rare earth elements and processed materials"
+      relationship_model: bilateral  # concentrated production
+      stockpile_unit: months
+      typical_stockpile: 3
+      substitutability: low
+
+    food:
+      description: "Agricultural commodities, fertilizers"
+      relationship_model: market  # fungible global market
+      stockpile_unit: months
+      typical_stockpile: 2
+      substitutability: high
+
+  variables:
+    global:
+      - name: active_restrictions
+        type: list
+        default: []
+        description: "Active export controls, sanctions, embargoes [{type, source, target, commodities}]"
+
+      - name: disrupted_flows
+        type: list
+        default: []
+        description: "Currently disrupted supply flows [{from, to, commodity, severity}]"
+
+      - name: price_indices
+        type: dict
+        default: {"semiconductors": 100, "energy": 100, "rare_earths": 100, "food": 100}
+        description: "Price index per commodity (100 = baseline)"
+
+      - name: global_supply_stress
+        type: percent
+        default: 0
+        min: 0
+        max: 100
+        description: "Overall supply chain stress level"
+
+    agent:
+      # Dependency tracking (percentage-based)
+      - name: import_dependencies
+        type: dict
+        default: {}
+        description: "Map of commodity -> {source: percentage} showing import dependencies"
+        # Example: {"semiconductors": {"Taiwan": 90, "South_Korea": 8, "domestic": 2}}
+
+      - name: export_positions
+        type: dict
+        default: {}
+        description: "Map of commodity -> global market share percentage"
+        # Example: {"rare_earths": 60} means 60% of global rare earth exports
+
+      - name: domestic_production
+        type: dict
+        default: {}
+        description: "Map of commodity -> percentage of domestic demand met domestically"
+
+      # Stockpiles and buffers
+      - name: stockpiles
+        type: dict
+        default: {}
+        description: "Map of commodity -> current stockpile level (in commodity's stockpile_unit)"
+
+      - name: stockpile_targets
+        type: dict
+        default: {}
+        description: "Map of commodity -> target stockpile level"
+
+      # Computed vulnerability/leverage (provided as data, simulator interprets)
+      - name: supply_vulnerabilities
+        type: dict
+        default: {}
+        description: "Map of commodity -> vulnerability assessment {dependency_concentration, stockpile_coverage, substitution_options}"
+
+      - name: supply_leverage
+        type: dict
+        default: {}
+        description: "Map of commodity -> list of actors dependent on this actor"
+
+      # Current state
+      - name: under_restrictions
+        type: list
+        default: []
+        description: "Restrictions currently affecting this actor [{type, source, commodities}]"
+
+      - name: imposing_restrictions
+        type: list
+        default: []
+        description: "Restrictions this actor is currently imposing"
+
+      - name: supply_status
+        type: dict
+        default: {}
+        description: "Map of commodity -> status {adequate, stressed, critical, shortage}"
+
+  dynamics:
+    - description: "High import dependency on single source creates strategic vulnerability"
+      priority: 9
+      examples:
+        - "90% chip dependency on Taiwan = critical exposure if Taiwan supply disrupted"
+        - "Single-source dependency enables supply weaponization by that source"
+
+    - description: "Export dominance creates leverage over dependent importers"
+      priority: 9
+      examples:
+        - "60% rare earth market share = significant influence over dependent nations"
+        - "Leverage is actionable when alternatives are limited and stockpiles low"
+
+    - description: "Stockpiles provide buffer time but deplete under sustained disruption"
+      priority: 8
+      examples:
+        - "60-day oil reserve buys 2 months to find alternatives"
+        - "3-week chip inventory means rapid impact from supply cut"
+        - "Stockpile depletion rate depends on consumption and disruption severity"
+
+    - description: "Export controls and sanctions disrupt flows but may be circumvented via third parties"
+      priority: 8
+      examples:
+        - "Direct ban effective, but goods may route through intermediaries"
+        - "Sanction effectiveness depends on coalition breadth"
+
+    - description: "Market-based commodities (food, oil) have price-based adjustment; strategic goods (chips) have allocation crises"
+      priority: 7
+      examples:
+        - "Oil shortage: prices rise, demand destruction occurs"
+        - "Chip shortage: some buyers simply cannot get supply at any price"
+
+    - description: "Dependency reduction takes time - reshoring, diversification are multi-year efforts"
+      priority: 6
+
+  constraints:
+    - description: "Import dependencies for each commodity must sum to 100%"
+      enforcement: hard
+
+    - description: "Cannot export more than production + imports - domestic consumption"
+      enforcement: hard
+
+    - description: "Stockpiles cannot go negative"
+      enforcement: hard
+      variable: stockpiles
+
+    - description: "Restrictions are binary per flow - either active or not"
+      enforcement: hard
+
+  agent_effects:
+    - description: "Actors with high dependency concentration face pressure to diversify or accommodate supplier"
+      applies_to: all
+
+    - description: "Actors with export dominance can use supply as diplomatic leverage"
+      applies_to: all
+
+    - description: "Depleting stockpiles create urgency and constrain policy options"
+      applies_to: all
+
+    - description: "Being targeted by restrictions may trigger counter-restrictions or third-party alignment"
+      applies_to: all
+
+    - description: "Price spikes affect actors asymmetrically based on import dependency and economic capacity"
+      applies_to: all
+
+  event_types:
+    - export_control_imposed
+    - sanctions_imposed
+    - supply_flow_disrupted
+    - stockpile_critical
+    - stockpile_depleted
+    - price_spike
+    - dependency_weaponized
+    - third_party_routing_detected
+
+  event_probabilities:
+    supply_flow_disrupted: 0.05
+    price_spike: 0.10
+    stockpile_critical: 0.03
