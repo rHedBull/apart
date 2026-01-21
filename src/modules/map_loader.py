@@ -20,7 +20,7 @@ class MapLoadError(Exception):
 def load_map_file(
     map_path: str | Path,
     base_dir: Path | None = None
-) -> Tuple[SpatialGraph, Dict[str, Any]]:
+) -> Tuple[SpatialGraph, Dict[str, Any], Optional[Dict[str, Any]]]:
     """
     Load a map file and create a SpatialGraph.
 
@@ -29,11 +29,13 @@ def load_map_file(
         base_dir: Base directory for relative paths (defaults to src/)
 
     Returns:
-        Tuple of (SpatialGraph, map_metadata)
+        Tuple of (SpatialGraph, map_metadata, geojson_data)
 
     Raises:
         MapLoadError: If map file not found or invalid
     """
+    import json
+
     if base_dir is None:
         base_dir = Path(__file__).parent.parent  # src/
 
@@ -51,7 +53,38 @@ def load_map_file(
     if not raw:
         raise MapLoadError(f"Empty map file: {full_path}")
 
-    return parse_map_data(raw, str(full_path))
+    graph, metadata = parse_map_data(raw, str(full_path))
+
+    # Load GeoJSON if specified
+    geojson_data = None
+    geojson_path = raw.get("map", {}).get("geojson")
+    if geojson_path:
+        geojson_full_path = full_path.parent / geojson_path
+        if not geojson_full_path.exists():
+            raise MapLoadError(f"GeoJSON file not found: {geojson_full_path}")
+
+        try:
+            with open(geojson_full_path, "r") as f:
+                geojson_data = json.load(f)
+        except json.JSONDecodeError as e:
+            raise MapLoadError(f"Invalid JSON in GeoJSON file: {e}")
+
+        # Validate that region nodes have matching features
+        feature_ids = set()
+        for feature in geojson_data.get("features", []):
+            fid = feature.get("id") or feature.get("properties", {}).get("id")
+            if fid:
+                feature_ids.add(str(fid))
+
+        for node_data in raw.get("nodes", []):
+            if node_data.get("type") == "region":
+                node_id = str(node_data["id"])
+                if node_id not in feature_ids:
+                    raise MapLoadError(
+                        f"Region node '{node_id}' has no matching GeoJSON feature"
+                    )
+
+    return graph, metadata, geojson_data
 
 
 def parse_map_data(data: Dict[str, Any], source: str = "unknown") -> Tuple[SpatialGraph, Dict[str, Any]]:
@@ -82,12 +115,17 @@ def parse_map_data(data: Dict[str, Any], source: str = "unknown") -> Tuple[Spati
         if "id" not in node_data:
             raise MapLoadError(f"Each node must have an 'id' field in {source}")
 
+        # Parse coordinates if present
+        coords = node_data.get("coordinates")
+        coordinates = tuple(coords) if coords else None
+
         node = Node(
             id=str(node_data["id"]),
             name=str(node_data.get("name", node_data["id"])),
             type=str(node_data.get("type", "location")),
             properties=node_data.get("properties", {}),
-            conditions=node_data.get("conditions", [])
+            conditions=node_data.get("conditions", []),
+            coordinates=coordinates,
         )
         graph.add_node(node)
 

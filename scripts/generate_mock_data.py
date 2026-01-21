@@ -62,6 +62,62 @@ SPATIAL_GRAPH = {
     "blocked_edge_types": [],
 }
 
+# Mock GeoJSON for geographic visualization
+GEOJSON_DATA = {
+    "type": "FeatureCollection",
+    "features": [
+        {
+            "type": "Feature",
+            "id": "taiwan",
+            "properties": {"name": "Taiwan"},
+            "geometry": {
+                "type": "Polygon",
+                "coordinates": [[[120, 22], [122, 22], [122, 25], [120, 25], [120, 22]]]
+            }
+        },
+        {
+            "type": "Feature",
+            "id": "china",
+            "properties": {"name": "China"},
+            "geometry": {
+                "type": "Polygon",
+                "coordinates": [[[100, 20], [125, 20], [125, 45], [100, 45], [100, 20]]]
+            }
+        },
+        {
+            "type": "Feature",
+            "id": "taiwan_strait",
+            "properties": {"name": "Taiwan Strait"},
+            "geometry": {
+                "type": "Polygon",
+                "coordinates": [[[118, 22], [120, 22], [120, 26], [118, 26], [118, 22]]]
+            }
+        },
+    ]
+}
+
+# Update spatial nodes with coordinates for point nodes
+SPATIAL_GRAPH_WITH_COORDS = {
+    "nodes": [
+        {"id": "taiwan", "name": "Taiwan", "type": "region", "properties": {}, "conditions": [], "coordinates": None},
+        {"id": "china", "name": "China", "type": "region", "properties": {}, "conditions": [], "coordinates": None},
+        {"id": "usa", "name": "United States", "type": "nation", "properties": {}, "conditions": [], "coordinates": [-98.5, 39.8]},
+        {"id": "taiwan_strait", "name": "Taiwan Strait", "type": "region", "properties": {}, "conditions": [], "coordinates": None},
+        {"id": "pacific", "name": "Pacific Ocean", "type": "sea_zone", "properties": {}, "conditions": [], "coordinates": [160, 10]},
+        {"id": "taipei", "name": "Taipei", "type": "city", "properties": {}, "conditions": [], "coordinates": [121.5, 25.0]},
+        {"id": "beijing", "name": "Beijing", "type": "city", "properties": {}, "conditions": [], "coordinates": [116.4, 39.9]},
+    ],
+    "edges": [
+        {"from": "taiwan", "to": "taiwan_strait", "type": "maritime", "directed": False, "properties": {"distance_km": 100}},
+        {"from": "china", "to": "taiwan_strait", "type": "maritime", "directed": False, "properties": {"distance_km": 150}},
+        {"from": "taiwan_strait", "to": "pacific", "type": "maritime", "directed": False, "properties": {"distance_km": 500}},
+        {"from": "usa", "to": "pacific", "type": "maritime", "directed": False, "properties": {"distance_km": 8000}},
+        {"from": "taipei", "to": "taiwan", "type": "land", "directed": False, "properties": {}},
+        {"from": "beijing", "to": "china", "type": "land", "directed": False, "properties": {}},
+    ],
+    "blocked_edge_types": [],
+}
+
 DANGER_CATEGORIES = ["power_seeking", "deception", "rule_exploitation"]
 
 SAMPLE_PROMPTS = [
@@ -189,7 +245,8 @@ def create_mock_run(scenario: dict, status: str = "completed", current_step: int
         "max_steps": scenario["max_steps"],
         "current_step": current_step,
         "agents": scenario["agents"],
-        "spatial_graph": SPATIAL_GRAPH if scenario["has_spatial"] else None,
+        "spatial_graph": SPATIAL_GRAPH_WITH_COORDS if scenario["has_spatial"] else None,
+        "geojson": GEOJSON_DATA if scenario["has_spatial"] else None,
         "snapshots": snapshots,
         "messages": messages,
         "danger_signals": danger_signals,
@@ -238,6 +295,7 @@ def emit_events_to_server(run_data: dict):
                 "agent_names": run_data["agents"],
                 "num_agents": len(run_data["agents"]),
                 "spatial_graph": run_data["spatial_graph"],
+                "geojson": run_data["geojson"],
             }
         ))
 

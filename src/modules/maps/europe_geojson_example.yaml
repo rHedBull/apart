@@ -1,0 +1,69 @@
+map:
+  name: "Europe GeoJSON Example"
+  description: "Example map using GeoJSON overlay"
+  geojson: "europe_simple.geojson"
+
+nodes:
+  # Region nodes - match GeoJSON feature IDs
+  - id: DEU
+    name: Germany
+    type: region
+    properties:
+      population: 83000000
+
+  - id: FRA
+    name: France
+    type: region
+    properties:
+      population: 67000000
+
+  - id: POL
+    name: Poland
+    type: region
+    properties:
+      population: 38000000
+
+  # Point nodes with coordinates
+  - id: berlin
+    name: Berlin
+    type: city
+    coordinates: [13.405, 52.52]
+    properties:
+      capital: true
+
+  - id: paris
+    name: Paris
+    type: city
+    coordinates: [2.35, 48.85]
+    properties:
+      capital: true
+
+edges:
+  - from: DEU
+    to: FRA
+    type: land
+    properties:
+      distance_km: 500
+
+  - from: DEU
+    to: POL
+    type: land
+    properties:
+      distance_km: 400
+
+  - from: berlin
+    to: DEU
+    type: road
+    properties:
+      distance_km: 0
+
+  - from: paris
+    to: FRA
+    type: road
+    properties:
+      distance_km: 0
+
+initial_control:
+  agent_west: [FRA]
+  agent_east: [POL]
+  contested: [DEU]
