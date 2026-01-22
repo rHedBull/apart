@@ -1,0 +1,100 @@
+# Benchmark scenario for measuring parallel agent execution speedup
+# Run with: uv run python main.py scenarios/benchmark_parallel.yaml
+#
+# To compare parallel vs sequential:
+#   APART_PARALLEL_AGENTS=1 uv run python main.py scenarios/benchmark_parallel.yaml
+#   APART_PARALLEL_AGENTS=0 uv run python main.py scenarios/benchmark_parallel.yaml
+
+max_steps: 2
+time_step_duration: "1 round"
+simulator_awareness: true
+enable_compute_resources: false
+
+engine:
+  provider: ollama
+  model: qwen-opencode:latest
+
+  system_prompt: |
+    You are a benchmark simulation engine. Your job is to process agent responses and update state.
+
+    CRITICAL JSON FORMAT - You MUST output ONLY this exact structure:
+    {
+      "agent_messages": {"Agent_Alpha": "msg", "Agent_Beta": "msg", "Agent_Gamma": "msg", "Agent_Delta": "msg"},
+      "state_updates": {
+        "global_vars": {"total_count": <number>},
+        "agent_vars": {
+          "Agent_Alpha": {"counter": <number>},
+          "Agent_Beta": {"counter": <number>},
+          "Agent_Gamma": {"counter": <number>},
+          "Agent_Delta": {"counter": <number>}
+        }
+      }
+    }
+
+    Rules:
+    - Use lowercase true/false for booleans
+    - All agent names must be included in agent_vars
+    - Increment each agent's counter by 1 each step
+    - Set total_count to sum of all counters
+
+  simulation_plan: |
+    Simple 2-step benchmark. Each step: agents report, counters increment.
+
+  realism_guidelines: |
+    Keep it simple. Just increment counters.
+
+  context_window_size: 2
+
+# Global variables
+global_vars:
+  total_count:
+    type: int
+    default: 0
+    min: 0
+    max: 1000
+
+# Agent variables
+agent_vars:
+  counter:
+    type: int
+    default: 0
+    min: 0
+    max: 100
+
+# 4 agents for benchmarking parallel execution
+agents:
+  - name: "Agent_Alpha"
+    llm:
+      provider: ollama
+      model: qwen-opencode:latest
+    system_prompt: |
+      You are Agent Alpha. Reply briefly: "Alpha ready, counter is [N]" where N is your counter.
+    variables:
+      counter: 0
+
+  - name: "Agent_Beta"
+    llm:
+      provider: ollama
+      model: qwen-opencode:latest
+    system_prompt: |
+      You are Agent Beta. Reply briefly: "Beta ready, counter is [N]" where N is your counter.
+    variables:
+      counter: 0
+
+  - name: "Agent_Gamma"
+    llm:
+      provider: ollama
+      model: qwen-opencode:latest
+    system_prompt: |
+      You are Agent Gamma. Reply briefly: "Gamma ready, counter is [N]" where N is your counter.
+    variables:
+      counter: 0
+
+  - name: "Agent_Delta"
+    llm:
+      provider: ollama
+      model: qwen-opencode:latest
+    system_prompt: |
+      You are Agent Delta. Reply briefly: "Delta ready, counter is [N]" where N is your counter.
+    variables:
+      counter: 0
