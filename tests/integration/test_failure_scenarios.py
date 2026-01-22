@@ -179,13 +179,16 @@ class TestAgentFailureRecovery:
         with open(orchestrator.persistence.state_file) as f:
             state = json.load(f)
 
-        if state["snapshots"]:
-            messages = state["snapshots"][0].get("messages", [])
-            # Look for error message in agent responses
-            agent_responses = [m for m in messages if m.get("from") != "SimulatorAgent"]
-            error_found = any("ERROR" in str(m.get("content", "")) for m in agent_responses)
-            # Error should be captured
-            assert error_found or len(agent_responses) > 0
+        assert state["snapshots"], "Expected at least one snapshot"
+        messages = state["snapshots"][0].get("messages", [])
+        # Look for error message in agent responses
+        agent_responses = [m for m in messages if m.get("from") != "SimulatorAgent"]
+        # Error should be captured in at least one agent's response
+        error_found = any(
+            "ERROR" in str(m.get("content", "")) or "rate limited" in str(m.get("content", "")).lower()
+            for m in agent_responses
+        )
+        assert error_found, f"Expected error to be captured in agent responses: {agent_responses}"
 
 
 class TestLLMTimeoutHandling:
@@ -249,11 +252,12 @@ class TestInvalidLLMResponse:
         # May fail later due to missing agent messages, but init should work
         try:
             orchestrator.run()
-        except Exception:
-            pass  # May fail for other reasons, that's ok
+        except (KeyError, ValueError):
+            # Expected failures due to missing agent messages after retry
+            pass
 
         # Verify retry happened (call count > 1 means retry occurred)
-        assert invalid_engine.call_count >= 2  # First call failed, retry succeeded
+        assert invalid_engine.call_count >= 2, f"Expected retry (call_count >= 2), got {invalid_engine.call_count}"
 
     def test_agent_invalid_response_handled(self, tmp_path, monkeypatch):
         """Test that invalid agent responses don't crash simulation."""
@@ -466,5 +470,5 @@ class TestLogFileOnFailure:
 
         # Should have at least some error or warning level logs
         error_logs = [log for log in logs if log.get("level") in ["ERROR", "WARNING"]]
-        # Errors should be logged
-        assert len(logs) > 0  # At least some logging occurred
+        # Errors should be logged - verify error_logs is not empty
+        assert len(error_logs) > 0, f"Expected ERROR/WARNING logs but found none. All logs: {logs}"

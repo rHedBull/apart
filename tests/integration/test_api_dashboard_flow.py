@@ -107,7 +107,7 @@ class TestRunsEndpoint:
             our_run = None
 
         # Run should be visible
-        assert our_run is not None or any(run_id in str(data) for _ in [1])
+        assert our_run is not None or run_id in str(data), f"Run {run_id} not found in response: {data}"
 
     def test_runs_endpoint_shows_danger_count(self, test_client, event_bus_reset):
         """Test that /api/runs shows danger signal count."""
@@ -123,10 +123,10 @@ class TestRunsEndpoint:
         data = response.json()
         runs = data.get("runs", data)
 
-        if isinstance(runs, list):
-            our_run = next((r for r in runs if r.get("runId") == run_id), None)
-            if our_run:
-                assert our_run.get("dangerCount", 0) >= 2
+        assert isinstance(runs, list), f"Expected runs to be a list, got {type(runs)}"
+        our_run = next((r for r in runs if r.get("runId") == run_id), None)
+        assert our_run is not None, f"Run {run_id} not found in runs list"
+        assert our_run.get("dangerCount", 0) >= 2, f"Expected dangerCount >= 2, got {our_run.get('dangerCount')}"
 
 
 class TestSimulationDetailsEndpoint:
@@ -385,8 +385,8 @@ class TestDangerSignalFlow:
         data = response.json()
         runs = data.get("runs", data)
 
-        if isinstance(runs, list):
-            our_run = next((r for r in runs if r.get("runId") == run_id), None)
-            if our_run:
-                # Should show danger count
-                assert our_run.get("dangerCount", 0) >= 0
+        assert isinstance(runs, list), f"Expected runs to be a list, got {type(runs)}"
+        our_run = next((r for r in runs if r.get("runId") == run_id), None)
+        assert our_run is not None, f"Run {run_id} not found"
+        # Should show danger count reflecting the 2 emitted signals
+        assert our_run.get("dangerCount", 0) >= 2, f"Expected dangerCount >= 2, got {our_run.get('dangerCount')}"
