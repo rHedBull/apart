@@ -427,3 +427,86 @@ class TestThreadSafety:
             # Each agent should receive its own stats
             assert received_stats["Agent1"] == {"health": 100, "gold": 50}
             assert received_stats["Agent2"] == {"health": 80, "gold": 30}
+
+
+class TestSimulationFailedEventEmission:
+    """Tests for SIMULATION_FAILED event emission on errors."""
+
+    def _create_mock_orchestrator(self):
+        """Create orchestrator with mocked dependencies."""
+        from core.orchestrator import Orchestrator
+
+        with patch.object(Orchestrator, '__init__', lambda self: None):
+            orch = Orchestrator()
+            orch.agents = []
+            orch.max_steps = 3
+            orch.logger = Mock()
+            orch.game_engine = Mock()
+            orch.persistence = Mock()
+            orch.persistence.run_id = "test-run-id"
+            orch.spatial_graph = None
+            orch.composed_modules = None
+            return orch
+
+    @patch('core.orchestrator.emit')
+    @patch('core.orchestrator.enable_event_emitter')
+    @patch('core.orchestrator.disable_event_emitter')
+    def test_simulation_failed_emitted_on_exception(self, mock_disable, mock_enable, mock_emit):
+        """Test that SIMULATION_FAILED is emitted when run() catches an exception."""
+        from core.event_emitter import EventTypes
+
+        orch = self._create_mock_orchestrator()
+
+        # Make _initialize_simulation raise an exception
+        orch._initialize_simulation = Mock(side_effect=RuntimeError("Test error"))
+
+        with pytest.raises(RuntimeError, match="Test error"):
+            orch.run()
+
+        # Verify SIMULATION_FAILED was emitted
+        fail_calls = [c for c in mock_emit.call_args_list
+                      if c[0][0] == EventTypes.SIMULATION_FAILED]
+        assert len(fail_calls) == 1
+        assert fail_calls[0][1]["error"] == "Test error"
+
+    @patch('core.orchestrator.emit')
+    @patch('core.orchestrator.enable_event_emitter')
+    @patch('core.orchestrator.disable_event_emitter')
+    def test_simulation_failed_emitted_on_keyboard_interrupt(self, mock_disable, mock_enable, mock_emit):
+        """Test that SIMULATION_FAILED is emitted on KeyboardInterrupt."""
+        from core.event_emitter import EventTypes
+
+        orch = self._create_mock_orchestrator()
+        orch._initialize_simulation = Mock(side_effect=KeyboardInterrupt())
+
+        with pytest.raises(KeyboardInterrupt):
+            orch.run()
+
+        fail_calls = [c for c in mock_emit.call_args_list
+                      if c[0][0] == EventTypes.SIMULATION_FAILED]
+        assert len(fail_calls) == 1
+        assert "interrupted" in fail_calls[0][1]["error"].lower()
+
+    @patch('core.orchestrator.emit')
+    @patch('core.orchestrator.enable_event_emitter')
+    @patch('core.orchestrator.disable_event_emitter')
+    def test_simulation_failed_not_emitted_on_success(self, mock_disable, mock_enable, mock_emit):
+        """Test that SIMULATION_FAILED is NOT emitted when simulation succeeds."""
+        from core.event_emitter import EventTypes
+
+        orch = self._create_mock_orchestrator()
+        orch._initialize_simulation = Mock(return_value={"Agent1": "msg"})
+        orch._collect_agent_responses = Mock(return_value=({}, []))
+        orch._process_step_results = Mock(return_value={"Agent1": "msg"})
+        orch._save_final_state = Mock()
+
+        orch.run()
+
+        # Verify SIMULATION_FAILED was NOT emitted
+        fail_calls = [c for c in mock_emit.call_args_list
+                      if c[0][0] == EventTypes.SIMULATION_FAILED]
+        assert len(fail_calls) == 0
+
+        # But SIMULATION_STARTED and SIMULATION_COMPLETED should be emitted
+        event_types = [c[0][0] for c in mock_emit.call_args_list]
+        assert EventTypes.SIMULATION_STARTED in event_types
