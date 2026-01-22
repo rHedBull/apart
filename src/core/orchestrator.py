@@ -1,5 +1,7 @@
+import os
 import sys
 import yaml
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from dotenv import load_dotenv
 from core.agent import Agent
@@ -253,80 +255,175 @@ Example of a BAD response: "I think about going to the market" (this is just int
 
         return agent_messages
 
+    def _process_single_agent(self, agent: Agent, step: int, message: str, agent_stats: dict) -> dict:
+        """
+        Process a single agent's response. Designed to run in a thread pool.
+
+        Returns:
+            dict with keys: agent_name, message, response, error
+        """
+        result = {
+            "agent_name": agent.name,
+            "message": message,
+            "response": None,
+            "error": None
+        }
+
+        try:
+            # Update agent's stats before they respond
+            agent.update_stats(agent_stats)
+
+            # Agent responds (this is the slow LLM call)
+            response = agent.respond(message)
+            result["response"] = response
+
+        except Exception as e:
+            result["error"] = str(e)
+
+        return result
+
     def _collect_agent_responses(self, step: int, agent_messages: dict) -> tuple[dict, list]:
-        """Collect responses from all agents for a step."""
+        """Collect responses from all agents for a step (parallel execution)."""
         agent_responses = {}
         step_messages = []
 
+        # Check if parallel execution is enabled (default: True)
+        parallel_agents = os.environ.get("APART_PARALLEL_AGENTS", "1").lower() in ("1", "true", "yes")
+
+        # Get current state snapshot once (same for all agents at step start)
+        current_state = self.game_engine.get_state_snapshot()
+
+        # Log and emit events for all outgoing messages first
         for agent in self.agents:
-            try:
+            message = agent_messages[agent.name]
+            print(f"SimulatorAgent -> {agent.name}: {message}")
+
+            self.logger.info(
+                MessageCode.AGT002,
+                "Message sent to agent",
+                agent_name=agent.name,
+                step=step,
+                content=message
+            )
+
+            emit(
+                EventTypes.AGENT_MESSAGE_SENT,
+                step=step,
+                agent_name=agent.name,
+                message=message
+            )
+
+            step_messages.append({
+                "from": "SimulatorAgent",
+                "to": agent.name,
+                "content": message
+            })
+
+        if parallel_agents and len(self.agents) > 1:
+            # Parallel execution using ThreadPoolExecutor
+            self.logger.info(
+                MessageCode.AGT002,
+                f"Processing {len(self.agents)} agents in parallel",
+                step=step
+            )
+
+            with ThreadPoolExecutor(max_workers=len(self.agents), thread_name_prefix="agent-") as executor:
+                # Submit all agent tasks
+                futures = {}
+                for agent in self.agents:
+                    message = agent_messages[agent.name]
+                    agent_stats = current_state["agent_vars"].get(agent.name, {})
+                    future = executor.submit(
+                        self._process_single_agent,
+                        agent, step, message, agent_stats
+                    )
+                    futures[future] = agent
+
+                # Collect results as they complete
+                for future in as_completed(futures):
+                    result = future.result()
+                    agent_name = result["agent_name"]
+
+                    if result["error"]:
+                        error_msg = f"Agent {agent_name} failed: {result['error']}"
+                        self.logger.error(
+                            MessageCode.AGT005,
+                            error_msg,
+                            agent_name=agent_name,
+                            step=step,
+                            error=result["error"]
+                        )
+                        print(f"ERROR: {error_msg}", file=sys.stderr)
+                        agent_responses[agent_name] = f"ERROR: {result['error']}"
+                    else:
+                        response = result["response"]
+                        print(f"{agent_name} -> SimulatorAgent: {response}")
+
+                        self.logger.info(
+                            MessageCode.AGT003,
+                            "Response received from agent",
+                            agent_name=agent_name,
+                            step=step,
+                            response=response
+                        )
+
+                        emit(
+                            EventTypes.AGENT_RESPONSE_RECEIVED,
+                            step=step,
+                            agent_name=agent_name,
+                            response=response
+                        )
+
+                        agent_responses[agent_name] = response
+        else:
+            # Sequential execution (original behavior)
+            for agent in self.agents:
                 message = agent_messages[agent.name]
-                print(f"SimulatorAgent -> {agent.name}: {message}")
-
-                self.logger.info(
-                    MessageCode.AGT002,
-                    "Message sent to agent",
-                    agent_name=agent.name,
-                    step=step,
-                    content=message
-                )
-
-                emit(
-                    EventTypes.AGENT_MESSAGE_SENT,
-                    step=step,
-                    agent_name=agent.name,
-                    message=message
-                )
-
-                step_messages.append({
-                    "from": "SimulatorAgent",
-                    "to": agent.name,
-                    "content": message
-                })
-
-                # Update agent's stats before they respond
-                current_state = self.game_engine.get_state_snapshot()
                 agent_stats = current_state["agent_vars"].get(agent.name, {})
-                agent.update_stats(agent_stats)
 
-                # Agent responds
-                response = agent.respond(message)
-                print(f"{agent.name} -> SimulatorAgent: {response}")
+                result = self._process_single_agent(agent, step, message, agent_stats)
+                agent_name = result["agent_name"]
 
-                self.logger.info(
-                    MessageCode.AGT003,
-                    "Response received from agent",
-                    agent_name=agent.name,
-                    step=step,
-                    response=response
-                )
+                if result["error"]:
+                    error_msg = f"Agent {agent_name} failed: {result['error']}"
+                    self.logger.error(
+                        MessageCode.AGT005,
+                        error_msg,
+                        agent_name=agent_name,
+                        step=step,
+                        error=result["error"]
+                    )
+                    print(f"ERROR: {error_msg}", file=sys.stderr)
+                    agent_responses[agent_name] = f"ERROR: {result['error']}"
+                else:
+                    response = result["response"]
+                    print(f"{agent_name} -> SimulatorAgent: {response}")
 
-                emit(
-                    EventTypes.AGENT_RESPONSE_RECEIVED,
-                    step=step,
-                    agent_name=agent.name,
-                    response=response
-                )
+                    self.logger.info(
+                        MessageCode.AGT003,
+                        "Response received from agent",
+                        agent_name=agent_name,
+                        step=step,
+                        response=response
+                    )
 
+                    emit(
+                        EventTypes.AGENT_RESPONSE_RECEIVED,
+                        step=step,
+                        agent_name=agent_name,
+                        response=response
+                    )
+
+                    agent_responses[agent_name] = response
+
+        # Add response messages to step_messages (in agent order for consistency)
+        for agent in self.agents:
+            if agent.name in agent_responses:
                 step_messages.append({
                     "from": agent.name,
                     "to": "SimulatorAgent",
-                    "content": response
+                    "content": agent_responses[agent.name]
                 })
-
-                agent_responses[agent.name] = response
-
-            except Exception as e:
-                error_msg = f"Agent {agent.name} failed: {e}"
-                self.logger.error(
-                    MessageCode.AGT005,
-                    error_msg,
-                    agent_name=agent.name,
-                    step=step,
-                    error=str(e)
-                )
-                print(f"ERROR: {error_msg}", file=sys.stderr)
-                agent_responses[agent.name] = f"ERROR: {str(e)}"
 
         return agent_responses, step_messages
 
