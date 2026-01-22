@@ -104,14 +104,21 @@ def update_simulation_state(
 
 
 def complete_simulation(run_id: str, status: SimulationStatus, error: str | None = None) -> None:
-    """Mark a simulation as complete."""
+    """Mark a simulation as complete and emit event to EventBus."""
     from datetime import datetime
+    from server.event_bus import emit_event
 
     if run_id in _simulations:
         _simulations[run_id]["status"] = status
         _simulations[run_id]["completed_at"] = datetime.now().isoformat()
         if error:
             _simulations[run_id]["error_message"] = error
+
+    # Emit event to EventBus for dashboard tracking
+    if status == SimulationStatus.COMPLETED:
+        emit_event("simulation_completed", run_id)
+    elif status == SimulationStatus.FAILED:
+        emit_event("simulation_failed", run_id, error=error)
 
 
 @router.get("", response_model=list[SimulationSummary])
