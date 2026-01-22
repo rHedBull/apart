@@ -551,14 +551,17 @@ Example of a BAD response: "I think about going to the market" (this is just int
 
         except KeyboardInterrupt:
             self.logger.warning(MessageCode.SIM002, "Simulation interrupted by user")
+            emit(EventTypes.SIMULATION_FAILED, error="Simulation interrupted by user")
             print("\n\nSimulation interrupted by user")
             raise
 
-        except SimulationError:
+        except SimulationError as e:
+            emit(EventTypes.SIMULATION_FAILED, error=str(e))
             raise
 
         except Exception as e:
             self.logger.critical(MessageCode.SIM002, "Simulation failed with unhandled exception", error=str(e))
+            emit(EventTypes.SIMULATION_FAILED, error=str(e))
             raise
 
         finally:
