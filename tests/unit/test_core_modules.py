@@ -64,3 +64,24 @@ def test_diplomatic_base_has_alliance_variables():
 
     var_names = [v.name for v in module.variables]
     assert "alliances" in var_names or "treaties" in var_names
+
+
+def test_trust_dynamics_module_loads():
+    """Test trust_dynamics module loads correctly."""
+    loader = ModuleLoader()
+    module = loader.load("trust_dynamics")
+
+    assert module.name == "trust_dynamics"
+    assert module.layer == ModuleLayer.DOMAIN
+    assert module.domain == "social"
+
+
+def test_trust_dynamics_has_trust_variables():
+    """Test trust_dynamics provides trust tracking."""
+    loader = ModuleLoader()
+    module = loader.load("trust_dynamics")
+
+    agent_vars = [v for v in module.variables if v.scope == "agent"]
+    var_names = [v.name for v in agent_vars]
+
+    assert "trust_scores" in var_names
