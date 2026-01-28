@@ -177,3 +177,32 @@ def test_validation_result_dataclass():
     assert result.valid is True
     assert result.errors == []
     assert result.warnings == ["A warning"]
+
+
+def test_validator_checks_variable_types():
+    """Test validator checks agent variable types match definitions."""
+    validator = ScenarioValidator()
+
+    config = {
+        "agent_vars": {
+            "trust_level": {
+                "type": "percent",
+                "default": 50,
+                "min": 0,
+                "max": 100,
+            }
+        },
+        "agents": [
+            {
+                "name": "TestAgent",
+                "system_prompt": "# OBJECTIVES\n- Test\n# CONSTRAINTS\n- None\n# INFORMATION ACCESS\n- Full",
+                "variables": {
+                    "trust_level": "high",  # Wrong type! Should be int
+                }
+            }
+        ]
+    }
+
+    result = validator.validate(config)
+    assert not result.valid
+    assert any("trust_level" in e and "type" in e.lower() for e in result.errors)

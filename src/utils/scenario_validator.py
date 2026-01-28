@@ -126,6 +126,54 @@ class ScenarioValidator:
 
         return errors
 
+    def validate_variable_types(self, config: Dict[str, Any]) -> List[str]:
+        """
+        Validate agent variable values match their type definitions.
+
+        Args:
+            config: Scenario configuration dict
+
+        Returns:
+            List of error messages
+        """
+        errors = []
+
+        # Get variable definitions
+        agent_var_defs = config.get("agent_vars", {})
+
+        # Type checking functions
+        type_checkers = {
+            "int": lambda v: isinstance(v, int) and not isinstance(v, bool),
+            "float": lambda v: isinstance(v, (int, float)) and not isinstance(v, bool),
+            "bool": lambda v: isinstance(v, bool),
+            "percent": lambda v: isinstance(v, int) and not isinstance(v, bool) and 0 <= v <= 100,
+            "scale": lambda v: isinstance(v, int) and not isinstance(v, bool) and 0 <= v <= 100,
+            "count": lambda v: isinstance(v, int) and not isinstance(v, bool) and v >= 0,
+            "dict": lambda v: isinstance(v, dict),
+            "list": lambda v: isinstance(v, list),
+        }
+
+        for agent in config.get("agents", []):
+            agent_name = agent.get("name", "unknown")
+            agent_vars = agent.get("variables", {})
+
+            for var_name, value in agent_vars.items():
+                if var_name not in agent_var_defs:
+                    errors.append(f"Agent '{agent_name}': undefined variable '{var_name}'")
+                    continue
+
+                var_def = agent_var_defs[var_name]
+                var_type = var_def.get("type", "int")
+
+                checker = type_checkers.get(var_type)
+                if checker and not checker(value):
+                    errors.append(
+                        f"Agent '{agent_name}': variable '{var_name}' has wrong type. "
+                        f"Expected {var_type}, got {type(value).__name__} ({value})"
+                    )
+
+        return errors
+
     def validate(self, config: Dict[str, Any]) -> ValidationResult:
         """
         Perform full validation of scenario configuration.
@@ -149,6 +197,9 @@ class ScenarioValidator:
             prompt_errors = self.validate_agent_prompt(prompt)
             for e in prompt_errors:
                 errors.append(f"Agent '{agent_name}': {e}")
+
+        # Check variable types
+        errors.extend(self.validate_variable_types(config))
 
         return ValidationResult(
             valid=len(errors) == 0,
