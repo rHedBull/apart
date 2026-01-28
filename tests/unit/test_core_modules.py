@@ -94,3 +94,56 @@ def test_territory_graph_is_grounding_module():
 
     assert module.layer == ModuleLayer.GROUNDING
     assert module.domain is None  # Grounding modules are domain-agnostic
+
+
+def test_all_core_modules_compose():
+    """Test all 5 core modules can be loaded and composed together."""
+    from modules.composer import ModuleComposer
+
+    loader = ModuleLoader()
+    core_modules = [
+        "agents_base",
+        "territory_graph",
+        "economic_base",
+        "diplomatic_base",
+        "trust_dynamics",
+    ]
+
+    # Should load without dependency errors
+    modules = loader.load_many(core_modules)
+    assert len(modules) == 5
+
+    # Should compose without errors
+    composer = ModuleComposer()
+    # Note: territory_graph needs map_file config, so we skip config for this test
+    # Just verify modules load and have no conflicts
+    composed = composer.compose(modules)
+    assert composed is not None
+
+    # Verify no conflicts between core modules
+    all_conflicts = set()
+    for m in modules:
+        all_conflicts.update(m.conflicts_with)
+
+    core_names = set(core_modules)
+    conflicts_with_core = all_conflicts & core_names
+    assert conflicts_with_core == set(), f"Core modules conflict with each other: {conflicts_with_core}"
+
+
+def test_core_modules_share_meso_granularity():
+    """Test all core modules support meso granularity."""
+    from modules.loader import find_common_granularity
+
+    loader = ModuleLoader()
+    core_modules = [
+        "agents_base",
+        "territory_graph",
+        "economic_base",
+        "diplomatic_base",
+        "trust_dynamics",
+    ]
+
+    modules = loader.load_many(core_modules)
+    common = find_common_granularity(modules)
+
+    assert Granularity.MESO in common, "All core modules should support meso granularity"
