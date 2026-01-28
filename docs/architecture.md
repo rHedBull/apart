@@ -200,6 +200,151 @@ agents:
 - All tests use pytest framework
 - CI/CD via GitHub Actions
 
+## Module System
+
+The module system provides composable behavior components that add domain-specific variables, dynamics, constraints, and agent effects.
+
+### Four-Layer Architecture
+
+```
+┌─────────────────────────────────────────┐
+│  META LAYER                             │
+│  (Simulation-wide rules, win conditions)│
+└─────────────────────────────────────────┘
+           ↓
+┌─────────────────────────────────────────┐
+│  GROUNDING LAYER                        │
+│  (territory_graph, time systems)        │
+└─────────────────────────────────────────┘
+           ↓
+┌─────────────────────────────────────────┐
+│  DOMAIN LAYER                           │
+│  (economic_base, diplomatic_base, etc.) │
+└─────────────────────────────────────────┘
+           ↓
+┌─────────────────────────────────────────┐
+│  DETAIL LAYER                           │
+│  (supply_chain_base extends economic)   │
+└─────────────────────────────────────────┘
+```
+
+### Granularity Levels
+
+Modules declare which actor granularities they support:
+
+| Level | Actors | Example |
+|-------|--------|---------|
+| `macro` | Blocs, institutions | "The West", "BRICS", "UN" |
+| `meso` | Nation-states | USA, China, Germany |
+| `micro` | Factions, individuals | "Hardliners", "CEO of X" |
+
+When combining modules, the system finds their common granularity.
+
+### Key Components
+
+**ModuleLoader** (`src/modules/loader.py`)
+- Loads module definitions from YAML
+- Validates dependencies and conflicts
+- Finds common granularity across modules
+
+**ModuleComposer** (`src/modules/composer.py`)
+- Merges multiple modules into ComposedModules
+- Combines variables, dynamics, constraints
+- Loads spatial graphs and networks from config
+
+**BehaviorModule** (`src/modules/models.py`)
+- Data model for module definitions
+- Contains: variables, dynamics, constraints, agent_effects
+- Taxonomy: layer, domain, granularity_support, extends
+
+### Module Configuration
+
+```yaml
+modules:
+  - agents_base
+  - economic_base
+
+module_config:
+  territory_graph:
+    map_file: modules/maps/world.yaml
+```
+
+### Available Modules
+
+| Module | Layer | Domain | Granularity |
+|--------|-------|--------|-------------|
+| `agents_base` | domain | - | macro/meso/micro |
+| `territory_graph` | grounding | - | macro/meso/micro |
+| `economic_base` | domain | economic | macro/meso |
+| `diplomatic_base` | domain | diplomatic | macro/meso/micro |
+| `trust_dynamics` | domain | social | macro/meso/micro |
+| `supply_chain_base` | detail | economic | macro/meso |
+
+## Experiment Runner
+
+The experiment runner enables multi-condition simulations for comparative analysis.
+
+### Components
+
+**ExperimentConfig** (`src/experiment/models.py`)
+- Defines experiment: name, scenario, conditions, runs_per_condition
+
+**ExperimentCondition** (`src/experiment/models.py`)
+- Named condition with dot-path modifications to base config
+
+**ExperimentRunner** (`src/experiment/runner.py`)
+- Executes all conditions and repetitions
+- Uses Orchestrator internally for each run
+- Aggregates results by condition
+
+**Results** (`src/experiment/results.py`)
+- Save/load experiment results
+- Statistical comparison (mean, std, min, max)
+- Human-readable summaries
+
+### Data Flow
+
+```
+ExperimentConfig
+    ↓
+ExperimentRunner.run_all()
+    ├→ For each condition:
+    │   ├→ apply_modifications(base_config, condition.modifications)
+    │   └→ For each repetition:
+    │       ├→ Create Orchestrator with modified config
+    │       ├→ orchestrator.run()
+    │       └→ Collect RunResult
+    └→ Return ExperimentResult
+```
+
+### Usage
+
+```python
+from experiment import ExperimentRunner, ExperimentConfig, ExperimentCondition
+
+config = ExperimentConfig(
+    name="trust_study",
+    scenario_path="scenarios/cooperation.yaml",
+    conditions=[
+        ExperimentCondition("low", modifications={"agent_vars.trust.default": 20}),
+        ExperimentCondition("high", modifications={"agent_vars.trust.default": 80}),
+    ],
+    runs_per_condition=3,
+)
+
+result = ExperimentRunner(config).run_all()
+```
+
+## Scenario Validation
+
+The validator (`src/utils/scenario_validator.py`) checks:
+
+1. Required sections (engine, agents)
+2. Variable type matching
+3. Module compatibility (granularity, conflicts)
+4. Agent prompt structure (OBJECTIVES section)
+5. Config completeness for modules
+
 ## Design Principles
 
 1. **Separation of Concerns**: Each component has single responsibility
@@ -207,3 +352,5 @@ agents:
 3. **Configuration-Driven**: Behavior defined in YAML, not code
 4. **Fail Fast**: Validation at startup prevents runtime errors
 5. **Extensibility**: Clear extension points for custom logic
+6. **Composability**: Modules combine without conflicts
+7. **Reproducibility**: Experiments capture all configuration
