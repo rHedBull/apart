@@ -45,3 +45,22 @@ def test_supply_chain_base_has_new_schema_fields():
     assert module.domain == "economic"
     assert module.extends == "economic_base"
     assert Granularity.MESO in module.granularity_support
+
+
+def test_diplomatic_base_module_loads():
+    """Test diplomatic_base module loads correctly."""
+    loader = ModuleLoader()
+    module = loader.load("diplomatic_base")
+
+    assert module.name == "diplomatic_base"
+    assert module.layer == ModuleLayer.DOMAIN
+    assert module.domain == "diplomatic"
+
+
+def test_diplomatic_base_has_alliance_variables():
+    """Test diplomatic_base provides alliance tracking."""
+    loader = ModuleLoader()
+    module = loader.load("diplomatic_base")
+
+    var_names = [v.name for v in module.variables]
+    assert "alliances" in var_names or "treaties" in var_names

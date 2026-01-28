@@ -1,0 +1,116 @@
+# src/modules/definitions/diplomatic_base.yaml
+module:
+  name: diplomatic_base
+  version: "1.0.0"
+  description: "Foundation for diplomatic simulations - alliances, treaties, reputation, and negotiations"
+
+  layer: domain
+  domain: diplomatic
+  granularity_support: [macro, meso, micro]
+
+  requires: []
+  conflicts_with: []
+
+  variables:
+    global:
+      - name: active_treaties
+        type: list
+        default: []
+        description: "Active treaties [{parties, type, terms, status}]"
+
+      - name: alliance_blocs
+        type: dict
+        default: {}
+        description: "Named alliance groupings {bloc_name: [members]}"
+
+      - name: diplomatic_incidents
+        type: list
+        default: []
+        description: "Recent diplomatic incidents [{parties, type, severity, step}]"
+
+    agent:
+      - name: alliances
+        type: dict
+        default: {}
+        description: "Alliance commitments {agent_name: {type, strength, conditions}}"
+
+      - name: treaties
+        type: list
+        default: []
+        description: "Treaties this agent is party to"
+
+      - name: diplomatic_reputation
+        type: scale
+        default: 50
+        min: 0
+        max: 100
+        description: "International reputation (0=pariah, 100=highly trusted)"
+
+      - name: grievances
+        type: dict
+        default: {}
+        description: "Unresolved grievances {agent_name: [{issue, severity}]}"
+
+      - name: diplomatic_leverage
+        type: scale
+        default: 50
+        min: 0
+        max: 100
+        description: "Diplomatic influence and leverage"
+
+  dynamics:
+    - description: "Alliances create mutual defense expectations and coordination costs"
+      priority: 9
+      examples:
+        - "Alliance members expect support in conflicts"
+        - "Breaking alliance commitments damages reputation severely"
+
+    - description: "Treaties constrain behavior but can be renegotiated or violated"
+      priority: 8
+      examples:
+        - "Trade treaties create economic interdependence"
+        - "Arms control treaties limit military options"
+
+    - description: "Reputation affects ability to form new alliances and negotiate"
+      priority: 7
+      examples:
+        - "Low reputation makes partners hesitant"
+        - "High reputation enables leadership roles"
+
+    - description: "Grievances accumulate and can trigger escalation if unaddressed"
+      priority: 6
+
+  constraints:
+    - description: "Alliance strength cannot exceed 100"
+      enforcement: hard
+      variable: alliances
+
+    - description: "Cannot form alliance with agent you have active conflict with"
+      enforcement: soft
+
+    - description: "Treaty violations should damage reputation"
+      enforcement: guided
+
+  agent_effects:
+    - description: "Allies share information and coordinate responses"
+      applies_to: all
+
+    - description: "Agents with grievances are predisposed to conflict"
+      applies_to: all
+
+    - description: "High reputation agents are sought as mediators"
+      applies_to: all
+
+  event_types:
+    - alliance_formed
+    - alliance_broken
+    - treaty_signed
+    - treaty_violated
+    - diplomatic_crisis
+    - mediation_attempted
+    - reputation_damaged
+    - reputation_improved
+
+  event_probabilities:
+    diplomatic_crisis: 0.05
+    mediation_attempted: 0.10
