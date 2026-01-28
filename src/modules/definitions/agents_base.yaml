@@ -1,0 +1,65 @@
+module:
+  name: agents_base
+  version: "1.0.0"
+  description: "Foundation module for agent-based simulations. Provides core communication and state tracking."
+
+  layer: domain
+  domain: null  # Core module, not domain-specific
+  granularity_support: [macro, meso, micro]
+
+  requires: []
+  conflicts_with: []
+
+  variables:
+    global:
+      - name: simulation_turn
+        type: count
+        default: 0
+        description: "Current simulation turn number"
+
+      - name: active_negotiations
+        type: list
+        default: []
+        description: "Currently active negotiations [{parties, topic, status}]"
+
+    agent:
+      - name: stance
+        type: dict
+        default: {}
+        description: "Agent's current stance on key issues {issue: position}"
+
+      - name: relationships
+        type: dict
+        default: {}
+        description: "Relationship scores with other agents {agent_name: score}"
+
+      - name: messages_sent
+        type: count
+        default: 0
+        description: "Number of messages sent this simulation"
+
+      - name: messages_received
+        type: count
+        default: 0
+        description: "Number of messages received this simulation"
+
+  dynamics:
+    - description: "Agents communicate through structured messages and can update their stances based on interactions"
+      priority: 8
+
+    - description: "Relationships between agents evolve based on cooperation, conflict, and communication"
+      priority: 7
+
+  constraints:
+    - description: "Agents can only directly communicate with agents they have relationships with"
+      enforcement: guided
+
+    - description: "Stance changes should be gradual unless triggered by major events"
+      enforcement: guided
+
+  agent_effects:
+    - description: "Agents perceive other agents through the lens of their relationship scores"
+      applies_to: all
+
+    - description: "Prior communication history affects interpretation of new messages"
+      applies_to: all

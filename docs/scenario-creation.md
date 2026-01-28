@@ -1123,6 +1123,175 @@ Error: `Invalid override value for variable 'health': Value 200 is above maximum
 4. Check for validation errors in output
 5. Verify variable values in final game state
 
+## Behavior Modules
+
+Modules add domain-specific variables, dynamics, and constraints without manual coding.
+
+### Basic Module Usage
+
+```yaml
+modules:
+  - agents_base        # Core agent communication
+  - economic_base      # Economic variables and dynamics
+  - trust_dynamics     # Trust relationships
+```
+
+When you add modules, they automatically:
+- Add their variables to `global_vars` and `agent_vars`
+- Inject dynamics into the simulator prompt
+- Add constraints for realistic behavior
+- Enable domain-specific events
+
+### Available Modules
+
+| Module | Layer | Domain | What It Adds |
+|--------|-------|--------|--------------|
+| `agents_base` | domain | - | `stance`, `relationships`, `messages_sent/received` |
+| `territory_graph` | grounding | - | Spatial structure from map file |
+| `economic_base` | domain | economic | `gdp`, `trade_balance`, `sanctions`, `economic_power` |
+| `diplomatic_base` | domain | diplomatic | `alliances`, `treaties`, `reputation` |
+| `trust_dynamics` | domain | social | `trust_level`, `credibility`, `trust_matrix` |
+| `supply_chain_base` | detail | economic | Supply chain networks (extends economic_base) |
+
+### Module Configuration
+
+Some modules require configuration:
+
+```yaml
+modules:
+  - territory_graph
+  - economic_base
+
+module_config:
+  territory_graph:
+    map_file: modules/maps/world.yaml
+```
+
+### Granularity Levels
+
+Modules declare which actor scales they support:
+
+- **macro**: Blocs, institutions ("The West", "BRICS")
+- **meso**: Nation-states (USA, China, Germany)
+- **micro**: Factions, individuals ("Hardliners", "CEO")
+
+When combining modules, use actors at their common granularity. Most modules support `meso` (nation-states).
+
+### Example: Economic Scenario with Modules
+
+```yaml
+max_steps: 10
+time_step_duration: "1 month"
+
+modules:
+  - agents_base
+  - economic_base
+  - trust_dynamics
+
+engine:
+  provider: openai
+  model: gpt-4o
+  system_prompt: |
+    You simulate economic competition between major economies.
+    Track trade flows, sanctions, and trust dynamics.
+  simulation_plan: |
+    10-month economic scenario with trade tensions.
+
+# Module variables are automatically added, but you can override defaults:
+agent_vars:
+  economic_power:
+    type: scale
+    default: 50
+    # Override module default
+
+agents:
+  - name: "Economy A"
+    system_prompt: |
+      OBJECTIVES: Maximize trade surplus
+      CONSTRAINTS: Avoid trade war escalation
+    variables:
+      economic_power: 80
+      trust_level: 60
+
+  - name: "Economy B"
+    system_prompt: |
+      OBJECTIVES: Achieve technology independence
+      CONSTRAINTS: Maintain export markets
+    variables:
+      economic_power: 70
+      trust_level: 40
+```
+
+## Experiment Configuration
+
+Run the same scenario under multiple conditions to compare outcomes.
+
+### Basic Experiment
+
+```python
+from experiment import ExperimentRunner, ExperimentConfig, ExperimentCondition
+
+config = ExperimentConfig(
+    name="trust_sensitivity",
+    description="How does initial trust affect cooperation?",
+    scenario_path="scenarios/cooperation.yaml",
+    conditions=[
+        ExperimentCondition(
+            name="low_trust",
+            description="Start with low trust",
+            modifications={"agent_vars.trust_level.default": 20}
+        ),
+        ExperimentCondition(
+            name="high_trust",
+            description="Start with high trust",
+            modifications={"agent_vars.trust_level.default": 80}
+        ),
+    ],
+    runs_per_condition=5,
+)
+
+runner = ExperimentRunner(config)
+result = runner.run_all()
+```
+
+### Modification Paths
+
+Use dot-notation to modify nested config values:
+
+```python
+modifications={
+    "agent_vars.trust_level.default": 80,     # Variable default
+    "agents.0.variables.resources": 200,      # Specific agent override
+    "global_vars.tension.default": 10,        # Global variable
+    "max_steps": 20,                          # Top-level setting
+}
+```
+
+### Analyzing Results
+
+```python
+from experiment import compare_conditions, generate_summary
+
+# Compare a variable across conditions
+comparison = compare_conditions(result, "global_vars.cooperation_score")
+# Returns: {"low_trust": {"mean": 45, "std": 12, ...}, "high_trust": {"mean": 78, ...}}
+
+# Human-readable summary
+print(generate_summary(result))
+```
+
+### Saving and Loading
+
+```python
+from experiment import save_experiment, load_experiment
+
+# Save to data/experiments/
+save_experiment(result)
+
+# Load later
+loaded = load_experiment("trust_sensitivity_20240115_143022")
+```
+
 ## Advanced Tips
 
 ### Designing Variable Sets

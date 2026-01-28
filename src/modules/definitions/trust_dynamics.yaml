@@ -1,0 +1,97 @@
+# src/modules/definitions/trust_dynamics.yaml
+module:
+  name: trust_dynamics
+  version: "1.0.0"
+  description: "Trust and relationship dynamics between agents - tracks trust evolution based on actions"
+
+  layer: domain
+  domain: social
+  granularity_support: [macro, meso, micro]
+
+  requires: []
+  conflicts_with: []
+
+  variables:
+    global:
+      - name: trust_events
+        type: list
+        default: []
+        description: "Recent trust-affecting events [{from, to, type, magnitude, step}]"
+
+    agent:
+      - name: trust_scores
+        type: dict
+        default: {}
+        description: "Trust levels for other agents {agent_name: score} where score is -100 to 100"
+
+      - name: trustworthiness
+        type: scale
+        default: 50
+        min: 0
+        max: 100
+        description: "How trustworthy this agent is perceived to be generally"
+
+      - name: trust_history
+        type: dict
+        default: {}
+        description: "History of trust changes {agent_name: [{change, reason, step}]}"
+
+      - name: betrayal_count
+        type: count
+        default: 0
+        description: "Number of times this agent has betrayed commitments"
+
+  dynamics:
+    - description: "Trust is earned slowly through consistent behavior but lost quickly through betrayal"
+      priority: 9
+      examples:
+        - "Keeping commitments gradually builds trust (+5 to +10 per positive interaction)"
+        - "Single betrayal can destroy years of trust building (-30 to -50)"
+
+    - description: "Trust affects willingness to cooperate and share information"
+      priority: 8
+      examples:
+        - "High trust enables sensitive negotiations"
+        - "Low trust leads to verification demands and hedging"
+
+    - description: "Trust can be rebuilt after betrayal but requires sustained effort"
+      priority: 6
+      examples:
+        - "Apologies and compensation can begin repair"
+        - "Repeated positive actions needed over time"
+
+    - description: "Third-party observations of behavior affect trust calculations"
+      priority: 5
+
+  constraints:
+    - description: "Trust scores bounded between -100 (total distrust) and 100 (complete trust)"
+      enforcement: hard
+      variable: trust_scores
+
+    - description: "Trust changes should be proportional to action significance"
+      enforcement: guided
+
+    - description: "Betrayal of high-trust relationship has larger negative impact"
+      enforcement: guided
+
+  agent_effects:
+    - description: "Low trust agents are excluded from sensitive discussions"
+      applies_to: all
+
+    - description: "High trust enables more efficient cooperation (less verification needed)"
+      applies_to: all
+
+    - description: "Agents with betrayal history face skepticism regardless of current behavior"
+      applies_to: all
+
+  event_types:
+    - trust_increased
+    - trust_decreased
+    - trust_betrayed
+    - trust_restored
+    - commitment_kept
+    - commitment_broken
+
+  event_probabilities:
+    trust_betrayed: 0.02
+    commitment_broken: 0.05

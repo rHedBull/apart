@@ -10,6 +10,21 @@ from typing import Any, Dict, List, Literal, Optional, Union
 from enum import Enum
 
 
+class ModuleLayer(str, Enum):
+    """Which architectural layer a module belongs to."""
+    META = "meta"
+    GROUNDING = "grounding"
+    DOMAIN = "domain"
+    DETAIL = "detail"
+
+
+class Granularity(str, Enum):
+    """Actor granularity levels."""
+    MACRO = "macro"   # Blocs, institutions
+    MESO = "meso"     # Nation-states
+    MICRO = "micro"   # Factions, individuals
+
+
 class VariableType(str, Enum):
     """Supported variable types for modules."""
     INT = "int"
@@ -190,6 +205,14 @@ class BehaviorModule:
     name: str
     description: str
     version: str = "1.0.0"
+
+    # Taxonomy fields
+    layer: ModuleLayer = ModuleLayer.DOMAIN
+    domain: Optional[str] = None  # e.g., "economic", "military"
+    granularity_support: List[Granularity] = field(
+        default_factory=lambda: [Granularity.MACRO, Granularity.MESO, Granularity.MICRO]
+    )
+    extends: Optional[str] = None  # Module this adds detail to
 
     # What this module provides
     variables: List[ModuleVariable] = field(default_factory=list)

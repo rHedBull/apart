@@ -39,7 +39,8 @@ Thumbs.db
 
 # Project specific
 .uv/
-.claude/
+.claude/*
+!.claude/commands/
 results/
 .env
 

@@ -1,9 +1,14 @@
 module:
   name: supply_chain_base
   version: "1.0.0"
-  description: "Foundation for supply chain simulations - models dependencies, leverage, and commodity flows between nations/blocs"
+  description: "Detail module for supply chain simulations - models dependencies, leverage, and commodity flows between nations/blocs"
 
-  requires: []
+  layer: detail
+  domain: economic
+  granularity_support: [macro, meso]
+  extends: economic_base
+
+  requires: [economic_base]
   conflicts_with: [territory_graph, military_base, force_types, casualties]
 
   config:

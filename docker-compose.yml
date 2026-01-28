@@ -37,7 +37,7 @@ services:
   # Simulation workers (horizontally scalable)
   worker:
     build: .
-    command: python run_worker.py
+    command: python scripts/run_worker.py
     environment:
       - APART_USE_DATABASE=1
       - REDIS_URL=redis://redis:6379
