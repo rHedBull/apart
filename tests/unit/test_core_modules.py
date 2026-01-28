@@ -24,3 +24,24 @@ def test_agents_base_has_core_variables():
     var_names = [v.name for v in agent_vars]
 
     assert "stance" in var_names or "position" in var_names
+
+
+def test_economic_base_has_new_schema_fields():
+    """Test economic_base has layer and granularity fields."""
+    loader = ModuleLoader()
+    module = loader.load("economic_base")
+
+    assert module.layer == ModuleLayer.DOMAIN
+    assert module.domain == "economic"
+    assert Granularity.MESO in module.granularity_support
+
+
+def test_supply_chain_base_has_new_schema_fields():
+    """Test supply_chain_base has layer and granularity fields."""
+    loader = ModuleLoader()
+    module = loader.load("supply_chain_base")
+
+    assert module.layer == ModuleLayer.DETAIL
+    assert module.domain == "economic"
+    assert module.extends == "economic_base"
+    assert Granularity.MESO in module.granularity_support

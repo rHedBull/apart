@@ -1,0 +1,122 @@
+module:
+  name: economic_base
+  version: "1.0.0"
+  description: "Foundation module for economic simulations. Provides core economic indicators and trade dynamics."
+
+  layer: domain
+  domain: economic
+  granularity_support: [macro, meso]
+
+  requires: []
+  conflicts_with: []
+
+  variables:
+    global:
+      - name: global_gdp_growth
+        type: percent
+        default: 3
+        min: -20
+        max: 20
+        description: "Global GDP growth rate percentage"
+
+      - name: inflation_index
+        type: scale
+        default: 50
+        min: 0
+        max: 100
+        description: "Global inflation pressure (0=deflation, 50=stable, 100=hyperinflation)"
+
+      - name: trade_openness
+        type: scale
+        default: 70
+        min: 0
+        max: 100
+        description: "Global trade openness level (0=autarky, 100=free trade)"
+
+    agent:
+      - name: gdp
+        type: float
+        default: 0
+        description: "Agent's GDP in standardized units"
+
+      - name: gdp_growth
+        type: percent
+        default: 2
+        min: -50
+        max: 50
+        description: "Agent's GDP growth rate percentage"
+
+      - name: trade_balance
+        type: float
+        default: 0
+        description: "Trade balance (positive=surplus, negative=deficit)"
+
+      - name: economic_power
+        type: scale
+        default: 50
+        min: 0
+        max: 100
+        description: "Relative economic power/influence"
+
+      - name: sanctions_imposed
+        type: list
+        default: []
+        description: "List of sanctions this agent has imposed [{target, type, severity}]"
+
+      - name: sanctions_received
+        type: list
+        default: []
+        description: "List of sanctions affecting this agent [{source, type, severity}]"
+
+  dynamics:
+    - description: "Economic power translates to diplomatic leverage and coalition-building capacity"
+      priority: 8
+      examples:
+        - "Larger economies can offer more attractive trade deals"
+        - "Economic sanctions are more effective when imposed by major economies"
+
+    - description: "Trade relationships create interdependence that affects conflict calculus"
+      priority: 8
+      examples:
+        - "Major trading partners have incentives to avoid conflict"
+        - "Economic decoupling is costly and takes time"
+
+    - description: "Sanctions effectiveness depends on target's trade diversification and alternatives"
+      priority: 7
+      examples:
+        - "Isolated economies are more vulnerable to sanctions"
+        - "Alternative suppliers/markets reduce sanction impact"
+
+    - description: "Economic shocks propagate through trade networks"
+      priority: 6
+      examples:
+        - "Recession in major economy affects trading partners"
+        - "Supply disruptions cause price increases globally"
+
+  constraints:
+    - description: "Economic changes should be gradual unless triggered by major events"
+      enforcement: guided
+
+    - description: "Trade balance changes reflect underlying economic fundamentals"
+      enforcement: guided
+
+  agent_effects:
+    - description: "Agents with larger economies have more options for economic statecraft"
+      applies_to: all
+
+    - description: "Economic interdependence creates both leverage and vulnerability"
+      applies_to: all
+
+    - description: "Sanctions affect both target and imposer through trade disruption"
+      applies_to: all
+
+  event_types:
+    - economic_shock
+    - sanctions_imposed
+    - sanctions_lifted
+    - trade_deal_signed
+    - trade_war_escalation
+
+  event_probabilities:
+    economic_shock: 0.05
+    trade_war_escalation: 0.03
