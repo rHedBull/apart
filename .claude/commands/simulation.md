@@ -17,16 +17,134 @@ You help users work with the APART multi-agent simulation framework.
 ## Subcommands
 
 ### `/simulation create [domain]`
-Interactive scenario creation. Guide the user through:
 
-1. **Domain selection** - What type of scenario? (geopolitical, economic, social, custom)
-2. **Agents** - Who are the actors? What are their objectives and constraints?
-3. **Variables** - What state needs tracking? (global and per-agent)
-4. **Modules** - Which behavior modules to enable?
-5. **Timeline** - How many steps? What's the time scale?
-6. **Events** - Any scripted events to inject?
+**IMPORTANT:** Before writing ANY code, invoke the `superpowers:brainstorming` skill to explore the user's intent.
 
-Always validate the scenario before saving.
+#### Phase 1: Brainstorming (REQUIRED)
+
+Invoke the brainstorming skill first:
+```
+Use Skill tool: superpowers:brainstorming
+```
+
+During brainstorming, explore:
+- What question or hypothesis does this simulation answer?
+- What makes this simulation interesting or useful?
+- What would success look like?
+
+#### Phase 2: Iterative Interview
+
+Use `AskUserQuestion` to gather details in stages. Do NOT proceed until each stage is complete.
+
+**Stage 1: Domain & Purpose**
+```
+AskUserQuestion:
+  question: "What domain is this simulation exploring?"
+  options:
+    - label: "Geopolitical"
+      description: "International relations, conflicts, diplomacy"
+    - label: "Economic"
+      description: "Markets, trade, resource allocation"
+    - label: "Social/Organizational"
+      description: "Group dynamics, trust, cooperation"
+    - label: "AI Safety"
+      description: "AI governance, alignment, risks"
+```
+
+Then ask: "In 1-2 sentences, what scenario do you want to simulate?"
+
+**Stage 2: Actors**
+```
+AskUserQuestion:
+  question: "How many agents should participate?"
+  options:
+    - label: "2-3 agents"
+      description: "Focused interaction, faster runs"
+    - label: "4-6 agents"
+      description: "Moderate complexity"
+    - label: "7+ agents"
+      description: "Complex multi-party dynamics"
+```
+
+For each agent, ask:
+- "What is this agent's name and role?"
+- "What is their primary objective?"
+- "What constraints or limitations do they have?"
+- "What information do they have access to?"
+
+**Stage 3: Dynamics**
+```
+AskUserQuestion:
+  question: "What variables should the simulation track?"
+  multiSelect: true
+  options:
+    - label: "Trust/relationships"
+      description: "How agents view each other"
+    - label: "Resources/economy"
+      description: "Wealth, assets, trade"
+    - label: "Power/influence"
+      description: "Relative strength, leverage"
+    - label: "Custom variables"
+      description: "Define your own metrics"
+```
+
+If custom: "What custom variables do you need? (name, type, range)"
+
+**Stage 4: Timeline & Events**
+```
+AskUserQuestion:
+  question: "How long should the simulation run?"
+  options:
+    - label: "Short (3-5 steps)"
+      description: "Quick test, focused scenario"
+    - label: "Medium (6-12 steps)"
+      description: "Allows dynamics to develop"
+    - label: "Long (13-30 steps)"
+      description: "Full arc, complex evolution"
+```
+
+Ask: "What time period does each step represent? (hour/day/week/month/year)"
+
+Ask: "Should any events be scripted to occur at specific steps? (optional)"
+
+**Stage 5: Technical Config**
+```
+AskUserQuestion:
+  question: "Which LLM provider should run this simulation?"
+  options:
+    - label: "Ollama (local)"
+      description: "Free, private, requires local setup. Use deepseek-coder-v2:latest"
+    - label: "Gemini"
+      description: "Fast, good JSON. Requires GEMINI_API_KEY"
+    - label: "OpenAI"
+      description: "GPT-4o. Requires OPENAI_API_KEY"
+    - label: "Anthropic"
+      description: "Claude. Requires ANTHROPIC_API_KEY"
+```
+
+#### Phase 3: Generate & Validate
+
+Only after ALL stages complete:
+
+1. Generate the scenario YAML based on gathered information
+2. Write to `scenarios/<name>.yaml`
+3. Run validation:
+   ```python
+   from utils.scenario_validator import ScenarioValidator
+   result = ScenarioValidator().validate(config)
+   ```
+4. Show validation results
+5. Ask user to confirm or iterate
+
+#### Checklist Before Generating
+
+- [ ] Domain and purpose clearly defined
+- [ ] All agents have: name, role, objectives, constraints, information access
+- [ ] Variables defined with types and ranges
+- [ ] Modules selected based on domain
+- [ ] Timeline and time scale set
+- [ ] LLM provider chosen
+- [ ] Any scripted events defined
 
 ### `/simulation validate <path>`
 Validate a scenario configuration:
