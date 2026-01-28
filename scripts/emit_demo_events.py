@@ -3,7 +3,8 @@
 
 import sys
 import time
-sys.path.insert(0, "src")
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from server.event_bus import EventBus, emit_event
 from server.routes.simulations import register_simulation, update_simulation_step, update_simulation_state, complete_simulation

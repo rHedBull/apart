@@ -3,8 +3,8 @@
 Run RQ worker for processing simulation jobs.
 
 Usage:
-    python run_worker.py                    # Use default Redis URL
-    REDIS_URL=redis://host:6379 python run_worker.py
+    python scripts/run_worker.py                    # Use default Redis URL
+    REDIS_URL=redis://host:6379 python scripts/run_worker.py
 
 Workers process jobs from priority queues in order: high -> normal -> low.
 Multiple workers can run concurrently for horizontal scaling.
@@ -15,7 +15,7 @@ import sys
 from pathlib import Path
 
 # Add src directory to path for imports
-sys.path.insert(0, str(Path(__file__).parent / "src"))
+sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from redis import Redis
 from rq import Worker, Queue

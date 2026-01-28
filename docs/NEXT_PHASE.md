@@ -139,7 +139,7 @@ async def start_simulation(request: StartSimulationRequest):
 
 ### 4. Add Worker Script
 
-**File:** `run_worker.py`
+**File:** `scripts/run_worker.py`
 
 ```python
 #!/usr/bin/env python
@@ -219,7 +219,7 @@ services:
 
   worker:
     build: .
-    command: python run_worker.py
+    command: python scripts/run_worker.py
     environment:
       - APART_USE_DATABASE=1
       - REDIS_URL=redis://redis:6379
