@@ -119,3 +119,60 @@ module:
     assert Granularity.MACRO in module.granularity_support
     assert Granularity.MESO in module.granularity_support
     assert Granularity.MICRO in module.granularity_support
+
+
+def test_loader_validates_extends_dependency(temp_modules_dir):
+    """Test loader validates that extended module is loaded."""
+    base_yaml = """
+module:
+  name: economic_base
+  description: Base economic module
+  layer: domain
+"""
+    detail_yaml = """
+module:
+  name: economic_detailed
+  description: Detailed economic module
+  layer: detail
+  extends: economic_base
+"""
+    (temp_modules_dir / "economic_base.yaml").write_text(base_yaml)
+    (temp_modules_dir / "economic_detailed.yaml").write_text(detail_yaml)
+
+    loader = ModuleLoader(temp_modules_dir)
+
+    # Loading detail without base should fail
+    from modules.loader import ModuleDependencyError
+    with pytest.raises(ModuleDependencyError, match="extends.*economic_base"):
+        loader.load_many(["economic_detailed"])
+
+    # Loading both should work
+    loader.clear_cache()
+    modules = loader.load_many(["economic_base", "economic_detailed"])
+    assert len(modules) == 2
+
+
+def test_loader_validates_granularity_compatibility(temp_modules_dir):
+    """Test loader can check granularity compatibility."""
+    macro_only = """
+module:
+  name: macro_module
+  description: Macro only
+  granularity_support: [macro]
+"""
+    micro_only = """
+module:
+  name: micro_module
+  description: Micro only
+  granularity_support: [micro]
+"""
+    (temp_modules_dir / "macro_module.yaml").write_text(macro_only)
+    (temp_modules_dir / "micro_module.yaml").write_text(micro_only)
+
+    loader = ModuleLoader(temp_modules_dir)
+    modules = loader.load_many(["macro_module", "micro_module"])
+
+    # Check that we can find common granularity (should be none)
+    from modules.loader import find_common_granularity
+    common = find_common_granularity(modules)
+    assert common == []

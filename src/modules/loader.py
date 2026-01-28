@@ -27,6 +27,29 @@ from modules.models import (
 DEFAULT_MODULES_DIR = Path(__file__).parent / "definitions"
 
 
+def find_common_granularity(modules: List[BehaviorModule]) -> List[Granularity]:
+    """
+    Find granularity levels supported by all modules.
+
+    Args:
+        modules: List of modules to check
+
+    Returns:
+        List of Granularity values supported by all modules
+    """
+    if not modules:
+        return list(Granularity)
+
+    # Start with first module's support
+    common = set(modules[0].granularity_support)
+
+    # Intersect with each subsequent module
+    for module in modules[1:]:
+        common &= set(module.granularity_support)
+
+    return list(common)
+
+
 class ModuleLoadError(Exception):
     """Error loading a behavior module."""
     pass
@@ -301,6 +324,13 @@ class ModuleLoader:
                         f"Module '{module.name}' conflicts with '{conflict}'. "
                         f"These modules cannot be used together."
                     )
+
+            # Check extends dependency
+            if module.extends and module.extends not in loaded_names:
+                raise ModuleDependencyError(
+                    f"Module '{module.name}' extends '{module.extends}' which is not loaded. "
+                    f"Add '{module.extends}' to your modules list."
+                )
 
     def _list_available_modules(self) -> List[str]:
         """List available module names."""
