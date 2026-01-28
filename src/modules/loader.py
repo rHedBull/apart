@@ -18,6 +18,8 @@ from modules.models import (
     ModuleConfigField,
     VariableType,
     ReinforcementType,
+    ModuleLayer,
+    Granularity,
 )
 
 
@@ -127,6 +129,27 @@ class ModuleLoader:
         """Parse raw YAML data into a BehaviorModule."""
         name = data.get("name", source_name)
 
+        # Parse new taxonomy fields
+        layer_str = data.get("layer", "domain")
+        layer_mapping = {
+            "meta": ModuleLayer.META,
+            "grounding": ModuleLayer.GROUNDING,
+            "domain": ModuleLayer.DOMAIN,
+            "detail": ModuleLayer.DETAIL,
+        }
+        layer = layer_mapping.get(layer_str, ModuleLayer.DOMAIN)
+
+        granularity_support_raw = data.get("granularity_support", ["macro", "meso", "micro"])
+        granularity_mapping = {
+            "macro": Granularity.MACRO,
+            "meso": Granularity.MESO,
+            "micro": Granularity.MICRO,
+        }
+        granularity_support = [
+            granularity_mapping.get(g, Granularity.MESO)
+            for g in granularity_support_raw
+        ]
+
         # Parse variables
         variables = []
         vars_data = data.get("variables", {})
@@ -160,6 +183,10 @@ class ModuleLoader:
             name=name,
             description=data.get("description", ""),
             version=data.get("version", "1.0.0"),
+            layer=layer,
+            domain=data.get("domain"),
+            granularity_support=granularity_support,
+            extends=data.get("extends"),
             variables=variables,
             dynamics=dynamics,
             constraints=constraints,
