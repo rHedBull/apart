@@ -85,3 +85,12 @@ def test_trust_dynamics_has_trust_variables():
     var_names = [v.name for v in agent_vars]
 
     assert "trust_scores" in var_names
+
+
+def test_territory_graph_is_grounding_module():
+    """Test territory_graph is properly categorized as grounding."""
+    loader = ModuleLoader()
+    module = loader.load("territory_graph")
+
+    assert module.layer == ModuleLayer.GROUNDING
+    assert module.domain is None  # Grounding modules are domain-agnostic

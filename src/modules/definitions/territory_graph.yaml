@@ -2,6 +2,9 @@ module:
   name: territory_graph
   version: "1.0.0"
   description: "Graph-based territory system with nodes (regions) and edges (connections)"
+  layer: grounding
+  domain: null
+  granularity_support: [macro, meso, micro]
 
   requires: []
   conflicts_with: []
