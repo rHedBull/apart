@@ -1,7 +1,12 @@
 """Tests for agent stats awareness functionality."""
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
+
 import pytest
-from src.core.agent import Agent
-from src.llm.mock_provider import MockLLMProvider
+from core.agent import Agent
+from llm.mock_provider import MockLLMProvider
 
 
 class TestAgentStats:
