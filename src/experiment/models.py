@@ -53,6 +53,15 @@ class ExperimentConfig:
         if not self.conditions:
             raise ValueError("At least one condition is required")
 
+        # Validate condition names are non-empty and unique
+        seen_names = set()
+        for condition in self.conditions:
+            if not condition.name or not condition.name.strip():
+                raise ValueError("Condition names must be non-empty")
+            if condition.name in seen_names:
+                raise ValueError(f"Duplicate condition name: '{condition.name}'")
+            seen_names.add(condition.name)
+
 
 @dataclass
 class RunResult:

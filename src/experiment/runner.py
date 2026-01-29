@@ -69,7 +69,12 @@ class ExperimentRunner:
             raise FileNotFoundError(f"Scenario file not found: {path}")
 
         with open(scenario_path) as f:
-            return yaml.safe_load(f)
+            data = yaml.safe_load(f)
+
+        if not isinstance(data, dict):
+            raise ValueError(f"Invalid or empty scenario YAML: expected mapping, got {type(data).__name__}")
+
+        return data
 
     def _validate_conditions(self) -> None:
         """Validate all conditions can be applied to base config."""
@@ -86,6 +91,16 @@ class ExperimentRunner:
             raise ValueError(
                 "Invalid experiment conditions:\n  " + "\n  ".join(all_errors)
             )
+
+    def _sanitize_name(self, name: str) -> str:
+        """Sanitize a name for use in file paths to prevent directory traversal."""
+        import re
+        # Replace path separators and other unsafe characters with underscores
+        sanitized = re.sub(r'[/\\:\x00<>"|?*]', '_', name)
+        # Remove leading/trailing dots and spaces
+        sanitized = sanitized.strip('. ')
+        # Ensure non-empty
+        return sanitized or 'unnamed'
 
     def _log(self, message: str) -> None:
         """Print message if verbose mode is enabled."""
@@ -113,8 +128,10 @@ class ExperimentRunner:
         # Apply condition modifications
         modified_config = apply_modifications(self._base_config, condition.modifications)
 
-        # Create unique scenario name for this run
-        scenario_name = f"{self.config.name}_{condition.name}_run{run_index}"
+        # Create unique scenario name for this run (sanitized to prevent path traversal)
+        safe_experiment_name = self._sanitize_name(self.config.name)
+        safe_condition_name = self._sanitize_name(condition.name)
+        scenario_name = f"{safe_experiment_name}_{safe_condition_name}_run{run_index}"
 
         # Write modified config to temp file
         temp_dir = Path(self.config.output_dir or "data/experiments") / self.result.experiment_id

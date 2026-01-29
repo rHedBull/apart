@@ -160,8 +160,8 @@ def compare_conditions(
             }
             continue
 
-        # Filter to numeric values only
-        numeric_values = [v for v in values if isinstance(v, (int, float))]
+        # Filter to numeric values only (excluding bool, which is a subclass of int)
+        numeric_values = [v for v in values if isinstance(v, (int, float)) and not isinstance(v, bool)]
 
         if not numeric_values:
             comparison[cond_name] = {

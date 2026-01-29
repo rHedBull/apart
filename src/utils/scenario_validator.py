@@ -166,7 +166,12 @@ class ScenarioValidator:
                 var_type = var_def.get("type", "int")
 
                 checker = type_checkers.get(var_type)
-                if checker and not checker(value):
+                if checker is None:
+                    errors.append(
+                        f"Agent '{agent_name}': unknown variable type '{var_type}' "
+                        f"for variable '{var_name}'"
+                    )
+                elif not checker(value):
                     errors.append(
                         f"Agent '{agent_name}': variable '{var_name}' has wrong type. "
                         f"Expected {var_type}, got {type(value).__name__} ({value})"

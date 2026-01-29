@@ -152,7 +152,7 @@ class ModuleLoader:
         """Parse raw YAML data into a BehaviorModule."""
         name = data.get("name", source_name)
 
-        # Parse new taxonomy fields
+        # Parse new taxonomy fields with validation
         layer_str = data.get("layer", "domain")
         layer_mapping = {
             "meta": ModuleLayer.META,
@@ -160,7 +160,12 @@ class ModuleLoader:
             "domain": ModuleLayer.DOMAIN,
             "detail": ModuleLayer.DETAIL,
         }
-        layer = layer_mapping.get(layer_str, ModuleLayer.DOMAIN)
+        if layer_str not in layer_mapping:
+            raise ModuleLoadError(
+                f"Module '{name}' has invalid layer '{layer_str}'. "
+                f"Allowed values: {', '.join(layer_mapping.keys())}"
+            )
+        layer = layer_mapping[layer_str]
 
         granularity_support_raw = data.get("granularity_support", ["macro", "meso", "micro"])
         granularity_mapping = {
@@ -168,10 +173,20 @@ class ModuleLoader:
             "meso": Granularity.MESO,
             "micro": Granularity.MICRO,
         }
-        granularity_support = [
-            granularity_mapping.get(g, Granularity.MESO)
-            for g in granularity_support_raw
-        ]
+
+        # Validate granularity values
+        if not isinstance(granularity_support_raw, list):
+            raise ModuleLoadError(
+                f"Module '{name}': granularity_support must be a list"
+            )
+        granularity_support = []
+        for g in granularity_support_raw:
+            if g not in granularity_mapping:
+                raise ModuleLoadError(
+                    f"Module '{name}' has invalid granularity '{g}'. "
+                    f"Allowed values: {', '.join(granularity_mapping.keys())}"
+                )
+            granularity_support.append(granularity_mapping[g])
 
         # Parse variables
         variables = []
@@ -226,6 +241,7 @@ class ModuleLoader:
     def _parse_variable(self, data: dict, scope: str) -> ModuleVariable:
         """Parse a variable definition."""
         var_type_str = data.get("type", "int")
+        var_name = data.get("name", "unknown")
 
         # Map string to enum
         type_mapping = {
@@ -239,7 +255,12 @@ class ModuleLoader:
             "list": VariableType.LIST,
         }
 
-        var_type = type_mapping.get(var_type_str, VariableType.INT)
+        if var_type_str not in type_mapping:
+            raise ModuleLoadError(
+                f"Variable '{var_name}' has invalid type '{var_type_str}'. "
+                f"Allowed values: {', '.join(type_mapping.keys())}"
+            )
+        var_type = type_mapping[var_type_str]
 
         return ModuleVariable(
             name=data["name"],
