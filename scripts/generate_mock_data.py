@@ -421,7 +421,7 @@ def main():
 
     print(f"\nCreated {len(mock_runs)} mock runs in {results_dir}")
     print("\nTo see them in the dashboard:")
-    print("  1. Start the backend: python run_server.py")
+    print("  1. Start the backend: python scripts/run_server.py")
     print("  2. Start the frontend: cd dashboard && npm run dev")
     print("  3. Open http://localhost:3000")
 

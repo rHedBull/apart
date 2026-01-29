@@ -63,9 +63,10 @@ uv run src/main.py scenarios/my_scenario.yaml
 ## Documentation
 
 ### Core Documentation
-- **[Architecture](docs/architecture.md)** - System design and component overview
-- **[Scenario Creation Guide](docs/scenario-creation.md)** - How to create custom scenarios
+- **[Architecture](docs/architecture.md)** - System design, module system, and component overview
+- **[Scenario Creation Guide](docs/scenario-creation.md)** - How to create custom scenarios with modules
 - **[Danger Detection](docs/danger-detection.md)** - Behavioral safety analysis in benchmarks
+- **[Module System Plan](docs/plans/module-system-next-phases.md)** - Module system design and implementation details
 
 ### AI Safety Scenarios
 
@@ -141,3 +142,87 @@ grep "PER00" results/run_*/simulation.jsonl | jq .
 # Performance metrics
 grep "PRF001" results/run_*/simulation.jsonl | jq .
 ```
+
+## Behavior Modules
+
+Modules are composable components that add variables, dynamics, constraints, and agent effects to simulations. They enable realistic domain-specific behavior without manual coding.
+
+### Available Modules
+
+| Module | Layer | Domain | Purpose |
+|--------|-------|--------|---------|
+| `agents_base` | domain | - | Core agent communication & state |
+| `territory_graph` | grounding | - | Spatial structure from map files |
+| `economic_base` | domain | economic | GDP, trade, sanctions |
+| `diplomatic_base` | domain | diplomatic | Alliances, treaties, reputation |
+| `trust_dynamics` | domain | social | Trust relationships between actors |
+| `supply_chain_base` | detail | economic | Supply chains (extends economic_base) |
+
+### Using Modules
+
+```yaml
+modules:
+  - agents_base
+  - economic_base
+  - trust_dynamics
+
+module_config:
+  territory_graph:
+    map_file: modules/maps/world.yaml
+```
+
+Modules automatically:
+- Add their variables to global_vars/agent_vars
+- Inject dynamics into the simulator prompt
+- Enforce constraints on state changes
+- Track events and probabilities
+
+See [Architecture](docs/architecture.md) for the four-layer module system.
+
+## Experiment Runner
+
+Run the same scenario under multiple conditions and compare results:
+
+```python
+from experiment import ExperimentRunner, ExperimentConfig, ExperimentCondition
+
+config = ExperimentConfig(
+    name="trust_sensitivity",
+    description="How does initial trust affect cooperation?",
+    scenario_path="scenarios/cooperation.yaml",
+    conditions=[
+        ExperimentCondition("low_trust", modifications={"agent_vars.trust_level.default": 20}),
+        ExperimentCondition("high_trust", modifications={"agent_vars.trust_level.default": 80}),
+    ],
+    runs_per_condition=5,
+)
+
+runner = ExperimentRunner(config)
+result = runner.run_all()
+
+# Analyze results
+from experiment import compare_conditions
+comparison = compare_conditions(result, "global_vars.cooperation_score")
+print(comparison)
+```
+
+Features:
+- **Multi-condition execution** with dot-path config modifications
+- **Run aggregation** with N repetitions per condition
+- **Statistical analysis** (mean, std, min, max per condition)
+- **Results persistence** to `data/experiments/`
+
+## Claude Code Integration
+
+If using Claude Code, the `/simulation` skill provides AI-assisted scenario development:
+
+```bash
+# In Claude Code
+/simulation create economic     # Interactive scenario creation
+/simulation validate scenario.yaml  # Validate configuration
+/simulation run scenario.yaml   # Execute simulation
+/simulation analyze results/run_xyz/  # Analyze results
+/simulation experiment          # Set up multi-condition experiment
+```
+
+See `.claude/commands/simulation*.md` for full documentation.
