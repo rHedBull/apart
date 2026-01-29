@@ -18,16 +18,29 @@ You help users work with the APART multi-agent simulation framework.
 
 ### `/simulation create [domain]`
 
-**IMPORTANT:** Before writing ANY code, invoke the `superpowers:brainstorming` skill to explore the user's intent.
+**IMPORTANT:** Before writing ANY code, you MUST invoke companion skills and brainstorming.
 
-#### Phase 1: Brainstorming (REQUIRED)
+#### Phase 0: Load Reference Materials (REQUIRED)
 
-Invoke the brainstorming skill first:
+**You MUST invoke these skills before proceeding.** These contain the schema, available modules, and templates you need:
+
 ```
+Use Skill tool: simulation-schema
+Use Skill tool: simulation-templates
 Use Skill tool: superpowers:brainstorming
 ```
 
-During brainstorming, explore:
+Invoke all three skills. The schema tells you the exact YAML structure. The templates give you starting points for common scenarios (geopolitical, economic, AI safety, etc.). Brainstorming helps explore user intent.
+
+**DO NOT SKIP THIS STEP.** Without the schema and templates, you will:
+- Miss available modules that provide variables automatically
+- Use incorrect YAML syntax
+- Reinvent variables that modules already provide
+- Create scenarios that don't follow project conventions
+
+#### Phase 1: Brainstorming (REQUIRED)
+
+After loading reference materials, explore with the user:
 - What question or hypothesis does this simulation answer?
 - What makes this simulation interesting or useful?
 - What would success look like?
@@ -257,7 +270,7 @@ module_config:
 | `trust_dynamics` | domain | social | Trust relationships |
 | `supply_chain_base` | detail | economic | Supply chains (extends economic_base) |
 
-See `/simulation-schema` for full module documentation.
+**Invoke `/simulation-schema` skill for full module documentation.**
 
 ## Agent Prompt Best Practices
 
@@ -320,4 +333,4 @@ agents:
       resource_stockpile: 100
 ```
 
-See `/simulation-templates` for more complete examples.
+**Invoke `/simulation-templates` skill for complete examples by domain.**
