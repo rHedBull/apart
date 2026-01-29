@@ -2,7 +2,6 @@ import os
 import sys
 import yaml
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from pathlib import Path
 from dotenv import load_dotenv
 from core.agent import Agent
 from core.game_engine import GameEngine

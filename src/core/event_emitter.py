@@ -6,7 +6,6 @@ to the dashboard server without tight coupling. Events are only emitted
 if the server module is available.
 """
 
-from typing import Any
 import logging
 
 logger = logging.getLogger(__name__)
@@ -81,12 +80,6 @@ class EventTypes:
     # Agent events
     AGENT_MESSAGE_SENT = "agent_message_sent"
     AGENT_RESPONSE_RECEIVED = "agent_response_received"
-    AGENT_ERROR = "agent_error"
-
-    # State events
-    STATE_UPDATED = "state_updated"
-    VARIABLES_CHANGED = "variables_changed"
 
     # Danger detection
     DANGER_SIGNAL = "danger_signal"
-    DANGER_ANALYSIS_COMPLETE = "danger_analysis_complete"

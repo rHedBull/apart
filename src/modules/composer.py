@@ -10,7 +10,6 @@ from typing import Any, Dict, List, Optional
 from modules.models import (
     BehaviorModule,
     ComposedModules,
-    ModuleVariable,
 )
 from modules.loader import ModuleLoader
 
