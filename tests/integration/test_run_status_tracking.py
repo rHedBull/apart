@@ -587,11 +587,20 @@ class TestCrossProcessEventDelivery:
         complete_event = SimulationEvent.create(
             "simulation_completed", "reload-run", step=2, total_steps=2
         )
+
+        # Small delay to ensure file mtime changes (filesystem resolution can be 1s)
+        import time
+        time.sleep(0.1)
+
         with open(persist_path, "a") as f:
             f.write(complete_event.to_json() + "\n")
 
+        # Force file mtime to be different by touching it with a future time
+        import os
+        future_time = time.time() + 1
+        os.utime(persist_path, (future_time, future_time))
+
         # Server should be able to see the completion event
-        # Currently this FAILS because EventBus doesn't reload
         history_after = server_bus.get_history("reload-run")
 
         assert len(history_after) == 2, (
