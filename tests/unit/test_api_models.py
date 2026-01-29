@@ -135,7 +135,6 @@ class TestSimulationDetails:
 
         # Extended fields
         assert details.agents == []
-        assert details.config_path is None
         assert details.error_message is None
 
     def test_details_with_agents(self):
@@ -164,65 +163,6 @@ class TestSimulationDetails:
         )
         assert details.status == SimulationStatus.FAILED
         assert "timeout" in details.error_message
-
-
-class TestSimulationState:
-    """Tests for SimulationState model."""
-
-    def test_state_creation(self):
-        """Test creating SimulationState."""
-        from server.models import SimulationState
-
-        state = SimulationState(
-            run_id="state-test",
-            step=5,
-            global_variables={"score": 100, "phase": "mid"},
-            agent_variables={
-                "Agent1": {"health": 80},
-                "Agent2": {"health": 90}
-            }
-        )
-        assert state.run_id == "state-test"
-        assert state.step == 5
-        assert state.global_variables["score"] == 100
-        assert state.agent_variables["Agent1"]["health"] == 80
-
-    def test_state_defaults(self):
-        """Test SimulationState default values."""
-        from server.models import SimulationState
-
-        state = SimulationState(run_id="default-test", step=0)
-        assert state.global_variables == {}
-        assert state.agent_variables == {}
-        assert state.messages == []
-
-
-class TestEventSummary:
-    """Tests for EventSummary model."""
-
-    def test_event_summary_creation(self):
-        """Test creating EventSummary."""
-        from server.models import EventSummary
-
-        event = EventSummary(
-            event_type="step_completed",
-            timestamp="2024-01-01T00:00:00",
-            step=3,
-            summary="Step 3 completed successfully"
-        )
-        assert event.event_type == "step_completed"
-        assert event.step == 3
-
-    def test_event_summary_minimal(self):
-        """Test EventSummary with minimal fields."""
-        from server.models import EventSummary
-
-        event = EventSummary(
-            event_type="generic",
-            timestamp="2024-01-01T00:00:00"
-        )
-        assert event.step is None
-        assert event.summary is None
 
 
 class TestJobPriority:

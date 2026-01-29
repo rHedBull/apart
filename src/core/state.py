@@ -13,14 +13,6 @@ class AgentState(BaseModel):
     custom_data: dict[str, Any] = Field(default_factory=dict)
     variables: VariableSet = Field(default_factory=VariableSet)
 
-    def add_response(self, response: str):
-        """Add a response to the agent's history."""
-        self.responses.append(response)
-
-    def deactivate(self):
-        """Mark agent as inactive."""
-        self.active = False
-
     def get_var(self, name: str) -> int | float | bool:
         """Get a variable value."""
         return self.variables.get(name)
@@ -44,10 +36,6 @@ class GameState(BaseModel):
     difficulty: str = "normal"
     custom_data: dict[str, Any] = Field(default_factory=dict)
     variables: VariableSet = Field(default_factory=VariableSet)
-
-    def add_event(self, event: str):
-        """Add an event to the game history."""
-        self.events.append(event)
 
     def get_agent(self, name: str) -> AgentState | None:
         """Get agent state by name."""
@@ -74,15 +62,3 @@ class GameState(BaseModel):
     def update_vars(self, updates: dict[str, Any]) -> None:
         """Update multiple global variables at once."""
         self.variables.update(updates)
-
-    def to_summary(self) -> dict:
-        """Get a summary of the game state."""
-        return {
-            "round": self.round,
-            "total_events": len(self.events),
-            "active_agents": sum(1 for a in self.agents.values() if a.active),
-            "total_agents": len(self.agents),
-            "resources": self.resources,
-            "difficulty": self.difficulty,
-            "global_vars": self.variables.to_dict(),
-        }

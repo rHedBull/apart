@@ -32,7 +32,6 @@ services:
       - ./data:/app/data  # Persist database and event logs
       - ./logs:/app/logs  # Operational logs
       - ./scenarios:/app/scenarios:ro  # Mount scenarios read-only
-      - ./personas:/app/personas:ro  # Mount personas read-only
 
   # Simulation workers (horizontally scalable)
   worker:
@@ -50,7 +49,6 @@ services:
       - ./data:/app/data  # Share database with server
       - ./logs:/app/logs  # Share logs with server
       - ./scenarios:/app/scenarios:ro
-      - ./personas:/app/personas:ro
     deploy:
       replicas: 2  # Run 2 workers by default (adjust based on load)
 
