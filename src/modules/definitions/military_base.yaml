@@ -1,48 +1,236 @@
+# src/modules/definitions/military_base.yaml
 module:
   name: military_base
-  version: "1.0.0"
-  description: "Core military simulation variables: resources and overall military strength"
+  version: "2.0.0"
+  description: "Foundation for military simulations - forces, deterrence, arms races, and conflict dynamics"
 
-  requires: [territory_graph]
+  layer: domain
+  domain: military
+  granularity_support: [macro, meso, micro]
+
+  requires: []
   conflicts_with: []
 
   variables:
-    agent:
-      - name: resources
-        type: int
-        default: 1000
-        min: 0
-        description: "Available resources for military operations"
-
-      - name: military_strength
-        type: percent
-        default: 100
+    global:
+      - name: global_tension_level
+        type: scale
+        default: 30
         min: 0
         max: 100
-        description: "Overall military power as percentage of initial capacity"
+        description: "Global military tension (0=peace, 50=heightened, 100=active major conflict)"
+
+      - name: arms_race_intensity
+        type: scale
+        default: 20
+        min: 0
+        max: 100
+        description: "Intensity of global arms competition"
+
+      - name: active_conflicts
+        type: list
+        default: []
+        description: "Ongoing conflicts [{parties, type, intensity, location, start_step}]"
+
+      - name: proxy_conflicts
+        type: list
+        default: []
+        description: "Proxy wars [{sponsors, proxies, location, intensity}]"
+
+      - name: nuclear_powers
+        type: list
+        default: []
+        description: "Agents with nuclear capabilities"
+
+    agent:
+      - name: military_strength
+        type: scale
+        default: 50
+        min: 0
+        max: 100
+        description: "Overall conventional military power"
+
+      - name: defense_budget
+        type: float
+        default: 0
+        description: "Annual defense spending in standardized units"
+
+      - name: defense_budget_gdp_ratio
+        type: percent
+        default: 2
+        min: 0
+        max: 50
+        description: "Defense spending as percentage of GDP"
+
+      - name: force_readiness
+        type: scale
+        default: 70
+        min: 0
+        max: 100
+        description: "Combat readiness of forces (0=unprepared, 100=fully mobilized)"
+
+      - name: force_projection
+        type: scale
+        default: 30
+        min: 0
+        max: 100
+        description: "Ability to project power beyond borders"
+
+      - name: nuclear_capability
+        type: scale
+        default: 0
+        min: 0
+        max: 100
+        description: "Nuclear arsenal strength (0=none, 100=superpower level)"
+
+      - name: deterrence_credibility
+        type: scale
+        default: 50
+        min: 0
+        max: 100
+        description: "How credible are this agent's military threats"
+
+      - name: military_alliances
+        type: list
+        default: []
+        description: "Defense pacts and military alliances [{partner, type, commitment_level}]"
+
+      - name: arms_imports
+        type: dict
+        default: {}
+        description: "Arms import dependencies {supplier: volume}"
+
+      - name: arms_exports
+        type: dict
+        default: {}
+        description: "Arms export relationships {recipient: volume}"
+
+      - name: proxy_support
+        type: list
+        default: []
+        description: "Non-state actors being supported [{name, location, support_level}]"
+
+      - name: territorial_disputes
+        type: list
+        default: []
+        description: "Active territorial claims [{territory, claimant, intensity}]"
+
+      - name: military_casualties
+        type: count
+        default: 0
+        description: "Cumulative military casualties in current conflicts"
+
+      - name: war_weariness
+        type: scale
+        default: 0
+        min: 0
+        max: 100
+        description: "Domestic fatigue with military operations"
 
   dynamics:
-    - description: "Territory control shifts based on military engagements and force presence"
+    - description: "Military strength deters aggression but can also provoke arms races"
+      priority: 9
+      examples:
+        - "Weak states are more likely targets for coercion"
+        - "Military buildup by one power triggers responses from rivals"
+
+    - description: "Nuclear capabilities create mutual assured destruction dynamics"
+      priority: 10
+      examples:
+        - "Nuclear powers avoid direct conventional conflict with each other"
+        - "Nuclear threats are only credible for existential stakes"
+
+    - description: "Force projection enables intervention but stretches resources"
       priority: 7
+      examples:
+        - "Global power projection requires bases, logistics, naval capacity"
+        - "Extended deployments degrade readiness and increase war weariness"
 
-    - description: "Resources are consumed by military operations and regenerate slowly during peace"
-      priority: 6
+    - description: "Proxy conflicts allow great powers to compete without direct confrontation"
+      priority: 8
+      examples:
+        - "Sponsors provide arms, training, intelligence to proxies"
+        - "Proxy failures damage sponsor credibility"
 
-    - description: "Military strength degrades with losses and recovers slowly with resources"
+    - description: "Deterrence credibility depends on capability, resolve, and past behavior"
+      priority: 8
+      examples:
+        - "Bluffs that are called destroy future deterrence"
+        - "Following through on threats reinforces credibility"
+
+    - description: "Arms races consume resources and can spiral into security dilemmas"
+      priority: 7
+      examples:
+        - "Defensive buildups perceived as offensive by rivals"
+        - "Arms races divert resources from economic development"
+
+    - description: "Military casualties and prolonged conflicts generate war weariness"
       priority: 6
+      examples:
+        - "High casualties erode domestic support for conflict"
+        - "War weariness constrains leaders' military options"
+
+    - description: "Military alliances extend deterrence but also create entanglement risks"
+      priority: 8
+      examples:
+        - "Alliance commitments deter attacks on weaker members"
+        - "Allies can drag patrons into unwanted conflicts"
 
   constraints:
-    - description: "Territory can only change hands through military action or negotiation"
+    - description: "Nuclear weapons cannot be used without extreme escalation consequences"
+      enforcement: hard
+
+    - description: "Military strength changes require time and resources"
       enforcement: guided
 
-    - description: "Resources cannot go negative"
-      enforcement: hard
-      variable: resources
-      rule: "min: 0"
+    - description: "Force readiness degrades during sustained operations"
+      enforcement: guided
+
+    - description: "Defense budget constrained by economic capacity"
+      enforcement: soft
+
+    - description: "Cannot project force without adequate force_projection capability"
+      enforcement: guided
 
   agent_effects:
-    - description: "Low resources limit operational options"
+    - description: "High military strength provides coercive leverage in negotiations"
       applies_to: all
 
-    - description: "Territory losses affect agent morale and decision-making"
+    - description: "Nuclear capability fundamentally changes risk calculus for adversaries"
       applies_to: all
+
+    - description: "Low deterrence credibility invites probing and salami tactics"
+      applies_to: all
+
+    - description: "High war weariness constrains aggressive options"
+      applies_to: all
+
+    - description: "Arms dependencies create vulnerabilities and influence relationships"
+      applies_to: all
+
+    - description: "Territorial disputes are persistent sources of tension"
+      applies_to: all
+
+  event_types:
+    - military_buildup
+    - military_drawdown
+    - conflict_initiated
+    - conflict_escalated
+    - conflict_deescalated
+    - ceasefire_declared
+    - military_exercise
+    - border_incident
+    - proxy_conflict_started
+    - proxy_conflict_ended
+    - arms_deal_signed
+    - nuclear_test
+    - nuclear_threat
+    - deterrence_failure
+    - alliance_invoked
+
+  event_probabilities:
+    border_incident: 0.08
+    military_exercise: 0.15
+    conflict_escalated: 0.03
+    deterrence_failure: 0.02
+    nuclear_threat: 0.01
