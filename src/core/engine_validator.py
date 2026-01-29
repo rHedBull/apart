@@ -17,26 +17,46 @@ class EngineValidator:
     @staticmethod
     def _strip_markdown_code_blocks(response: str) -> str:
         """
-        Strip markdown code blocks and comments from LLM response.
+        Strip markdown code blocks, reasoning tags, and comments from LLM response.
         Handles formats like:
         - ```json\n{...}\n```
         - ```\n{...}\n```
         - {... } (plain JSON)
+        - <think>...</think> reasoning blocks (DeepSeek R1, etc.)
         - Removes // comments (common with Ollama models)
         """
+        import re
         response = response.strip()
 
-        # Check for markdown code blocks
-        if response.startswith("```"):
+        # Strip reasoning model tags like <think>...</think>
+        # These models output their chain-of-thought before the actual response
+        # First try complete tags, then handle incomplete ones (truncated due to timeout)
+        response = re.sub(r'<think>.*?</think>', '', response, flags=re.DOTALL)
+        # Also strip incomplete <think> blocks (no closing tag - happens on timeout)
+        response = re.sub(r'<think>.*', '', response, flags=re.DOTALL)
+        response = response.strip()
+
+        # Extract JSON from markdown code blocks anywhere in response
+        # Pattern matches ```json ... ``` or ``` ... ```
+        code_block_match = re.search(r'```(?:json)?\s*\n?(.*?)\n?```', response, flags=re.DOTALL)
+        if code_block_match:
+            response = code_block_match.group(1).strip()
+        elif response.startswith("```"):
+            # Fallback: old logic for responses starting with ```
             lines = response.split("\n")
-            # Remove first line (```json or ```)
             lines = lines[1:]
-            # Find closing ``` and remove it and everything after
             for i, line in enumerate(lines):
                 if line.strip() == "```":
                     lines = lines[:i]
                     break
             response = "\n".join(lines)
+
+        # If still no JSON found, try to extract JSON object directly
+        # Look for first { and last } to extract potential JSON
+        if not response.strip().startswith("{"):
+            json_match = re.search(r'\{.*\}', response, flags=re.DOTALL)
+            if json_match:
+                response = json_match.group(0)
 
         # Remove JavaScript-style comments (// ...) that Ollama models often add
         # This is a simple approach - remove everything after // on each line
@@ -167,6 +187,9 @@ class EngineValidator:
     def _check_type(value: Any, expected_type: str) -> bool:
         """Check if value matches expected type."""
         if expected_type == "int":
+            # Accept floats that are whole numbers (e.g., 60.0 as valid int)
+            if isinstance(value, float) and value.is_integer():
+                return True
             return isinstance(value, int) and not isinstance(value, bool)
         elif expected_type == "float":
             return isinstance(value, (int, float)) and not isinstance(value, bool)
