@@ -19,65 +19,46 @@ and reloads when the file has been updated by external processes.
 
 ---
 
-## Issue 2: CRITICAL - Multiple Conflicting Status Sources
+## Issue 2: FIXED ✅ - Multiple Conflicting Status Sources
 
-**Status:** Not fixed
+**Status:** Fixed
 
-**Problem:** There are THREE different sources of truth for run status:
+**Problem:** There were THREE different sources of truth for run status:
 
 1. **`_simulations` dict** (`routes/simulations.py:36`) - In-memory registry
 2. **EventBus** (`event_bus.py`) - Event-based status derivation
 3. **Database** (`database.py`) - SQLite persistence (when enabled)
 
-These can easily get out of sync:
-- RQ workers use EventBus but not `_simulations`
-- In-process async uses both
-- `/api/runs` uses EventBus + results/ directory
-- `/api/simulations` in app.py uses EventBus
-- `/api/simulations` in routes/simulations.py uses `_simulations` (but not mounted!)
-
-**Impact:** Depending on which endpoint you query, you may get different status.
-
-**Recommendation:** Consolidate to a single source of truth. Options:
-1. Use EventBus as the only source (current direction)
-2. Use Database as the only source (more robust)
-3. Remove `_simulations` dict entirely
+**Fix:** Consolidated to EventBus as the single source of truth:
+- Removed the `_simulations` dict entirely from `routes/simulations.py`
+- Updated demo endpoint to use EventBus-only
+- All API endpoints now derive status from EventBus events
+- `/api/runs` and `/api/simulations` now return consistent status
 
 ---
 
-## Issue 3: MEDIUM - Dead/Unused Route Code
+## Issue 3: FIXED ✅ - Dead/Unused Route Code
 
-**Status:** Not fixed
+**Status:** Fixed
 
-**Problem:** `routes/simulations.py` and `routes/events.py` define routers that
-are NOT mounted in the FastAPI app. The code exists but most of it is never executed.
+**Problem:** `routes/simulations.py` contained dead code (routes not mounted,
+`_simulations` dict not used by main app).
 
-**Files affected:**
-- `src/server/routes/simulations.py` - 0% test coverage
-- `src/server/routes/events.py` - 0% test coverage
-
-**Only used part:** `routes/events.py:demo_simulation()` imports from
-`routes/simulations.py` for the demo endpoint.
-
-**Recommendation:** Either:
-1. Mount these routers properly and remove duplicates from app.py
-2. Delete dead code and keep only what's used
+**Fix:**
+- Removed all dead code from `routes/simulations.py`
+- Updated `routes/events.py` demo to use EventBus directly
+- Left placeholder file with documentation explaining the architecture
 
 ---
 
-## Issue 4: MEDIUM - No Persistence for `_simulations` Registry
+## Issue 4: FIXED ✅ - No Persistence for `_simulations` Registry
 
-**Status:** Not fixed
+**Status:** Fixed (by Issue 2 fix)
 
-**Problem:** The `_simulations` dict is purely in-memory. On server restart,
-all registered simulations are lost (even though the events may still be in
-the EventBus persistence file).
+**Problem:** The `_simulations` dict was purely in-memory.
 
-**Impact:** After server restart, simulations appear to not exist even if
-their events are persisted.
-
-**Recommendation:** Remove `_simulations` entirely, derive all status from
-EventBus or Database.
+**Fix:** Removed `_simulations` dict entirely. All status is now derived from
+EventBus, which is persisted to JSONL file or SQLite database.
 
 ---
 

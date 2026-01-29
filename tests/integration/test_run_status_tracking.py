@@ -239,6 +239,73 @@ class TestStaleRunDetection:
         assert response_b.json()["status"] == "running"
 
 
+class TestSingleSourceOfTruth:
+    """Tests verifying EventBus is the single source of truth for status."""
+
+    def test_eventbus_is_single_source_of_truth(self, test_client, event_bus_reset):
+        """
+        EventBus should be the only source of truth for run status.
+
+        All API endpoints should derive status from EventBus events,
+        not from any separate in-memory registry.
+        """
+        from server.event_bus import emit_event
+
+        run_id = "single-source-test"
+
+        # Emit events to EventBus
+        emit_event("simulation_started", run_id=run_id, max_steps=5, num_agents=2)
+
+        # Both /api/simulations and /api/runs should see the same status
+        response1 = test_client.get(f"/api/simulations/{run_id}")
+        assert response1.status_code == 200
+        assert response1.json()["status"] == "running"
+
+        response2 = test_client.get("/api/runs")
+        runs = {r["runId"]: r for r in response2.json().get("runs", [])}
+        assert run_id in runs
+        assert runs[run_id]["status"] == "running"
+
+        # Complete the simulation
+        emit_event("simulation_completed", run_id=run_id, step=5, total_steps=5)
+
+        # Both endpoints should now show completed
+        response3 = test_client.get(f"/api/simulations/{run_id}")
+        assert response3.json()["status"] == "completed"
+
+        response4 = test_client.get("/api/runs")
+        runs = {r["runId"]: r for r in response4.json().get("runs", [])}
+        assert runs[run_id]["status"] == "completed"
+
+    def test_no_separate_registry_needed(self, test_client, event_bus_reset):
+        """
+        Status should work without any registration step.
+
+        Just emitting events should be sufficient for status tracking.
+        """
+        from server.event_bus import emit_event
+
+        run_id = "no-registry-test"
+
+        # Just emit events - no separate registration needed
+        emit_event(
+            "simulation_started",
+            run_id=run_id,
+            max_steps=3,
+            num_agents=1,
+            agent_names=["TestAgent"],
+            scenario_name="Test Scenario"
+        )
+
+        # Should be visible in API immediately
+        response = test_client.get(f"/api/simulations/{run_id}")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "running"
+        assert data["max_steps"] == 3
+        assert data["agent_count"] == 1
+
+
 class TestRunsApiStatusConsistency:
     """Tests for /api/runs endpoint status consistency."""
 
