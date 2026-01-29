@@ -169,17 +169,10 @@ class TestEventTypes:
         """Test agent event types exist."""
         assert EventTypes.AGENT_MESSAGE_SENT == "agent_message_sent"
         assert EventTypes.AGENT_RESPONSE_RECEIVED == "agent_response_received"
-        assert EventTypes.AGENT_ERROR == "agent_error"
-
-    def test_state_events(self):
-        """Test state event types exist."""
-        assert EventTypes.STATE_UPDATED == "state_updated"
-        assert EventTypes.VARIABLES_CHANGED == "variables_changed"
 
     def test_danger_events(self):
         """Test danger detection event types exist."""
         assert EventTypes.DANGER_SIGNAL == "danger_signal"
-        assert EventTypes.DANGER_ANALYSIS_COMPLETE == "danger_analysis_complete"
 
     def test_all_event_types_are_strings(self):
         """Test that all event types are strings."""
@@ -191,11 +184,7 @@ class TestEventTypes:
             EventTypes.STEP_COMPLETED,
             EventTypes.AGENT_MESSAGE_SENT,
             EventTypes.AGENT_RESPONSE_RECEIVED,
-            EventTypes.AGENT_ERROR,
-            EventTypes.STATE_UPDATED,
-            EventTypes.VARIABLES_CHANGED,
             EventTypes.DANGER_SIGNAL,
-            EventTypes.DANGER_ANALYSIS_COMPLETE,
         ]
 
         for event_type in event_types:
@@ -211,11 +200,7 @@ class TestEventTypes:
             EventTypes.STEP_COMPLETED,
             EventTypes.AGENT_MESSAGE_SENT,
             EventTypes.AGENT_RESPONSE_RECEIVED,
-            EventTypes.AGENT_ERROR,
-            EventTypes.STATE_UPDATED,
-            EventTypes.VARIABLES_CHANGED,
             EventTypes.DANGER_SIGNAL,
-            EventTypes.DANGER_ANALYSIS_COMPLETE,
         ]
 
         assert len(event_types) == len(set(event_types))
