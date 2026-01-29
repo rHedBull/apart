@@ -145,6 +145,7 @@ class EventBus:
                 persist_path = Path(__file__).parent.parent.parent / "data" / "events.jsonl"
         self._persist_path = Path(persist_path)
         self._persist_lock = threading.Lock()
+        self._last_file_mtime: float = 0.0  # Track file modification time
 
         # Load existing events from disk or database
         self._load_history()
@@ -171,9 +172,16 @@ class EventBus:
     def _load_history_from_file(self) -> None:
         """Load event history from JSONL file."""
         if not self._persist_path.exists():
+            self._last_file_mtime = 0.0
             return
 
         try:
+            # Track modification time to detect external changes
+            self._last_file_mtime = self._persist_path.stat().st_mtime
+
+            # Clear existing history before reloading
+            self._event_history.clear()
+
             with open(self._persist_path, "r") as f:
                 for line in f:
                     line = line.strip()
@@ -191,6 +199,28 @@ class EventBus:
         except IOError:
             # File might not exist yet, that's ok
             pass
+
+    def _check_and_reload_if_stale(self) -> None:
+        """Check if persistence file has been modified and reload if needed.
+
+        This handles the cross-process scenario where RQ workers write events
+        to the shared persistence file, and the API server needs to see them.
+        """
+        if EventBus._use_database:
+            # For database mode, reload from database
+            self._load_history_from_db()
+        else:
+            # For file mode, check modification time
+            if not self._persist_path.exists():
+                return
+
+            try:
+                current_mtime = self._persist_path.stat().st_mtime
+                if current_mtime > self._last_file_mtime:
+                    # File has been modified, reload
+                    self._load_history_from_file()
+            except IOError:
+                pass
 
     def _persist_event(self, event: SimulationEvent) -> None:
         """Persist a single event to storage (file or database)."""
@@ -218,6 +248,9 @@ class EventBus:
             try:
                 with open(self._persist_path, "a") as f:
                     f.write(event.to_json() + "\n")
+                # Update our tracked mtime to avoid unnecessary reloads
+                # of events we just wrote ourselves
+                self._last_file_mtime = self._persist_path.stat().st_mtime
             except IOError:
                 # Log but don't fail on persistence errors
                 pass
@@ -291,6 +324,9 @@ class EventBus:
         try:
             # Optionally yield history first
             if include_history:
+                # Reload from persistence to ensure fresh data
+                self._check_and_reload_if_stale()
+
                 if run_id:
                     for event in self._event_history.get(run_id, []):
                         yield event
@@ -330,16 +366,27 @@ class EventBus:
         """
         Get event history for a specific run.
 
+        This method checks for and reloads events from persistence if the
+        file has been modified by external processes (e.g., RQ workers).
+
         Args:
             run_id: The run ID to get history for
 
         Returns:
             List of events for the run
         """
+        # Check for events written by other processes (e.g., RQ workers)
+        self._check_and_reload_if_stale()
         return list(self._event_history.get(run_id, []))
 
     def get_all_run_ids(self) -> list[str]:
-        """Get all run IDs with events."""
+        """Get all run IDs with events.
+
+        This method checks for and reloads events from persistence if the
+        file has been modified by external processes (e.g., RQ workers).
+        """
+        # Check for events written by other processes (e.g., RQ workers)
+        self._check_and_reload_if_stale()
         return list(self._event_history.keys())
 
     def clear_history(self, run_id: str | None = None, clear_persistence: bool = False) -> None:

@@ -99,36 +99,22 @@ async def demo_simulation():
     Run a demo simulation with fake events.
 
     This emits a series of events to test the dashboard.
+    All status tracking is done via EventBus events only.
     """
     import asyncio
     from server.event_bus import emit_event
-    from server.routes.simulations import (
-        register_simulation, update_simulation_step,
-        update_simulation_state, complete_simulation
-    )
-    from server.models import SimulationStatus
 
     run_id = f"demo_{int(asyncio.get_event_loop().time())}"
 
-    # Register simulation
-    register_simulation(
-        run_id=run_id,
-        scenario_name="Dashboard Demo",
-        max_steps=3,
-        agents=[
-            {"name": "Trader Alice", "llm": {"provider": "demo", "model": "test"}},
-            {"name": "Trader Bob", "llm": {"provider": "demo", "model": "test"}}
-        ]
-    )
-
-    # Emit simulation started
+    # Emit simulation started - this is the single source of truth for status
     emit_event(
         "simulation_started",
         run_id=run_id,
         step=0,
         num_agents=2,
         max_steps=3,
-        agent_names=["Trader Alice", "Trader Bob"]
+        agent_names=["Trader Alice", "Trader Bob"],
+        scenario_name="Dashboard Demo"
     )
 
     messages = [
@@ -139,7 +125,6 @@ async def demo_simulation():
     for step in range(1, 4):
         await asyncio.sleep(0.3)
         emit_event("step_started", run_id=run_id, step=step, max_steps=3)
-        update_simulation_step(run_id, step)
 
         for agent_name, msg, response in messages:
             await asyncio.sleep(0.2)
@@ -173,14 +158,13 @@ async def demo_simulation():
             global_vars=global_vars,
             agent_vars=agent_vars
         )
-        update_simulation_state(run_id, global_vars=global_vars, agent_vars=agent_vars)
 
+    # Emit completion event - this updates status to 'completed'
     emit_event(
         "simulation_completed",
         run_id=run_id,
         step=3,
         total_steps=3
     )
-    complete_simulation(run_id, SimulationStatus.COMPLETED)
 
     return {"status": "ok", "run_id": run_id, "message": "Demo simulation completed"}
