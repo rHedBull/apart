@@ -147,3 +147,71 @@ def test_core_modules_share_meso_granularity():
     common = find_common_granularity(modules)
 
     assert Granularity.MESO in common, "All core modules should support meso granularity"
+
+
+def test_military_base_module_loads():
+    """Test military_base module loads correctly with new schema."""
+    loader = ModuleLoader()
+    module = loader.load("military_base")
+
+    assert module.name == "military_base"
+    assert module.layer == ModuleLayer.DOMAIN
+    assert module.domain == "military"
+
+
+def test_military_base_has_all_granularities():
+    """Test military_base supports all granularity levels."""
+    loader = ModuleLoader()
+    module = loader.load("military_base")
+
+    assert Granularity.MACRO in module.granularity_support
+    assert Granularity.MESO in module.granularity_support
+    assert Granularity.MICRO in module.granularity_support
+
+
+def test_military_base_has_deterrence_variables():
+    """Test military_base provides deterrence and force variables."""
+    loader = ModuleLoader()
+    module = loader.load("military_base")
+
+    var_names = [v.name for v in module.variables]
+
+    assert "military_strength" in var_names
+    assert "nuclear_capability" in var_names
+    assert "deterrence_credibility" in var_names
+    assert "force_projection" in var_names
+
+
+def test_military_base_has_conflict_tracking():
+    """Test military_base provides conflict and proxy war tracking."""
+    loader = ModuleLoader()
+    module = loader.load("military_base")
+
+    global_vars = [v for v in module.variables if v.scope == "global"]
+    global_var_names = [v.name for v in global_vars]
+
+    assert "active_conflicts" in global_var_names
+    assert "proxy_conflicts" in global_var_names
+    assert "global_tension_level" in global_var_names
+
+
+def test_military_base_composes_with_other_domains():
+    """Test military_base composes with economic and diplomatic modules."""
+    from modules.composer import ModuleComposer
+
+    loader = ModuleLoader()
+    modules = loader.load_many([
+        "military_base",
+        "economic_base",
+        "diplomatic_base",
+    ])
+
+    composer = ModuleComposer()
+    composed = composer.compose(modules)
+    assert composed is not None
+
+    # Verify all module variables are present (agent_variables is a dict)
+    agent_var_names = list(composed.agent_variables.keys())
+    assert "military_strength" in agent_var_names  # from military
+    assert "gdp" in agent_var_names  # from economic
+    assert "alliances" in agent_var_names  # from diplomatic

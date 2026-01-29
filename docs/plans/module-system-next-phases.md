@@ -15,7 +15,7 @@
 - Added validation for `extends` dependency
 
 ### Phase 2: Core Module Definitions ✓
-Five core modules created/updated in `src/modules/definitions/`:
+Six core modules created/updated in `src/modules/definitions/`:
 
 | Module | Layer | Domain | Granularity | Purpose |
 |--------|-------|--------|-------------|---------|
@@ -24,6 +24,7 @@ Five core modules created/updated in `src/modules/definitions/`:
 | `economic_base` | domain | economic | macro/meso | Economic variables & dynamics |
 | `diplomatic_base` | domain | diplomatic | macro/meso/micro | Alliances, treaties, reputation |
 | `trust_dynamics` | domain | social | macro/meso/micro | Trust relationships |
+| `military_base` | domain | military | macro/meso/micro | Forces, deterrence, arms races, proxies |
 
 - `supply_chain_base` updated as detail module extending `economic_base`
 - All 5 core modules verified to work together without conflicts
