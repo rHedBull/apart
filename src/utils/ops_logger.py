@@ -113,32 +113,3 @@ def get_ops_logger(
 
     _loggers[logger_name] = logger
     return logger
-
-
-def log_with_context(
-    logger: logging.Logger,
-    level: int,
-    message: str,
-    run_id: Optional[str] = None,
-    job_id: Optional[str] = None,
-    **extra,
-) -> None:
-    """
-    Log a message with optional run_id and job_id for correlation.
-
-    Args:
-        logger: Logger instance
-        level: Log level (e.g., logging.INFO)
-        message: Log message
-        run_id: Simulation run ID for correlation
-        job_id: Redis job ID for correlation
-        **extra: Additional context fields
-    """
-    context = {}
-    if run_id:
-        context["run_id"] = run_id
-    if job_id:
-        context["job_id"] = job_id
-    context.update(extra)
-
-    logger.log(level, message, extra=context)

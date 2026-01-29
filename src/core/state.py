@@ -62,15 +62,3 @@ class GameState(BaseModel):
     def update_vars(self, updates: dict[str, Any]) -> None:
         """Update multiple global variables at once."""
         self.variables.update(updates)
-
-    def to_summary(self) -> dict:
-        """Get a summary of the game state."""
-        return {
-            "round": self.round,
-            "total_events": len(self.events),
-            "active_agents": sum(1 for a in self.agents.values() if a.active),
-            "total_agents": len(self.agents),
-            "resources": self.resources,
-            "difficulty": self.difficulty,
-            "global_vars": self.variables.to_dict(),
-        }

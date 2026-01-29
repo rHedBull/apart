@@ -40,25 +40,7 @@ class SimulationSummary(BaseModel):
 class SimulationDetails(SimulationSummary):
     """Detailed information about a simulation run."""
     agents: list[AgentInfo] = Field(default_factory=list)
-    config_path: str | None = None
     error_message: str | None = None
-
-
-class SimulationState(BaseModel):
-    """Current state of a simulation."""
-    run_id: str
-    step: int
-    global_variables: dict[str, Any] = Field(default_factory=dict)
-    agent_variables: dict[str, dict[str, Any]] = Field(default_factory=dict)
-    messages: list[dict[str, Any]] = Field(default_factory=list)
-
-
-class EventSummary(BaseModel):
-    """Summary of an event."""
-    event_type: str
-    timestamp: str
-    step: int | None = None
-    summary: str | None = None
 
 
 class JobPriority(str, Enum):
@@ -77,13 +59,6 @@ class StartSimulationRequest(BaseModel):
 
 class StartSimulationResponse(BaseModel):
     """Response after starting a simulation."""
-    run_id: str
-    status: SimulationStatus
-    message: str
-
-
-class StopSimulationResponse(BaseModel):
-    """Response after stopping a simulation."""
     run_id: str
     status: SimulationStatus
     message: str
