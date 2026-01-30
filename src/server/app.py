@@ -319,10 +319,10 @@ async def list_runs():
 
 @app.get("/api/runs/{run_id}")
 async def get_run_detail(run_id: str):
-    """Get full state data for a specific run from disk.
+    """Get full state data for a specific run.
 
-    This reads the state.json file directly, providing historical data
-    even when the EventBus doesn't have the events in memory.
+    First checks EventBus for live run data, then falls back to state.json
+    on disk for historical data.
     """
     import json
     from pathlib import Path
@@ -331,8 +331,99 @@ async def get_run_detail(run_id: str):
     run_dir = results_dir / run_id
     state_file = run_dir / "state.json"
 
+    # Check EventBus first for live/recent run data
+    event_bus = get_event_bus()
+    history = event_bus.get_history(run_id)
+
+    # If state.json doesn't exist, try to build response from EventBus
     if not state_file.exists():
-        raise HTTPException(status_code=404, detail=f"Run {run_id} not found")
+        if not history:
+            raise HTTPException(status_code=404, detail=f"Run {run_id} not found")
+
+        # Build response from EventBus events only
+        status = "pending"
+        current_step = 0
+        max_steps = None
+        agent_names = []
+        spatial_graph = None
+        geojson = None
+        started_at = None
+        messages = []
+        danger_signals = []
+        global_vars_history = []
+        agent_vars_history = {}
+
+        for event in history:
+            if event.event_type == "simulation_started":
+                status = "running"
+                started_at = event.timestamp
+                max_steps = event.data.get("max_steps")
+                agent_names = event.data.get("agent_names", [])
+                spatial_graph = event.data.get("spatial_graph")
+                geojson = event.data.get("geojson")
+            elif event.event_type == "step_started":
+                current_step = event.step or 0
+            elif event.event_type == "step_completed":
+                current_step = event.step or 0
+                if event.data.get("global_vars"):
+                    global_vars_history.append({
+                        "step": event.step or 0,
+                        "values": event.data["global_vars"],
+                    })
+                if event.data.get("agent_vars"):
+                    for agent_name, vars in event.data["agent_vars"].items():
+                        if agent_name not in agent_vars_history:
+                            agent_vars_history[agent_name] = []
+                        agent_vars_history[agent_name].append({
+                            "step": event.step or 0,
+                            "values": vars,
+                        })
+            elif event.event_type == "agent_message_sent":
+                messages.append({
+                    "step": event.step or 0,
+                    "timestamp": event.timestamp,
+                    "agentName": event.data.get("agent_name", "unknown"),
+                    "direction": "sent",
+                    "content": event.data.get("message", ""),
+                })
+            elif event.event_type == "agent_response_received":
+                messages.append({
+                    "step": event.step or 0,
+                    "timestamp": event.timestamp,
+                    "agentName": event.data.get("agent_name", "unknown"),
+                    "direction": "received",
+                    "content": event.data.get("response", ""),
+                })
+            elif event.event_type == "danger_signal":
+                danger_signals.append({
+                    "step": event.step or 0,
+                    "timestamp": event.timestamp,
+                    "category": event.data.get("category", "unknown"),
+                    "agentName": event.data.get("agent_name"),
+                    "metric": event.data.get("metric", ""),
+                    "value": event.data.get("value", 0),
+                    "threshold": event.data.get("threshold"),
+                })
+            elif event.event_type == "simulation_completed":
+                status = "completed"
+            elif event.event_type == "simulation_failed":
+                status = "failed"
+
+        return {
+            "runId": run_id,
+            "scenario": run_id,
+            "status": status,
+            "currentStep": current_step,
+            "maxSteps": max_steps,
+            "startedAt": started_at,
+            "agentNames": agent_names,
+            "spatialGraph": spatial_graph,
+            "geojson": geojson,
+            "messages": messages,
+            "dangerSignals": danger_signals,
+            "globalVarsHistory": global_vars_history,
+            "agentVarsHistory": agent_vars_history,
+        }
 
     try:
         with open(state_file, "r") as f:
@@ -406,9 +497,7 @@ async def get_run_detail(run_id: str):
         # Determine status
         current_step = snapshots[-1]["step"] if snapshots else 0
 
-        # Check EventBus for live status
-        event_bus = get_event_bus()
-        history = event_bus.get_history(run_id)
+        # Check EventBus for live status (reuse already-fetched history)
         status = "completed"  # Default for disk-only runs
         for event in history:
             if event.event_type == "simulation_started":

@@ -62,25 +62,16 @@ EventBus, which is persisted to JSONL file or SQLite database.
 
 ---
 
-## Issue 5: LOW - Stop Simulation Doesn't Actually Stop
+## Issue 5: N/A - Stop Simulation Doesn't Actually Stop
 
-**Status:** Not fixed
+**Status:** Not applicable - endpoint was removed
 
 **Problem:** `stop_simulation()` endpoint only marks status as STOPPED in the
 registry. It doesn't actually signal the running simulation process to stop.
 
-**Location:** `routes/simulations.py:330-355`
-
-**Current behavior:**
-```python
-complete_simulation(run_id, SimulationStatus.STOPPED)
-# But the actual simulation keeps running!
-```
-
-**Recommendation:** Implement proper cancellation via:
-1. Cancellation tokens
-2. Process signals
-3. Shared state flags
+**Resolution:** The stop endpoint was removed along with dead routes cleanup.
+No stop functionality currently exists. If needed in future, implement properly
+with cancellation tokens or process signals.
 
 ---
 
@@ -109,6 +100,53 @@ completion/failure events are emitted.
 
 ---
 
+## Issue 7: FIXED ✅ - Detail Page Shows "Idle" for Running Simulations
+
+**Status:** Fixed in commit `f14dc68` on branch `fix/run-detail-status-idle`
+
+**Problem:** The `/api/runs/{run_id}` endpoint required `state.json` on disk,
+returning 404 for pending/running simulations that only had EventBus events.
+The frontend caught the error silently and stayed at default "idle" status.
+
+**Symptoms:**
+- List page shows simulation as "running"
+- Detail page shows same simulation as "idle"
+
+**Fix:** The endpoint now checks EventBus first. If `state.json` doesn't exist
+but events do, it builds the response from EventBus events. Only returns 404
+when neither source has data.
+
+---
+
+## Issue 8: MEDIUM - Duplicate /api/runs and /api/simulations APIs
+
+**Status:** Not fixed - needs consolidation
+
+**Problem:** There are two parallel APIs with different data sources and behaviors:
+
+| Endpoint | Data Source | Used By |
+|----------|-------------|---------|
+| `GET /api/runs` | Disk + EventBus | Dashboard |
+| `GET /api/runs/{id}` | EventBus → Disk fallback | Dashboard |
+| `DELETE /api/runs/{id}` | All sources | Dashboard |
+| `GET /api/simulations` | EventBus only | Tests |
+| `GET /api/simulations/{id}` | EventBus only | Tests |
+| `POST /api/simulations` | Creates job | Tests, CLI |
+
+**Issues:**
+1. `/api/simulations` misses historical runs without EventBus data
+2. `/api/simulations/{id}` returns 404 for historical runs (unlike `/api/runs/{id}`)
+3. POST is on `/api/simulations` but DELETE is on `/api/runs`
+4. Dashboard only uses `/api/runs`, tests mostly use `/api/simulations`
+
+**Recommendation:** Consolidate to single `/api/runs` API:
+1. Move `POST /api/simulations` → `POST /api/runs`
+2. Deprecate/remove `/api/simulations` endpoints
+3. Update all tests to use `/api/runs`
+4. Single consistent data source (EventBus + disk fallback)
+
+---
+
 ## Test Coverage Gaps
 
 Current coverage for server module: **58%**
@@ -125,8 +163,14 @@ Current coverage for server module: **58%**
 
 ## Recommended Priority
 
-1. **High:** Fix Issue 2 (conflicting status sources) - architectural
-2. **Medium:** Fix Issue 3 (dead code) - code hygiene
-3. **Medium:** Fix Issue 6 (database sync) - if using database mode
-4. **Low:** Fix Issue 4 (persistence) - will be fixed by Issue 2
-5. **Low:** Fix Issue 5 (stop simulation) - feature enhancement
+### Completed
+- ✅ Issue 1 (stale cache)
+- ✅ Issue 2 (conflicting status sources)
+- ✅ Issue 3 (dead code)
+- ✅ Issue 4 (persistence)
+- ✅ Issue 7 (detail page idle bug)
+
+### Outstanding
+1. **Medium:** Issue 8 (API consolidation) - reduce confusion, single source of truth
+2. **Low:** Issue 6 (database sync) - only matters if using database mode
+3. **N/A:** Issue 5 (stop simulation) - endpoint removed, implement fresh if needed
