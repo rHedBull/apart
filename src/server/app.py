@@ -702,3 +702,121 @@ async def cancel_job(job_id: str):
             status_code=409,
             detail=f"Job {job_id} cannot be cancelled (may be running or completed)"
         )
+
+
+# ============================================================================
+# Run Management Endpoints
+# ============================================================================
+
+
+@app.delete("/api/runs/{run_id}")
+async def delete_run(run_id: str):
+    """Delete a simulation run and all its data.
+
+    Removes:
+    - Results directory (results/{run_id}/)
+    - EventBus history
+    - Database records (if using database mode)
+    """
+    import shutil
+    from server.event_bus import EventBus
+
+    results_dir = Path("results") / run_id
+    deleted_results = False
+    deleted_events = False
+    deleted_db = False
+
+    # 1. Delete results directory
+    if results_dir.exists():
+        shutil.rmtree(results_dir)
+        deleted_results = True
+        logger.info(f"Deleted results directory for {run_id}")
+
+    # 2. Clear from EventBus
+    event_bus = get_event_bus()
+    if run_id in event_bus.get_all_run_ids():
+        event_bus.clear_history(run_id)
+        deleted_events = True
+        logger.info(f"Cleared EventBus history for {run_id}")
+
+    # 3. Delete from database if using database mode
+    if EventBus._use_database:
+        from server.database import get_db
+        db = get_db()
+        db.delete_simulation(run_id)
+        deleted_db = True
+        logger.info(f"Deleted database records for {run_id}")
+
+    if not (deleted_results or deleted_events or deleted_db):
+        raise HTTPException(status_code=404, detail=f"Run {run_id} not found")
+
+    return {
+        "status": "deleted",
+        "run_id": run_id,
+        "deleted_results": deleted_results,
+        "deleted_events": deleted_events,
+        "deleted_database": deleted_db,
+    }
+
+
+@app.post("/api/runs/delete")
+async def delete_runs_bulk(request: Request):
+    """Delete multiple simulation runs.
+
+    Request body:
+        {"run_ids": ["run_id_1", "run_id_2", ...]}
+    """
+    import shutil
+    from server.event_bus import EventBus
+
+    body = await request.json()
+    run_ids = body.get("run_ids", [])
+
+    if not run_ids:
+        raise HTTPException(status_code=400, detail="No run_ids provided")
+
+    results = []
+    event_bus = get_event_bus()
+
+    for run_id in run_ids:
+        result = {"run_id": run_id, "deleted": False, "error": None}
+
+        try:
+            results_dir = Path("results") / run_id
+            deleted_any = False
+
+            # Delete results directory
+            if results_dir.exists():
+                shutil.rmtree(results_dir)
+                deleted_any = True
+
+            # Clear from EventBus
+            if run_id in event_bus.get_all_run_ids():
+                event_bus.clear_history(run_id)
+                deleted_any = True
+
+            # Delete from database
+            if EventBus._use_database:
+                from server.database import get_db
+                db = get_db()
+                db.delete_simulation(run_id)
+                deleted_any = True
+
+            result["deleted"] = deleted_any
+            if not deleted_any:
+                result["error"] = "Not found"
+
+        except Exception as e:
+            result["error"] = str(e)
+            logger.error(f"Error deleting run {run_id}: {e}")
+
+        results.append(result)
+
+    deleted_count = sum(1 for r in results if r["deleted"])
+    logger.info(f"Bulk delete: {deleted_count}/{len(run_ids)} runs deleted")
+
+    return {
+        "deleted_count": deleted_count,
+        "total_requested": len(run_ids),
+        "results": results,
+    }

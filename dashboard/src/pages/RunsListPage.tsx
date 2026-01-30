@@ -16,6 +16,8 @@ import StatusIndicator from '@cloudscape-design/components/status-indicator';
 import Link from '@cloudscape-design/components/link';
 import Select from '@cloudscape-design/components/select';
 import SpaceBetween from '@cloudscape-design/components/space-between';
+import Modal from '@cloudscape-design/components/modal';
+import Alert from '@cloudscape-design/components/alert';
 import { TopNav } from '../components/TopNav';
 import { useRunsList, RunSummary } from '../hooks/useRunsList';
 
@@ -61,12 +63,35 @@ function formatTimestamp(timestamp: string | null): string {
 
 export function RunsListPage() {
   const navigate = useNavigate();
-  const { runs, loading, connected, refresh } = useRunsList();
+  const { runs, loading, connected, refresh, deleteRuns } = useRunsList();
 
   const [filterText, setFilterText] = useState('');
   const [statusFilter, setStatusFilter] = useState(STATUS_OPTIONS[0]);
   const [currentPage, setCurrentPage] = useState(1);
+  const [selectedItems, setSelectedItems] = useState<RunSummary[]>([]);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const pageSize = 10;
+
+  const handleDelete = async () => {
+    if (selectedItems.length === 0) return;
+
+    setDeleting(true);
+    setDeleteError(null);
+
+    const runIds = selectedItems.map(item => item.runId);
+    const result = await deleteRuns(runIds);
+
+    setDeleting(false);
+
+    if (result.success) {
+      setShowDeleteModal(false);
+      setSelectedItems([]);
+    } else {
+      setDeleteError(result.error || 'Failed to delete runs');
+    }
+  };
 
   // Filter runs
   const filteredRuns = runs.filter(run => {
@@ -157,6 +182,7 @@ export function RunsListPage() {
           />
         }
         content={
+          <>
           <Table
             header={
               <Header
@@ -167,6 +193,13 @@ export function RunsListPage() {
                     <StatusIndicator type={connected ? 'success' : 'error'}>
                       {connected ? 'Connected' : 'Disconnected'}
                     </StatusIndicator>
+                    <Button
+                      iconName="remove"
+                      disabled={selectedItems.length === 0}
+                      onClick={() => setShowDeleteModal(true)}
+                    >
+                      Delete {selectedItems.length > 0 ? `(${selectedItems.length})` : ''}
+                    </Button>
                     <Button iconName="refresh" onClick={refresh} loading={loading}>
                       Refresh
                     </Button>
@@ -212,8 +245,64 @@ export function RunsListPage() {
             onRowClick={({ detail }) => {
               navigate(`/runs/${detail.item.runId}`);
             }}
-            selectionType="single"
+            selectionType="multi"
+            selectedItems={selectedItems}
+            onSelectionChange={({ detail }) => setSelectedItems(detail.selectedItems)}
+            trackBy="runId"
           />
+
+          <Modal
+            visible={showDeleteModal}
+            onDismiss={() => {
+              setShowDeleteModal(false);
+              setDeleteError(null);
+            }}
+            header="Delete simulation runs"
+            footer={
+              <Box float="right">
+                <SpaceBetween direction="horizontal" size="xs">
+                  <Button
+                    variant="link"
+                    onClick={() => {
+                      setShowDeleteModal(false);
+                      setDeleteError(null);
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    variant="primary"
+                    onClick={handleDelete}
+                    loading={deleting}
+                  >
+                    Delete
+                  </Button>
+                </SpaceBetween>
+              </Box>
+            }
+          >
+            <SpaceBetween size="m">
+              {deleteError && (
+                <Alert type="error">{deleteError}</Alert>
+              )}
+              <Box>
+                Are you sure you want to delete {selectedItems.length} simulation run{selectedItems.length !== 1 ? 's' : ''}?
+                This action cannot be undone.
+              </Box>
+              <Box>
+                <strong>Runs to delete:</strong>
+                <ul style={{ margin: '8px 0', paddingLeft: '20px' }}>
+                  {selectedItems.slice(0, 5).map(item => (
+                    <li key={item.runId}>{item.scenario} ({item.runId})</li>
+                  ))}
+                  {selectedItems.length > 5 && (
+                    <li>...and {selectedItems.length - 5} more</li>
+                  )}
+                </ul>
+              </Box>
+            </SpaceBetween>
+          </Modal>
+          </>
         }
       />
     </>

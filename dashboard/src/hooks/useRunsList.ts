@@ -124,5 +124,29 @@ export function useRunsList(options: UseRunsListOptions = {}) {
     fetchRuns();
   }, [fetchRuns]);
 
-  return { runs, loading, error, connected, refresh };
+  const deleteRuns = useCallback(async (runIds: string[]): Promise<{ success: boolean; deletedCount: number; error?: string }> => {
+    try {
+      const response = await fetch('/api/runs/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ run_ids: runIds }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to delete runs: ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      // Remove deleted runs from local state
+      setRuns(prev => prev.filter(r => !runIds.includes(r.runId)));
+
+      return { success: true, deletedCount: data.deleted_count };
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to delete runs';
+      return { success: false, deletedCount: 0, error: errorMessage };
+    }
+  }, []);
+
+  return { runs, loading, error, connected, refresh, deleteRuns };
 }
