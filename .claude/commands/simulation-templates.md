@@ -608,6 +608,89 @@ agents:
 
 ---
 
+## Local Ollama Template
+
+For running simulations locally without API costs using phi4-reasoning:
+
+```yaml
+max_steps: 5
+time_step_duration: "1 day"
+simulator_awareness: true
+
+modules:
+  - agents_base
+  - diplomatic_base
+  - trust_dynamics
+
+engine:
+  provider: ollama
+  model: phi4-reasoning:plus
+  system_prompt: |
+    You are the simulation engine for this scenario.
+    Track agent interactions, update variables based on actions.
+    Output valid JSON with state updates.
+
+  simulation_plan: |
+    A 5-day scenario exploring agent dynamics.
+
+  context_window_size: 5
+
+global_vars:
+  tension_level:
+    type: int
+    default: 50
+    min: 0
+    max: 100
+
+agent_vars:
+  trust_level:
+    type: int
+    default: 50
+    min: 0
+    max: 100
+
+agents:
+  - name: "Agent A"
+    llm:
+      provider: ollama
+      model: phi4-reasoning:plus
+    system_prompt: |
+      You are Agent A.
+
+      OBJECTIVES:
+      - Achieve your primary goal
+      - Build trust with other agents
+
+      CONSTRAINTS:
+      - Limited resources
+      - Cannot use deception
+
+    variables:
+      trust_level: 60
+
+  - name: "Agent B"
+    llm:
+      provider: ollama
+      model: phi4-reasoning:plus
+    system_prompt: |
+      You are Agent B.
+
+      OBJECTIVES:
+      - Protect your interests
+      - Find common ground
+
+      CONSTRAINTS:
+      - Time pressure
+      - Must maintain reputation
+
+    variables:
+      trust_level: 40
+```
+
+**Note:** phi4-reasoning models produce extended reasoning in `<think>` tags. Expect 1-5 minutes per agent response. For faster iteration, use fewer agents or cloud APIs.
+
+---
+
 ## Tips for Customization
 
 1. **Start minimal** - Begin with the minimal template and add complexity

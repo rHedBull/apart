@@ -6,10 +6,11 @@ Multi-agent orchestration framework for running configurable simulation scenario
 
 **Recommended LLM Providers:**
 - **Google Gemini** (gemini-1.5-flash): Fast, reliable, excellent JSON compliance (requires API key)
-- **Ollama** (local, tested 2025-11-23): Privacy-friendly, no API key needed
-  - ✅ **Excellent**: mistral:7b, llama3.1:8b, codellama:latest, deepseek-coder-v2:latest
-  - ⚠️  **Basic**: gemma3:1b (simple prompts only)
-  - ❌ **Avoid**: deepseek-r1:* models (reasoning models, not JSON-focused)
+- **Ollama** (local): Privacy-friendly, no API key needed
+  - ✅ **Recommended**: phi4-reasoning:plus (best quality, requires good GPU)
+  - ✅ **Good**: mistral:7b, llama3.1:8b, codellama:latest
+  - ⚠️ **Basic**: gemma3:1b (simple prompts only)
+  - ℹ️ **Note**: Reasoning models (phi4-reasoning, deepseek-r1) are now fully supported
 
 ## Quick Start
 

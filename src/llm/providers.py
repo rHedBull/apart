@@ -265,9 +265,12 @@ class UnifiedLLMProvider(LLMProvider):
                 json={
                     "model": self.model,
                     "messages": messages,
-                    "stream": False
+                    "stream": False,
+                    "options": {
+                        "num_predict": 16384  # Allow more output for reasoning models
+                    }
                 },
-                timeout=30
+                timeout=300  # 5 minutes for reasoning models
             )
 
             # Handle model not found error

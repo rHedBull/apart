@@ -432,7 +432,8 @@ class TestCheckType:
 
     def test_int_type(self):
         assert EngineValidator._check_type(5, "int") is True
-        assert EngineValidator._check_type(5.0, "int") is False
+        assert EngineValidator._check_type(5.0, "int") is True  # whole-number floats accepted (LLM compat)
+        assert EngineValidator._check_type(5.5, "int") is False  # non-whole floats rejected
         assert EngineValidator._check_type("5", "int") is False
         assert EngineValidator._check_type(True, "int") is False  # bool is not int
 

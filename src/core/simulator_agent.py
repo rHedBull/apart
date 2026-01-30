@@ -275,8 +275,9 @@ class SimulatorAgent:
         if not result.success:
             return result
 
-        # Parse JSON
-        output = json.loads(response_text)
+        # Parse JSON (use cleaned response to handle reasoning model tags like <think>)
+        cleaned_text = EngineValidator._strip_markdown_code_blocks(response_text)
+        output = json.loads(cleaned_text)
 
         # Step 2: Reference validation
         result = EngineValidator.validate_references(
@@ -412,7 +413,11 @@ Generate initial personalized messages for each agent to begin.
 {'- Agents should put their ACTIONS and COMMUNICATIONS in their response messages' if not self.simulator_awareness else ''}
 {'- Make it clear that their response should contain what they DO and SAY, not just think' if not self.simulator_awareness else ''}
 
-Return ONLY valid JSON (no markdown, no code blocks):
+OUTPUT FORMAT: You MUST output valid JSON. If you use <think> tags for reasoning, output the JSON AFTER your thinking.
+
+Use these EXACT agent names: {', '.join(agent_names)}
+
+Required JSON structure:
 {{
   "state_updates": {{
     "global_vars": {{}},
@@ -420,26 +425,18 @@ Return ONLY valid JSON (no markdown, no code blocks):
   }},
   "events": [],
   "agent_messages": {{
-    "Agent A": "Initial message for Agent A",
-    "Agent B": "Initial message for Agent B"
+    "<agent_name>": "Initial message for this agent"
   }},
-  "reasoning": "Why you generated these initial messages"
+  "reasoning": "Brief explanation"
 }}
 
-CRITICAL JSON RULES - READ CAREFULLY:
-- Return ONLY the JSON object
-- Use ACTUAL NUMERIC VALUES ONLY - calculate them yourself, then put the result
-  WRONG: "capital": capital * 1.05
-  WRONG: "interest_rate": 0.04 + 0.01
-  CORRECT: "capital": 1050.0
-  CORRECT: "interest_rate": 0.05
-- Do NOT use Math.random(), variable names, or any calculations in JSON values
-- Do NOT use comments (//) - they are invalid in JSON
-- Include ALL agents in agent_messages
-- ONLY use variables listed above - no other variables exist
-- Match variable types exactly: int=integer number, float=decimal number, bool=true/false, list=[...], dict={...}
+Include ALL {len(agent_names)} agents in agent_messages using their exact names.
 
-REMEMBER: Calculate values in your head and write the FINAL NUMBERS in the JSON.
+CRITICAL RULES:
+1. Use EXACT agent names from list above - not "Agent A" or invented names
+2. Use only variables defined in CURRENT STATE - inventing variables causes errors
+3. Use literal numbers only: WRONG: "x": x+1  CORRECT: "x": 51
+4. No comments in JSON
 """
         return prompt
 
@@ -574,49 +571,35 @@ IMPORTANT FOR AGENT MESSAGES:
         for agent_name, response in agent_responses.items():
             sections.append(f"  {agent_name}: \"{response}\"")
 
-        sections.append("""
-Return ONLY valid JSON (no markdown, no code blocks):
-{
-  "state_updates": {
-    "global_vars": {"var_name": new_value, ...},
-    "agent_vars": {
-      "Agent A": {"var_name": new_value, ...},
-      "Agent B": {...}
-    }
-  },
-  "events": [
-    {
-      "type": "event_type",
-      "description": "What happened",
-      "affects": ["Agent A"],
-      "duration": 3
-    }
-  ],
-  "agent_messages": {
-    "Agent A": "Personalized narrative for Agent A",
-    "Agent B": "Personalized narrative for Agent B"
-  },
-  "reasoning": "Why you made these updates and generated these events"
-}
+        # Build agent names list for the prompt
+        agent_names_list = list(agent_responses.keys())
+        agent_names_str = ", ".join(agent_names_list)
 
-CRITICAL JSON RULES - READ CAREFULLY:
-- Return ONLY the JSON object, no explanation text
-- Use ACTUAL NUMERIC VALUES ONLY - calculate them yourself, then put the result
-  WRONG: "capital": MistralStrategist.capital * 1.05
-  WRONG: "capital": capital * 1.05
-  WRONG: "market_volatility": market_volatility + Math.random() * 0.03
-  WRONG: "interest_rate": interest_rate + 0.005
-  CORRECT: "capital": 2100.0
-  CORRECT: "market_volatility": 0.163
-  CORRECT: "interest_rate": 0.045
-- Do NOT use Math.random(), variable names, or any calculations in JSON values
-- Do NOT use comments (//) - they are invalid in JSON
-- Only include variables that CHANGED in state_updates
-- Include ALL agents in agent_messages
-- ONLY use variables shown in the "CURRENT STATE" section above - no other variables exist
-- Match variable types exactly: int=integer number (e.g., 5), float=decimal (e.g., 5.0), bool=true/false
+        # Build complete example with all agent names
+        agent_vars_example = ", ".join([f'"{name}": {{"escalation_readiness": 50}}' for name in agent_names_list])
+        agent_msgs_example = ", ".join([f'"{name}": "Message for {name}"' for name in agent_names_list])
 
-REMEMBER: You must calculate the new values in your head and write the FINAL NUMBERS in the JSON.
+        sections.append(f"""
+=== CRITICAL: OUTPUT JSON ONLY ===
+DO NOT output markdown, bullet points, or explanations.
+DO NOT output "**Decision Making**" or similar text.
+ONLY output a JSON object like this:
+
+{{
+  "state_updates": {{
+    "global_vars": {{"crisis_level": 65}},
+    "agent_vars": {{{agent_vars_example}}}
+  }},
+  "events": [],
+  "agent_messages": {{{agent_msgs_example}}},
+  "reasoning": "Brief explanation"
+}}
+
+RULES:
+1. EXACT agent names: {agent_names_str}
+2. ONLY use variables from CURRENT STATE section above
+3. DO NOT invent variables like "message_received" or "current_position"
+4. Output pure JSON - no markdown formatting
 """)
 
         return "\n".join(sections)
