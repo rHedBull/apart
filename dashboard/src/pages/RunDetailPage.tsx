@@ -186,42 +186,40 @@ export function RunDetailPage() {
           />
         }
         splitPanel={
-          splitPanelOpen ? (
-            <SplitPanel
-              header={
-                messageFilter.agent
-                  ? `Messages for ${messageFilter.agent}`
-                  : messageFilter.step !== null
-                    ? `Messages at Step ${messageFilter.step}`
-                    : 'Agent Conversations'
-              }
-              headerActions={
-                <StepNavigation
-                  currentStep={messageFilter.step}
-                  maxSteps={maxSteps}
-                  onStepChange={handleStepNavigate}
-                />
-              }
-              i18nStrings={{
-                closeButtonAriaLabel: 'Close panel',
-                openButtonAriaLabel: 'Open panel',
-                preferencesTitle: 'Split panel preferences',
-                preferencesPositionLabel: 'Position',
-                preferencesPositionDescription: 'Choose the default position',
-                preferencesPositionBottom: 'Bottom',
-                preferencesPositionSide: 'Side',
-                preferencesConfirm: 'Confirm',
-                preferencesCancel: 'Cancel',
-                resizeHandleAriaLabel: 'Resize split panel',
-              }}
-            >
-              <MessagePanel
-                filterAgent={messageFilter.agent}
-                filterStep={messageFilter.step}
-                onFilterChange={handleFilterChange}
+          <SplitPanel
+            header={
+              messageFilter.agent
+                ? `Messages for ${messageFilter.agent}`
+                : messageFilter.step !== null
+                  ? `Messages at Step ${messageFilter.step}`
+                  : 'Agent Conversations'
+            }
+            headerActions={
+              <StepNavigation
+                currentStep={messageFilter.step}
+                maxSteps={maxSteps}
+                onStepChange={handleStepNavigate}
               />
-            </SplitPanel>
-          ) : undefined
+            }
+            i18nStrings={{
+              closeButtonAriaLabel: 'Close panel',
+              openButtonAriaLabel: 'Open panel',
+              preferencesTitle: 'Split panel preferences',
+              preferencesPositionLabel: 'Position',
+              preferencesPositionDescription: 'Choose the default position',
+              preferencesPositionBottom: 'Bottom',
+              preferencesPositionSide: 'Side',
+              preferencesConfirm: 'Confirm',
+              preferencesCancel: 'Cancel',
+              resizeHandleAriaLabel: 'Resize split panel',
+            }}
+          >
+            <MessagePanel
+              filterAgent={messageFilter.agent}
+              filterStep={messageFilter.step}
+              onFilterChange={handleFilterChange}
+            />
+          </SplitPanel>
         }
         splitPanelOpen={splitPanelOpen}
         onSplitPanelToggle={({ detail }) => setSplitPanelOpen(detail.open)}
