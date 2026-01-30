@@ -379,3 +379,111 @@ class TestSimulationStatusDetermination:
 
         response = test_client.get("/api/simulations/fail-override")
         assert response.json()["status"] == "failed"
+
+
+class TestRunDeletion:
+    """Tests for run deletion API endpoints."""
+
+    def test_delete_completed_run(self, test_client, event_bus_reset):
+        """Should delete a completed simulation run."""
+        from server.event_bus import emit_event
+
+        run_id = "delete-completed-test"
+        emit_event("simulation_started", run_id=run_id)
+        emit_event("simulation_completed", run_id=run_id)
+
+        response = test_client.delete(f"/api/runs/{run_id}")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "deleted"
+        assert data["run_id"] == run_id
+
+    def test_delete_running_simulation_blocked(self, test_client, event_bus_reset):
+        """Should reject deletion of running simulation without force flag."""
+        from server.event_bus import emit_event
+
+        run_id = "delete-running-test"
+        emit_event("simulation_started", run_id=run_id)
+
+        response = test_client.delete(f"/api/runs/{run_id}")
+        assert response.status_code == 409
+        assert "running" in response.json()["detail"].lower()
+
+    def test_delete_running_simulation_with_force(self, test_client, event_bus_reset):
+        """Should allow deletion of running simulation with force=true."""
+        from server.event_bus import emit_event
+
+        run_id = "delete-running-force-test"
+        emit_event("simulation_started", run_id=run_id)
+
+        response = test_client.delete(f"/api/runs/{run_id}?force=true")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "deleted"
+
+    def test_delete_nonexistent_run(self, test_client, event_bus_reset):
+        """Should return 404 for nonexistent run."""
+        response = test_client.delete("/api/runs/nonexistent-run-id")
+        assert response.status_code == 404
+
+    def test_batch_delete_runs(self, test_client, event_bus_reset):
+        """Should delete multiple completed runs in batch."""
+        from server.event_bus import emit_event
+
+        # Create completed runs
+        for i in range(3):
+            run_id = f"batch-delete-{i}"
+            emit_event("simulation_started", run_id=run_id)
+            emit_event("simulation_completed", run_id=run_id)
+
+        response = test_client.post(
+            "/api/runs:batchDelete",
+            json={"run_ids": ["batch-delete-0", "batch-delete-1", "batch-delete-2"]}
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["deleted_count"] == 3
+        assert data["total_requested"] == 3
+        assert len(data["skipped_running"]) == 0
+
+    def test_batch_delete_skips_running(self, test_client, event_bus_reset):
+        """Should skip running simulations in batch delete."""
+        from server.event_bus import emit_event
+
+        # Create one completed and one running
+        emit_event("simulation_started", run_id="batch-completed")
+        emit_event("simulation_completed", run_id="batch-completed")
+        emit_event("simulation_started", run_id="batch-running")
+
+        response = test_client.post(
+            "/api/runs:batchDelete",
+            json={"run_ids": ["batch-completed", "batch-running"]}
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["deleted_count"] == 1
+        assert data["total_requested"] == 2
+        assert "batch-running" in data["skipped_running"]
+
+    def test_batch_delete_empty_list(self, test_client, event_bus_reset):
+        """Should reject empty run_ids list."""
+        response = test_client.post(
+            "/api/runs:batchDelete",
+            json={"run_ids": []}
+        )
+        assert response.status_code == 400
+
+    def test_batch_delete_with_force(self, test_client, event_bus_reset):
+        """Should delete running simulations when force=true."""
+        from server.event_bus import emit_event
+
+        emit_event("simulation_started", run_id="force-batch-running")
+
+        response = test_client.post(
+            "/api/runs:batchDelete",
+            json={"run_ids": ["force-batch-running"], "force": True}
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["deleted_count"] == 1
+        assert len(data["skipped_running"]) == 0

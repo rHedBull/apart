@@ -709,9 +709,40 @@ async def cancel_job(job_id: str):
 # ============================================================================
 
 
+def _get_run_status(run_id: str) -> str | None:
+    """Get the current status of a simulation run.
+
+    Returns None if the run doesn't exist.
+    """
+    event_bus = get_event_bus()
+    history = event_bus.get_history(run_id)
+
+    if not history:
+        # Check results directory for completed runs
+        results_dir = Path("results") / run_id
+        if results_dir.exists():
+            return "completed"
+        return None
+
+    status = "pending"
+    for event in history:
+        if event.event_type == "simulation_started":
+            status = "running"
+        elif event.event_type == "simulation_completed":
+            status = "completed"
+        elif event.event_type == "simulation_failed":
+            status = "failed"
+
+    return status
+
+
 @app.delete("/api/runs/{run_id}")
-async def delete_run(run_id: str):
+async def delete_run(run_id: str, force: bool = False):
     """Delete a simulation run and all its data.
+
+    Args:
+        run_id: The run ID to delete
+        force: If True, allow deleting running simulations (dangerous)
 
     Removes:
     - Results directory (results/{run_id}/)
@@ -720,6 +751,14 @@ async def delete_run(run_id: str):
     """
     import shutil
     from server.event_bus import EventBus
+
+    # Check if simulation is running
+    status = _get_run_status(run_id)
+    if status == "running" and not force:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Cannot delete running simulation {run_id}. Use force=true to override."
+        )
 
     results_dir = Path("results") / run_id
     deleted_results = False
@@ -764,22 +803,35 @@ async def delete_runs_bulk(request: Request):
     """Delete multiple simulation runs.
 
     Request body:
-        {"run_ids": ["run_id_1", "run_id_2", ...]}
+        {"run_ids": ["run_id_1", "run_id_2", ...], "force": false}
+
+    Running simulations are skipped unless force=true.
     """
     import shutil
     from server.event_bus import EventBus
 
     body = await request.json()
     run_ids = body.get("run_ids", [])
+    force = body.get("force", False)
 
     if not run_ids:
         raise HTTPException(status_code=400, detail="No run_ids provided")
 
     results = []
     event_bus = get_event_bus()
+    skipped_running = []
 
     for run_id in run_ids:
         result = {"run_id": run_id, "deleted": False, "error": None}
+
+        # Check if simulation is running
+        status = _get_run_status(run_id)
+        if status == "running" and not force:
+            result["error"] = "Cannot delete running simulation"
+            result["status"] = "running"
+            skipped_running.append(run_id)
+            results.append(result)
+            continue
 
         try:
             results_dir = Path("results") / run_id
@@ -813,10 +865,11 @@ async def delete_runs_bulk(request: Request):
         results.append(result)
 
     deleted_count = sum(1 for r in results if r["deleted"])
-    logger.info(f"Bulk delete: {deleted_count}/{len(run_ids)} runs deleted")
+    logger.info(f"Bulk delete: {deleted_count}/{len(run_ids)} runs deleted, {len(skipped_running)} skipped (running)")
 
     return {
         "deleted_count": deleted_count,
         "total_requested": len(run_ids),
+        "skipped_running": skipped_running,
         "results": results,
     }

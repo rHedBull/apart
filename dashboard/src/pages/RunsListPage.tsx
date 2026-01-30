@@ -74,6 +74,9 @@ export function RunsListPage() {
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const pageSize = 10;
 
+  const runningSelected = selectedItems.filter(item => item.status === 'running');
+  const deletableSelected = selectedItems.filter(item => item.status !== 'running');
+
   const handleDelete = async () => {
     if (selectedItems.length === 0) return;
 
@@ -86,8 +89,15 @@ export function RunsListPage() {
     setDeleting(false);
 
     if (result.success) {
-      setShowDeleteModal(false);
-      setSelectedItems([]);
+      // Show warning if some were skipped
+      if (result.skippedRunning && result.skippedRunning.length > 0) {
+        setDeleteError(`Deleted ${result.deletedCount} runs. Skipped ${result.skippedRunning.length} running simulation(s).`);
+        // Keep modal open to show the message, but clear selection of deleted items
+        setSelectedItems(prev => prev.filter(item => result.skippedRunning?.includes(item.runId)));
+      } else {
+        setShowDeleteModal(false);
+        setSelectedItems([]);
+      }
     } else {
       setDeleteError(result.error || 'Failed to delete runs');
     }
@@ -274,8 +284,9 @@ export function RunsListPage() {
                     variant="primary"
                     onClick={handleDelete}
                     loading={deleting}
+                    disabled={deletableSelected.length === 0}
                   >
-                    Delete
+                    Delete{deletableSelected.length > 0 ? ` (${deletableSelected.length})` : ''}
                   </Button>
                 </SpaceBetween>
               </Box>
@@ -283,23 +294,37 @@ export function RunsListPage() {
           >
             <SpaceBetween size="m">
               {deleteError && (
-                <Alert type="error">{deleteError}</Alert>
+                <Alert type={deleteError.includes('Deleted') ? 'warning' : 'error'}>{deleteError}</Alert>
+              )}
+              {runningSelected.length > 0 && (
+                <Alert type="warning">
+                  {runningSelected.length} running simulation{runningSelected.length !== 1 ? 's' : ''} will be skipped.
+                  Running simulations cannot be deleted.
+                </Alert>
               )}
               <Box>
-                Are you sure you want to delete {selectedItems.length} simulation run{selectedItems.length !== 1 ? 's' : ''}?
-                This action cannot be undone.
+                {deletableSelected.length > 0 ? (
+                  <>
+                    Are you sure you want to delete {deletableSelected.length} simulation run{deletableSelected.length !== 1 ? 's' : ''}?
+                    This action cannot be undone.
+                  </>
+                ) : (
+                  <>No simulations can be deleted. All selected simulations are currently running.</>
+                )}
               </Box>
-              <Box>
-                <strong>Runs to delete:</strong>
-                <ul style={{ margin: '8px 0', paddingLeft: '20px' }}>
-                  {selectedItems.slice(0, 5).map(item => (
-                    <li key={item.runId}>{item.scenario} ({item.runId})</li>
-                  ))}
-                  {selectedItems.length > 5 && (
-                    <li>...and {selectedItems.length - 5} more</li>
-                  )}
-                </ul>
-              </Box>
+              {deletableSelected.length > 0 && (
+                <Box>
+                  <strong>Runs to delete:</strong>
+                  <ul style={{ margin: '8px 0', paddingLeft: '20px' }}>
+                    {deletableSelected.slice(0, 5).map(item => (
+                      <li key={item.runId}>{item.scenario} ({item.runId})</li>
+                    ))}
+                    {deletableSelected.length > 5 && (
+                      <li>...and {deletableSelected.length - 5} more</li>
+                    )}
+                  </ul>
+                </Box>
+              )}
             </SpaceBetween>
           </Modal>
           </>
