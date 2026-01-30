@@ -2,6 +2,7 @@
  * MessagePanel - Content for SplitPanel showing agent messages
  */
 
+import { useState } from 'react';
 import Box from '@cloudscape-design/components/box';
 import SpaceBetween from '@cloudscape-design/components/space-between';
 import Badge from '@cloudscape-design/components/badge';
@@ -119,18 +120,31 @@ interface MessageBubbleProps {
   };
 }
 
+const TRUNCATE_LENGTH = 150;
+
 function MessageBubble({ message }: MessageBubbleProps) {
+  const [expanded, setExpanded] = useState(false);
   const isSent = message.direction === 'sent';
+  const isLong = message.content.length > TRUNCATE_LENGTH;
+
+  const truncatedContent = isLong && !expanded
+    ? message.content.slice(0, TRUNCATE_LENGTH) + '...'
+    : message.content;
 
   return (
     <Box padding="s" variant="div">
       <SpaceBetween direction="horizontal" size="xs">
         <Badge color={isSent ? 'grey' : 'blue'}>
-          {isSent ? `To ${message.agentName}` : message.agentName}
+          {isSent ? `→ To ${message.agentName}` : `← ${message.agentName}`}
         </Badge>
         <Box variant="small" color="text-status-inactive">
           Step {message.step}
         </Box>
+        {isLong && (
+          <Button variant="inline-link" onClick={() => setExpanded(!expanded)}>
+            {expanded ? 'Show less' : 'Show full'}
+          </Button>
+        )}
       </SpaceBetween>
       <Box
         variant="p"
@@ -144,7 +158,7 @@ function MessageBubble({ message }: MessageBubbleProps) {
           fontFamily: 'inherit',
           fontSize: 'inherit'
         }}>
-          {message.content}
+          {truncatedContent}
         </pre>
       </Box>
     </Box>
