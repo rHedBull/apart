@@ -58,7 +58,7 @@ export function RunDetailPage() {
 
   // Local state
   const [activeTab, setActiveTab] = useState('variables');
-  const [splitPanelOpen, setSplitPanelOpen] = useState(false);
+  const [splitPanelOpen, setSplitPanelOpen] = useState(true);
   const [loading, setLoading] = useState(true);
   const [messageFilter, setMessageFilter] = useState<{
     agent: string | null;
@@ -148,6 +148,11 @@ export function RunDetailPage() {
     setSplitPanelOpen(true);
   };
 
+  // Handle filter changes from MessagePanel
+  const handleFilterChange = (agent: string | null, step: number | null) => {
+    setMessageFilter({ agent, step });
+  };
+
   // Extract scenario name from runId (format: run_scenarioname_timestamp)
   const scenarioName = runId?.replace(/^run_/, '').split('_').slice(0, -2).join('_') || runId;
 
@@ -197,6 +202,7 @@ export function RunDetailPage() {
               <MessagePanel
                 filterAgent={messageFilter.agent}
                 filterStep={messageFilter.step}
+                onFilterChange={handleFilterChange}
               />
             </SplitPanel>
           ) : undefined
