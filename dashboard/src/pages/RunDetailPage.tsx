@@ -23,6 +23,7 @@ import { MapVisualization } from '../components/MapVisualization';
 import { GeoMapVisualization } from '../components/GeoMapVisualization';
 import { DangerTable } from '../components/DangerTable';
 import { MessagePanel } from '../components/MessagePanel';
+import { StepNavigation } from '../components/StepNavigation';
 import { useSimulationEvents, SimulationEvent } from '../hooks/useSimulationEvents';
 import { useSimulationStore } from '../hooks/useSimulationState';
 
@@ -153,6 +154,14 @@ export function RunDetailPage() {
     setMessageFilter({ agent, step });
   };
 
+  // Handle step navigation
+  const handleStepNavigate = (step: number | null) => {
+    setMessageFilter((prev) => ({ ...prev, step }));
+    if (!splitPanelOpen) {
+      setSplitPanelOpen(true);
+    }
+  };
+
   // Extract scenario name from runId (format: run_scenarioname_timestamp)
   const scenarioName = runId?.replace(/^run_/, '').split('_').slice(0, -2).join('_') || runId;
 
@@ -184,7 +193,14 @@ export function RunDetailPage() {
                   ? `Messages for ${messageFilter.agent}`
                   : messageFilter.step !== null
                     ? `Messages at Step ${messageFilter.step}`
-                    : 'All Messages'
+                    : 'Agent Conversations'
+              }
+              headerActions={
+                <StepNavigation
+                  currentStep={messageFilter.step}
+                  maxSteps={maxSteps}
+                  onStepChange={handleStepNavigate}
+                />
               }
               i18nStrings={{
                 closeButtonAriaLabel: 'Close panel',
