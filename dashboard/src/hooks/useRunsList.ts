@@ -124,5 +124,41 @@ export function useRunsList(options: UseRunsListOptions = {}) {
     fetchRuns();
   }, [fetchRuns]);
 
-  return { runs, loading, error, connected, refresh };
+  const deleteRuns = useCallback(async (runIds: string[]): Promise<{
+    success: boolean;
+    deletedCount: number;
+    skippedRunning?: string[];
+    error?: string;
+  }> => {
+    try {
+      const response = await fetch('/api/runs:batchDelete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ run_ids: runIds }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to delete runs: ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      // Remove only the actually deleted runs from local state
+      const deletedIds = data.results
+        .filter((r: { deleted: boolean }) => r.deleted)
+        .map((r: { run_id: string }) => r.run_id);
+      setRuns(prev => prev.filter(r => !deletedIds.includes(r.runId)));
+
+      return {
+        success: true,
+        deletedCount: data.deleted_count,
+        skippedRunning: data.skipped_running,
+      };
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to delete runs';
+      return { success: false, deletedCount: 0, error: errorMessage };
+    }
+  }, []);
+
+  return { runs, loading, error, connected, refresh, deleteRuns };
 }
