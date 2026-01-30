@@ -134,6 +134,7 @@ interface MessageBubbleProps {
     agentName: string;
     direction: 'sent' | 'received';
     content: string;
+    responseTimeMs?: number;
   };
 }
 
@@ -148,6 +149,11 @@ function MessageBubble({ message }: MessageBubbleProps) {
     ? message.content.slice(0, TRUNCATE_LENGTH) + '...'
     : message.content;
 
+  const formatResponseTime = (ms: number) => {
+    if (ms < 1000) return `${ms}ms`;
+    return `${(ms / 1000).toFixed(1)}s`;
+  };
+
   return (
     <Box padding="s" variant="div">
       <SpaceBetween direction="horizontal" size="xs">
@@ -157,6 +163,11 @@ function MessageBubble({ message }: MessageBubbleProps) {
         <Box variant="small" color="text-status-inactive">
           Step {message.step}
         </Box>
+        {message.responseTimeMs !== undefined && (
+          <Box variant="small" color="text-status-inactive">
+            {formatResponseTime(message.responseTimeMs)}
+          </Box>
+        )}
         {isLong && (
           <Button variant="inline-link" onClick={() => setExpanded(!expanded)}>
             {expanded ? 'Show less' : 'Show full'}

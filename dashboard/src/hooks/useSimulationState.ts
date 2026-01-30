@@ -11,6 +11,7 @@ interface AgentMessage {
   agentName: string;
   direction: 'sent' | 'received';
   content: string;
+  responseTimeMs?: number;  // Only for received messages
 }
 
 interface DangerSignal {
@@ -117,6 +118,9 @@ interface SimulationState {
   removePendingAgent: (name: string) => void;
   clearPendingAgents: () => void;
 
+  // Track sent timestamps for response time calculation
+  messageSentTimestamps: Record<string, string>;  // agentName -> timestamp
+
   // Process an incoming event
   processEvent: (event: SimulationEvent) => void;
 
@@ -154,6 +158,7 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
   globalVarsHistory: [],
   agentVarsHistory: {},
   pendingAgents: [],
+  messageSentTimestamps: {},
 
   // Actions
   setConnected: (connected) => set({ connected }),
@@ -241,6 +246,7 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
           globalVarsHistory: [],
           agentVarsHistory: {},
           pendingAgents: [],
+          messageSentTimestamps: {},
         });
         break;
 
@@ -260,6 +266,12 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
 
       case 'agent_message_sent':
         get().addPendingAgent(data.agent_name as string);
+        set((state) => ({
+          messageSentTimestamps: {
+            ...state.messageSentTimestamps,
+            [data.agent_name as string]: timestamp,
+          },
+        }));
         get().addMessage({
           step: step || 0,
           timestamp,
@@ -269,16 +281,26 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
         });
         break;
 
-      case 'agent_response_received':
-        get().removePendingAgent(data.agent_name as string);
+      case 'agent_response_received': {
+        const agentName = data.agent_name as string;
+        const sentTimestamp = get().messageSentTimestamps[agentName];
+        let responseTimeMs: number | undefined;
+
+        if (sentTimestamp) {
+          responseTimeMs = new Date(timestamp).getTime() - new Date(sentTimestamp).getTime();
+        }
+
+        get().removePendingAgent(agentName);
         get().addMessage({
           step: step || 0,
           timestamp,
-          agentName: data.agent_name as string,
+          agentName,
           direction: 'received',
           content: data.response as string,
+          responseTimeMs,
         });
         break;
+      }
 
       case 'danger_signal':
         get().addDangerSignal({
@@ -332,5 +354,6 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
       globalVarsHistory: [],
       agentVarsHistory: {},
       pendingAgents: [],
+      messageSentTimestamps: {},
     }),
 }));
