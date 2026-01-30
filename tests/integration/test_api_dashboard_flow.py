@@ -32,18 +32,19 @@ class TestSimulationLifecycleViaAPI:
         emit_event("agent_response_received", run_id=run_id, step=1, agent_name="Agent1")
         emit_event("step_completed", run_id=run_id, step=1)
 
-        # Verify via /api/simulations
-        response = test_client.get("/api/simulations")
+        # Verify via /api/v1/runs
+        response = test_client.get("/api/v1/runs")
         assert response.status_code == 200
 
-        sims = response.json()
-        assert len(sims) >= 1
+        data = response.json()
+        runs = data.get("runs", [])
+        assert len(runs) >= 1
 
         # Find our simulation
-        our_sim = next((s for s in sims if s["run_id"] == run_id), None)
+        our_sim = next((s for s in runs if s["runId"] == run_id), None)
         assert our_sim is not None
         assert our_sim["status"] == "running"
-        assert our_sim["current_step"] == 1
+        assert our_sim["currentStep"] == 1
 
     def test_simulation_completion_reflected_in_api(self, test_client, event_bus_reset):
         """Test that completed simulation shows correct status in API."""
@@ -58,10 +59,11 @@ class TestSimulationLifecycleViaAPI:
         emit_event("simulation_completed", run_id=run_id)
 
         # Check via simulations list
-        response = test_client.get("/api/simulations")
-        sims = response.json()
+        response = test_client.get("/api/v1/runs")
+        data = response.json()
+        runs = data.get("runs", [])
 
-        our_sim = next((s for s in sims if s["run_id"] == run_id), None)
+        our_sim = next((s for s in runs if s["runId"] == run_id), None)
         assert our_sim is not None
         assert our_sim["status"] == "completed"
 
@@ -75,26 +77,27 @@ class TestSimulationLifecycleViaAPI:
         emit_event("step_completed", run_id=run_id, step=1)
         emit_event("simulation_failed", run_id=run_id, error="Engine crashed")
 
-        response = test_client.get("/api/simulations")
-        sims = response.json()
+        response = test_client.get("/api/v1/runs")
+        data = response.json()
+        runs = data.get("runs", [])
 
-        our_sim = next((s for s in sims if s["run_id"] == run_id), None)
+        our_sim = next((s for s in runs if s["runId"] == run_id), None)
         assert our_sim is not None
         assert our_sim["status"] == "failed"
 
 
 class TestRunsEndpoint:
-    """Tests for /api/runs endpoint."""
+    """Tests for /api/v1/runs endpoint."""
 
     def test_runs_endpoint_returns_event_based_runs(self, test_client, event_bus_reset):
-        """Test that /api/runs includes runs from EventBus."""
+        """Test that /api/v1/runs includes runs from EventBus."""
         from server.event_bus import emit_event
 
         run_id = "runs-endpoint-test"
         emit_event("simulation_started", run_id=run_id, max_steps=3, scenario_name="test_scenario")
         emit_event("step_completed", run_id=run_id, step=1)
 
-        response = test_client.get("/api/runs")
+        response = test_client.get("/api/v1/runs")
         assert response.status_code == 200
 
         data = response.json()
@@ -110,7 +113,7 @@ class TestRunsEndpoint:
         assert our_run is not None or run_id in str(data), f"Run {run_id} not found in response: {data}"
 
     def test_runs_endpoint_shows_danger_count(self, test_client, event_bus_reset):
-        """Test that /api/runs shows danger signal count."""
+        """Test that /api/v1/runs shows danger signal count."""
         from server.event_bus import emit_event
 
         run_id = "danger-count-test"
@@ -119,7 +122,7 @@ class TestRunsEndpoint:
         emit_event("danger_signal", run_id=run_id, step=2, category="deception")
         emit_event("step_completed", run_id=run_id, step=2)
 
-        response = test_client.get("/api/runs")
+        response = test_client.get("/api/v1/runs")
         data = response.json()
         runs = data.get("runs", data)
 
@@ -130,7 +133,7 @@ class TestRunsEndpoint:
 
 
 class TestSimulationDetailsEndpoint:
-    """Tests for /api/simulations/{run_id} endpoint."""
+    """Tests for /api/v1/runs/{run_id} endpoint."""
 
     def test_get_simulation_details(self, test_client, event_bus_reset):
         """Test getting detailed simulation information."""
@@ -145,18 +148,18 @@ class TestSimulationDetailsEndpoint:
         )
         emit_event("step_completed", run_id=run_id, step=3)
 
-        response = test_client.get(f"/api/simulations/{run_id}")
+        response = test_client.get(f"/api/v1/runs/{run_id}")
         assert response.status_code == 200
 
         data = response.json()
-        assert data["run_id"] == run_id
-        assert data["max_steps"] == 5
-        assert data["current_step"] == 3
-        assert data["agent_count"] == 3
+        assert data["runId"] == run_id
+        assert data["maxSteps"] == 5
+        assert data["currentStep"] == 3
+        assert len(data["agentNames"]) == 3
 
     def test_get_nonexistent_simulation_returns_404(self, test_client, event_bus_reset):
         """Test that requesting non-existent simulation returns 404."""
-        response = test_client.get("/api/simulations/nonexistent-run-id-12345")
+        response = test_client.get("/api/v1/runs/nonexistent-run-id-12345")
         assert response.status_code == 404
 
 
@@ -182,13 +185,14 @@ class TestMultipleSimulationsFlow:
         # Leave one running
         # (multi-sim-2 is still running)
 
-        response = test_client.get("/api/simulations")
-        sims = response.json()
+        response = test_client.get("/api/v1/runs")
+        data = response.json()
+        runs = data.get("runs", [])
 
         # Find each simulation
-        sim_0 = next((s for s in sims if s["run_id"] == "multi-sim-0"), None)
-        sim_1 = next((s for s in sims if s["run_id"] == "multi-sim-1"), None)
-        sim_2 = next((s for s in sims if s["run_id"] == "multi-sim-2"), None)
+        sim_0 = next((s for s in runs if s["runId"] == "multi-sim-0"), None)
+        sim_1 = next((s for s in runs if s["runId"] == "multi-sim-1"), None)
+        sim_2 = next((s for s in runs if s["runId"] == "multi-sim-2"), None)
 
         assert sim_0 is not None and sim_0["status"] == "completed"
         assert sim_1 is not None and sim_1["status"] == "failed"
@@ -208,18 +212,19 @@ class TestEventConsistency:
         for step in range(1, 6):
             emit_event("step_completed", run_id=run_id, step=step)
 
-        # Check /api/simulations
-        list_response = test_client.get("/api/simulations")
+        # Check /api/v1/runs
+        list_response = test_client.get("/api/v1/runs")
         list_data = list_response.json()
-        list_sim = next((s for s in list_data if s["run_id"] == run_id), None)
+        runs = list_data.get("runs", [])
+        list_sim = next((s for s in runs if s["runId"] == run_id), None)
 
-        # Check /api/simulations/{run_id}
-        detail_response = test_client.get(f"/api/simulations/{run_id}")
+        # Check /api/v1/runs/{run_id}
+        detail_response = test_client.get(f"/api/v1/runs/{run_id}")
         detail_data = detail_response.json()
 
         # Both should show step 5
-        assert list_sim["current_step"] == 5
-        assert detail_data["current_step"] == 5
+        assert list_sim["currentStep"] == 5
+        assert detail_data["currentStep"] == 5
 
     def test_agent_events_tracked_correctly(self, test_client, event_bus_reset):
         """Test that agent events are properly tracked."""
@@ -243,12 +248,12 @@ class TestEventConsistency:
 
 
 class TestStartSimulationEndpoint:
-    """Tests for POST /api/simulations endpoint."""
+    """Tests for POST /api/v1/runs endpoint."""
 
     def test_start_simulation_invalid_scenario_path(self, test_client, event_bus_reset):
         """Test starting simulation with invalid scenario path."""
         response = test_client.post(
-            "/api/simulations",
+            "/api/v1/runs",
             json={"scenario_path": "/nonexistent/scenario.yaml"}
         )
         assert response.status_code == 400
@@ -283,7 +288,7 @@ class TestStartSimulationEndpoint:
         # This will likely fail due to missing job queue in test environment
         # but we verify the path validation works
         response = test_client.post(
-            "/api/simulations",
+            "/api/v1/runs",
             json={"scenario_path": str(scenario_path)}
         )
 
@@ -336,20 +341,22 @@ class TestEventBusPersistenceIntegration:
         # First request: start simulation
         emit_event("simulation_started", run_id=run_id, max_steps=5)
 
-        response1 = test_client.get("/api/simulations")
-        sims1 = response1.json()
-        assert any(s["run_id"] == run_id for s in sims1)
+        response1 = test_client.get("/api/v1/runs")
+        data1 = response1.json()
+        runs1 = data1.get("runs", [])
+        assert any(s["runId"] == run_id for s in runs1)
 
         # Second request: add more events
         emit_event("step_completed", run_id=run_id, step=1)
         emit_event("step_completed", run_id=run_id, step=2)
 
-        response2 = test_client.get("/api/simulations")
-        sims2 = response2.json()
-        our_sim = next((s for s in sims2 if s["run_id"] == run_id), None)
+        response2 = test_client.get("/api/v1/runs")
+        data2 = response2.json()
+        runs2 = data2.get("runs", [])
+        our_sim = next((s for s in runs2 if s["runId"] == run_id), None)
 
         assert our_sim is not None
-        assert our_sim["current_step"] == 2
+        assert our_sim["currentStep"] == 2
 
 
 class TestDangerSignalFlow:
@@ -381,7 +388,7 @@ class TestDangerSignalFlow:
             severity="medium"
         )
 
-        response = test_client.get("/api/runs")
+        response = test_client.get("/api/v1/runs")
         data = response.json()
         runs = data.get("runs", data)
 

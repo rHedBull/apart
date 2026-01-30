@@ -118,11 +118,11 @@ when neither source has data.
 
 ---
 
-## Issue 8: MEDIUM - Duplicate /api/runs and /api/simulations APIs
+## Issue 8: FIXED ✅ - Duplicate /api/runs and /api/simulations APIs
 
-**Status:** Not fixed - needs consolidation
+**Status:** Fixed - API consolidated with versioning
 
-**Problem:** There are two parallel APIs with different data sources and behaviors:
+**Problem:** There were two parallel APIs with different data sources and behaviors:
 
 | Endpoint | Data Source | Used By |
 |----------|-------------|---------|
@@ -133,17 +133,22 @@ when neither source has data.
 | `GET /api/simulations/{id}` | EventBus only | Tests |
 | `POST /api/simulations` | Creates job | Tests, CLI |
 
-**Issues:**
-1. `/api/simulations` misses historical runs without EventBus data
-2. `/api/simulations/{id}` returns 404 for historical runs (unlike `/api/runs/{id}`)
-3. POST is on `/api/simulations` but DELETE is on `/api/runs`
-4. Dashboard only uses `/api/runs`, tests mostly use `/api/simulations`
+**Fix:** Consolidated all endpoints under `/api/v1/runs`:
 
-**Recommendation:** Consolidate to single `/api/runs` API:
-1. Move `POST /api/simulations` → `POST /api/runs`
-2. Deprecate/remove `/api/simulations` endpoints
-3. Update all tests to use `/api/runs`
-4. Single consistent data source (EventBus + disk fallback)
+| New Endpoint | Notes |
+|--------------|-------|
+| `GET /api/v1/runs` | Disk + EventBus merge |
+| `GET /api/v1/runs/{id}` | EventBus → Disk fallback |
+| `POST /api/v1/runs` | Creates simulation job |
+| `DELETE /api/v1/runs/{id}` | Delete single run |
+| `POST /api/v1/runs:batchDelete` | Batch delete |
+
+**Changes made:**
+1. Created `src/server/routes/v1.py` with consolidated runs API router
+2. Removed `/api/simulations` endpoints entirely
+3. Updated dashboard frontend to use `/api/v1/runs`
+4. Updated all integration tests to use `/api/v1/runs`
+5. Introduced API versioning pattern for future use
 
 ---
 
@@ -171,6 +176,8 @@ Current coverage for server module: **58%**
 - ✅ Issue 7 (detail page idle bug)
 
 ### Outstanding
-1. **Medium:** Issue 8 (API consolidation) - reduce confusion, single source of truth
-2. **Low:** Issue 6 (database sync) - only matters if using database mode
-3. **N/A:** Issue 5 (stop simulation) - endpoint removed, implement fresh if needed
+1. **Low:** Issue 6 (database sync) - only matters if using database mode
+2. **N/A:** Issue 5 (stop simulation) - endpoint removed, implement fresh if needed
+
+### Recently Completed
+- ✅ Issue 8 (API consolidation) - Consolidated to `/api/v1/runs` with versioning
