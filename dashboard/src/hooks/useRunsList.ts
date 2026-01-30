@@ -126,7 +126,7 @@ export function useRunsList(options: UseRunsListOptions = {}) {
 
   const deleteRuns = useCallback(async (runIds: string[]): Promise<{ success: boolean; deletedCount: number; error?: string }> => {
     try {
-      const response = await fetch('/api/runs/delete', {
+      const response = await fetch('/api/runs:batchDelete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ run_ids: runIds }),

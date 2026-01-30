@@ -759,7 +759,7 @@ async def delete_run(run_id: str):
     }
 
 
-@app.post("/api/runs/delete")
+@app.post("/api/runs:batchDelete")
 async def delete_runs_bulk(request: Request):
     """Delete multiple simulation runs.
 
