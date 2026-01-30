@@ -111,6 +111,12 @@ interface SimulationState {
   ) => void;
   clearVariableHistory: () => void;
 
+  // Pending agent responses (for "thinking" indicator)
+  pendingAgents: string[];
+  addPendingAgent: (name: string) => void;
+  removePendingAgent: (name: string) => void;
+  clearPendingAgents: () => void;
+
   // Process an incoming event
   processEvent: (event: SimulationEvent) => void;
 
@@ -147,6 +153,7 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
   dangerSignals: [],
   globalVarsHistory: [],
   agentVarsHistory: {},
+  pendingAgents: [],
 
   // Actions
   setConnected: (connected) => set({ connected }),
@@ -193,6 +200,20 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
   clearVariableHistory: () =>
     set({ globalVarsHistory: [], agentVarsHistory: {} }),
 
+  addPendingAgent: (name) =>
+    set((state) => ({
+      pendingAgents: state.pendingAgents.includes(name)
+        ? state.pendingAgents
+        : [...state.pendingAgents, name],
+    })),
+
+  removePendingAgent: (name) =>
+    set((state) => ({
+      pendingAgents: state.pendingAgents.filter((n) => n !== name),
+    })),
+
+  clearPendingAgents: () => set({ pendingAgents: [] }),
+
   processEvent: (event) => {
     const { event_type, timestamp, run_id, step, data } = event;
 
@@ -219,6 +240,7 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
           dangerSignals: [],
           globalVarsHistory: [],
           agentVarsHistory: {},
+          pendingAgents: [],
         });
         break;
 
@@ -237,6 +259,7 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
         break;
 
       case 'agent_message_sent':
+        get().addPendingAgent(data.agent_name as string);
         get().addMessage({
           step: step || 0,
           timestamp,
@@ -247,6 +270,7 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
         break;
 
       case 'agent_response_received':
+        get().removePendingAgent(data.agent_name as string);
         get().addMessage({
           step: step || 0,
           timestamp,
@@ -307,5 +331,6 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
       dangerSignals: [],
       globalVarsHistory: [],
       agentVarsHistory: {},
+      pendingAgents: [],
     }),
 }));

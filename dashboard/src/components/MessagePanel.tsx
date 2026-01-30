@@ -9,6 +9,7 @@ import Badge from '@cloudscape-design/components/badge';
 import Select from '@cloudscape-design/components/select';
 import Button from '@cloudscape-design/components/button';
 import FormField from '@cloudscape-design/components/form-field';
+import Spinner from '@cloudscape-design/components/spinner';
 import { useSimulationStore } from '../hooks/useSimulationState';
 
 interface MessagePanelProps {
@@ -21,6 +22,8 @@ export function MessagePanel({ filterAgent, filterStep, onFilterChange }: Messag
   const messages = useSimulationStore((state) => state.messages);
   const agentNames = useSimulationStore((state) => state.agentNames);
   const maxSteps = useSimulationStore((state) => state.maxSteps);
+  const pendingAgents = useSimulationStore((state) => state.pendingAgents);
+  const status = useSimulationStore((state) => state.status);
 
   // Build agent options
   const agentOptions = [
@@ -93,6 +96,20 @@ export function MessagePanel({ filterAgent, filterStep, onFilterChange }: Messag
       <Box variant="small" color="text-status-inactive">
         {getFilterSummary()}
       </Box>
+
+      {/* Thinking indicators for live runs */}
+      {status === 'running' && pendingAgents.length > 0 && (
+        <Box padding="s" color="text-status-info">
+          <SpaceBetween direction="horizontal" size="xs">
+            <Spinner size="normal" />
+            <span>
+              {pendingAgents.length === 1
+                ? `${pendingAgents[0]} is thinking...`
+                : `${pendingAgents.join(', ')} are thinking...`}
+            </span>
+          </SpaceBetween>
+        </Box>
+      )}
 
       {/* Messages */}
       {filteredMessages.length === 0 ? (
