@@ -125,8 +125,8 @@ Ask: "Should any events be scripted to occur at specific steps? (optional)"
 AskUserQuestion:
   question: "Which LLM provider should run this simulation?"
   options:
-    - label: "Ollama (local)"
-      description: "Free, private, requires local setup. Use deepseek-coder-v2:latest"
+    - label: "Ollama (local) (Recommended)"
+      description: "Free, private, requires local setup. Use phi4-reasoning:plus for best results"
     - label: "Gemini"
       description: "Fast, good JSON. Requires GEMINI_API_KEY"
     - label: "OpenAI"
@@ -334,3 +334,23 @@ agents:
 ```
 
 **Invoke `/simulation-templates` skill for complete examples by domain.**
+
+## Local Ollama Setup
+
+For running simulations locally without API costs:
+
+1. **Install Ollama**: https://ollama.ai
+2. **Pull the recommended model**:
+   ```bash
+   ollama pull phi4-reasoning:plus
+   ```
+3. **Verify it's running**:
+   ```bash
+   ollama list | grep phi4
+   ```
+
+**Recommended models for local simulation:**
+- `phi4-reasoning:plus` - Best for complex reasoning scenarios (11GB, requires good GPU)
+- `phi4-reasoning` - Smaller variant if memory constrained
+
+**Note:** Reasoning models produce extended `<think>` tags before responses. The simulation framework handles this automatically. Expect longer response times (~1-5 minutes per agent turn) compared to cloud APIs.
