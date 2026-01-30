@@ -23,6 +23,7 @@ import { MapVisualization } from '../components/MapVisualization';
 import { GeoMapVisualization } from '../components/GeoMapVisualization';
 import { DangerTable } from '../components/DangerTable';
 import { MessagePanel } from '../components/MessagePanel';
+import { StepNavigation } from '../components/StepNavigation';
 import { useSimulationEvents, SimulationEvent } from '../hooks/useSimulationEvents';
 import { useSimulationStore } from '../hooks/useSimulationState';
 
@@ -58,7 +59,7 @@ export function RunDetailPage() {
 
   // Local state
   const [activeTab, setActiveTab] = useState('variables');
-  const [splitPanelOpen, setSplitPanelOpen] = useState(false);
+  const [splitPanelOpen, setSplitPanelOpen] = useState(true);
   const [loading, setLoading] = useState(true);
   const [messageFilter, setMessageFilter] = useState<{
     agent: string | null;
@@ -148,6 +149,19 @@ export function RunDetailPage() {
     setSplitPanelOpen(true);
   };
 
+  // Handle filter changes from MessagePanel
+  const handleFilterChange = (agent: string | null, step: number | null) => {
+    setMessageFilter({ agent, step });
+  };
+
+  // Handle step navigation
+  const handleStepNavigate = (step: number | null) => {
+    setMessageFilter((prev) => ({ ...prev, step }));
+    if (!splitPanelOpen) {
+      setSplitPanelOpen(true);
+    }
+  };
+
   // Extract scenario name from runId (format: run_scenarioname_timestamp)
   const scenarioName = runId?.replace(/^run_/, '').split('_').slice(0, -2).join('_') || runId;
 
@@ -172,34 +186,40 @@ export function RunDetailPage() {
           />
         }
         splitPanel={
-          splitPanelOpen ? (
-            <SplitPanel
-              header={
-                messageFilter.agent
-                  ? `Messages for ${messageFilter.agent}`
-                  : messageFilter.step !== null
-                    ? `Messages at Step ${messageFilter.step}`
-                    : 'All Messages'
-              }
-              i18nStrings={{
-                closeButtonAriaLabel: 'Close panel',
-                openButtonAriaLabel: 'Open panel',
-                preferencesTitle: 'Split panel preferences',
-                preferencesPositionLabel: 'Position',
-                preferencesPositionDescription: 'Choose the default position',
-                preferencesPositionBottom: 'Bottom',
-                preferencesPositionSide: 'Side',
-                preferencesConfirm: 'Confirm',
-                preferencesCancel: 'Cancel',
-                resizeHandleAriaLabel: 'Resize split panel',
-              }}
-            >
-              <MessagePanel
-                filterAgent={messageFilter.agent}
-                filterStep={messageFilter.step}
+          <SplitPanel
+            header={
+              messageFilter.agent
+                ? `Messages for ${messageFilter.agent}`
+                : messageFilter.step !== null
+                  ? `Messages at Step ${messageFilter.step}`
+                  : 'Agent Conversations'
+            }
+            headerActions={
+              <StepNavigation
+                currentStep={messageFilter.step}
+                maxSteps={maxSteps}
+                onStepChange={handleStepNavigate}
               />
-            </SplitPanel>
-          ) : undefined
+            }
+            i18nStrings={{
+              closeButtonAriaLabel: 'Close panel',
+              openButtonAriaLabel: 'Open panel',
+              preferencesTitle: 'Split panel preferences',
+              preferencesPositionLabel: 'Position',
+              preferencesPositionDescription: 'Choose the default position',
+              preferencesPositionBottom: 'Bottom',
+              preferencesPositionSide: 'Side',
+              preferencesConfirm: 'Confirm',
+              preferencesCancel: 'Cancel',
+              resizeHandleAriaLabel: 'Resize split panel',
+            }}
+          >
+            <MessagePanel
+              filterAgent={messageFilter.agent}
+              filterStep={messageFilter.step}
+              onFilterChange={handleFilterChange}
+            />
+          </SplitPanel>
         }
         splitPanelOpen={splitPanelOpen}
         onSplitPanelToggle={({ detail }) => setSplitPanelOpen(detail.open)}
