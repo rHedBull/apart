@@ -73,7 +73,7 @@ export function RunDetailPage() {
     reset();
     setLoading(true);
 
-    fetch(`/api/runs/${runId}`)
+    fetch(`/api/v1/runs/${runId}`)
       .then((res) => {
         if (!res.ok) throw new Error(`Failed to fetch run: ${res.status}`);
         return res.json();

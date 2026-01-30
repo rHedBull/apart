@@ -29,7 +29,7 @@ export function useRunsList(options: UseRunsListOptions = {}) {
   // Fetch runs from REST API
   const fetchRuns = useCallback(async () => {
     try {
-      const response = await fetch('/api/runs');
+      const response = await fetch('/api/v1/runs');
       if (!response.ok) {
         throw new Error(`Failed to fetch runs: ${response.status}`);
       }
@@ -131,7 +131,7 @@ export function useRunsList(options: UseRunsListOptions = {}) {
     error?: string;
   }> => {
     try {
-      const response = await fetch('/api/runs:batchDelete', {
+      const response = await fetch('/api/v1/runs:batchDelete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ run_ids: runIds }),
