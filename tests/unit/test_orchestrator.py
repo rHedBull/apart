@@ -637,3 +637,210 @@ class TestPauseSignalHandling:
                        if c[0][0] == EventTypes.SIMULATION_PAUSED]
         assert len(pause_calls) == 1
         assert pause_calls[0][1]["step"] == 1
+
+
+class TestOrchestratorResumeSupport:
+    """Tests for orchestrator resume functionality with start_step parameter."""
+
+    def _create_mock_orchestrator(self):
+        """Create orchestrator with mocked dependencies."""
+        from core.orchestrator import Orchestrator
+
+        with patch.object(Orchestrator, '__init__', lambda self: None):
+            orch = Orchestrator()
+            orch.agents = []
+            orch.max_steps = 5
+            orch.logger = Mock()
+            orch.game_engine = Mock()
+            orch.persistence = Mock()
+            orch.persistence.run_id = "test-run-id"
+            orch.persistence.run_dir = Mock()
+            orch.spatial_graph = None
+            orch.composed_modules = None
+            orch.simulator_agent = Mock()
+            return orch
+
+    @patch('core.orchestrator.emit')
+    @patch('core.orchestrator.enable_event_emitter')
+    @patch('core.orchestrator.disable_event_emitter')
+    @patch('core.orchestrator.check_pause_requested')
+    def test_orchestrator_run_with_start_step(
+        self, mock_check, mock_disable, mock_enable, mock_emit
+    ):
+        """Test that orchestrator can start from a specific step."""
+        orch = self._create_mock_orchestrator()
+        orch._restore_state_for_resume = Mock()
+        orch.simulator_agent.initialize_simulation = Mock(return_value={"Agent1": "msg"})
+        orch._collect_agent_responses = Mock(return_value=({}, []))
+        orch._process_step_results = Mock(return_value={"Agent1": "msg"})
+        orch._save_final_state = Mock()
+        mock_check.return_value = None
+
+        # Run starting from step 3
+        orch.run(start_step=3)
+
+        # Verify _restore_state_for_resume was called
+        orch._restore_state_for_resume.assert_called_once_with(3)
+
+        # Verify _initialize_simulation was NOT called (resume path)
+        # Instead, simulator_agent.initialize_simulation should be called
+        orch.simulator_agent.initialize_simulation.assert_called_once()
+
+        # Verify we started from step 3 (should run steps 3, 4, 5)
+        assert orch._collect_agent_responses.call_count == 3
+
+    @patch('core.orchestrator.emit')
+    @patch('core.orchestrator.enable_event_emitter')
+    @patch('core.orchestrator.disable_event_emitter')
+    @patch('core.orchestrator.check_pause_requested')
+    def test_orchestrator_run_default_start_step(
+        self, mock_check, mock_disable, mock_enable, mock_emit
+    ):
+        """Test that orchestrator defaults to start_step=1."""
+        orch = self._create_mock_orchestrator()
+        orch._initialize_simulation = Mock(return_value={"Agent1": "msg"})
+        orch._collect_agent_responses = Mock(return_value=({}, []))
+        orch._process_step_results = Mock(return_value={"Agent1": "msg"})
+        orch._save_final_state = Mock()
+        mock_check.return_value = None
+
+        # Run without start_step (default)
+        orch.run()
+
+        # Verify _initialize_simulation was called (not resume)
+        orch._initialize_simulation.assert_called_once()
+
+        # Verify all 5 steps were run
+        assert orch._collect_agent_responses.call_count == 5
+
+    @patch('core.orchestrator.emit')
+    @patch('core.orchestrator.enable_event_emitter')
+    @patch('core.orchestrator.disable_event_emitter')
+    @patch('core.orchestrator.check_pause_requested')
+    def test_orchestrator_run_start_step_1_is_not_resume(
+        self, mock_check, mock_disable, mock_enable, mock_emit
+    ):
+        """Test that start_step=1 explicitly is treated as normal start, not resume."""
+        orch = self._create_mock_orchestrator()
+        orch._initialize_simulation = Mock(return_value={"Agent1": "msg"})
+        orch._restore_state_for_resume = Mock()
+        orch._collect_agent_responses = Mock(return_value=({}, []))
+        orch._process_step_results = Mock(return_value={"Agent1": "msg"})
+        orch._save_final_state = Mock()
+        mock_check.return_value = None
+
+        # Run with explicit start_step=1
+        orch.run(start_step=1)
+
+        # Verify _initialize_simulation was called (normal start)
+        orch._initialize_simulation.assert_called_once()
+
+        # Verify _restore_state_for_resume was NOT called
+        orch._restore_state_for_resume.assert_not_called()
+
+    def test_restore_state_for_resume_with_valid_snapshot(self, tmp_path):
+        """Test that _restore_state_for_resume restores state correctly."""
+        import json
+        from core.orchestrator import Orchestrator
+
+        with patch.object(Orchestrator, '__init__', lambda self: None):
+            orch = Orchestrator()
+            orch.logger = Mock()
+            orch.game_engine = Mock()
+            orch.agents = []
+
+            # Create mock agent
+            mock_agent = Mock()
+            mock_agent.name = "TestAgent"
+            orch.agents = [mock_agent]
+
+            # Set up persistence with tmp_path
+            orch.persistence = Mock()
+            orch.persistence.run_dir = tmp_path
+
+            # Create state file with snapshots
+            state_data = {
+                "run_id": "test-run",
+                "scenario": "test",
+                "snapshots": [
+                    {
+                        "step": 1,
+                        "global_vars": {"resource": 100},
+                        "agent_vars": {"TestAgent": {"health": 90}},
+                        "messages": []
+                    },
+                    {
+                        "step": 2,
+                        "global_vars": {"resource": 80},
+                        "agent_vars": {"TestAgent": {"health": 75}},
+                        "messages": []
+                    }
+                ]
+            }
+            state_file = tmp_path / "state.json"
+            with open(state_file, "w") as f:
+                json.dump(state_data, f)
+
+            # Call restore for step 3 (should use snapshot from step 2)
+            result = orch._restore_state_for_resume(3)
+
+            # Verify game engine state was updated
+            orch.game_engine.apply_state_updates.assert_called_once()
+            call_args = orch.game_engine.apply_state_updates.call_args[0][0]
+            assert call_args["global_vars"] == {"resource": 80}
+            assert call_args["agent_vars"] == {"TestAgent": {"health": 75}}
+
+            # Verify round was set
+            assert orch.game_engine.state.round == 2
+
+            # Verify agent stats were updated
+            mock_agent.update_stats.assert_called_once_with({"health": 75})
+
+    def test_restore_state_for_resume_no_state_file(self, tmp_path):
+        """Test _restore_state_for_resume handles missing state file."""
+        from core.orchestrator import Orchestrator
+
+        with patch.object(Orchestrator, '__init__', lambda self: None):
+            orch = Orchestrator()
+            orch.logger = Mock()
+            orch.game_engine = Mock()
+            orch.agents = []
+
+            orch.persistence = Mock()
+            orch.persistence.run_dir = tmp_path
+
+            # No state file exists
+            result = orch._restore_state_for_resume(3)
+
+            # Should return empty dict and log warning
+            assert result == {}
+            orch.logger.warning.assert_called()
+
+    def test_restore_state_for_resume_empty_snapshots(self, tmp_path):
+        """Test _restore_state_for_resume handles empty snapshots."""
+        import json
+        from core.orchestrator import Orchestrator
+
+        with patch.object(Orchestrator, '__init__', lambda self: None):
+            orch = Orchestrator()
+            orch.logger = Mock()
+            orch.game_engine = Mock()
+            orch.agents = []
+
+            orch.persistence = Mock()
+            orch.persistence.run_dir = tmp_path
+
+            # Create state file with no snapshots
+            state_data = {
+                "run_id": "test-run",
+                "scenario": "test",
+                "snapshots": []
+            }
+            state_file = tmp_path / "state.json"
+            with open(state_file, "w") as f:
+                json.dump(state_data, f)
+
+            result = orch._restore_state_for_resume(3)
+
+            assert result == {}
+            orch.logger.warning.assert_called()
