@@ -7,7 +7,6 @@ handling simulation execution independently of the main API server.
 
 import os
 import threading
-import time
 from pathlib import Path
 
 from utils.ops_logger import get_ops_logger
@@ -69,13 +68,14 @@ class HeartbeatThread:
 
 
 def _ensure_state_manager_initialized():
-    """Ensure RunStateManager and job queue are initialized in worker process.
+    """Ensure RunStateManager, job queue, and EventBus are initialized in worker process.
 
-    The state manager and job queue module need the Redis connection to be set.
+    The state manager, job queue module, and EventBus need the Redis connection to be set.
     In the API server, this happens in lifespan. In worker processes, we need
     to initialize here using the RQ worker's Redis connection.
     """
     from server.run_state import get_state_manager, RunStateManager
+    from server.event_bus import get_event_bus
     import server.job_queue as jq
 
     # Get Redis connection from RQ's current job context
@@ -92,6 +92,12 @@ def _ensure_state_manager_initialized():
             if jq._redis_conn is None:
                 jq._redis_conn = job.connection
                 logger.info("Job queue Redis connection initialized in worker process")
+
+            # Initialize EventBus with Redis for cross-process event delivery
+            event_bus = get_event_bus()
+            if event_bus._redis is None:
+                event_bus.set_redis_connection(job.connection)
+                logger.info("EventBus Redis connection initialized in worker process")
         else:
             logger.warning("Could not get Redis connection from RQ job")
     except Exception as e:

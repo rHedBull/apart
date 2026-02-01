@@ -3,8 +3,13 @@ Event bus for distributing simulation events to SSE clients.
 
 The EventBus is a singleton that:
 - Receives events from running simulations
-- Broadcasts events to all connected SSE clients
+- Broadcasts events to all connected SSE clients via Redis Pub/Sub
 - Maintains event history for late-joining clients
+
+Cross-process event delivery:
+- Worker processes publish events to Redis channel
+- API server subscribes to Redis channel and dispatches to SSE clients
+- This enables real-time updates across process boundaries
 """
 
 import asyncio
@@ -12,9 +17,15 @@ import threading
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Any, AsyncIterator, Callable
+from typing import Any, AsyncIterator, Callable, TYPE_CHECKING
 from collections import defaultdict
 import json
+
+if TYPE_CHECKING:
+    from redis import Redis
+
+# Redis Pub/Sub channel for simulation events
+EVENTS_CHANNEL = "apart:events"
 
 
 @dataclass
@@ -87,11 +98,19 @@ class EventBus:
     """
     Singleton event bus for simulation event distribution.
 
+    Cross-process architecture:
+    - Worker processes call emit() which publishes to Redis Pub/Sub
+    - API server runs a Redis subscriber that dispatches to SSE clients
+    - This enables real-time updates across process boundaries
+
     Usage:
         # Get the singleton instance
         bus = EventBus.get_instance()
 
-        # Emit an event (from simulation code)
+        # Set Redis connection (done once at startup)
+        bus.set_redis_connection(redis_conn)
+
+        # Emit an event (from simulation code - publishes to Redis)
         bus.emit(SimulationEvent.create(
             "agent_response",
             run_id="abc123",
@@ -103,6 +122,9 @@ class EventBus:
         # Subscribe to events (in SSE endpoint)
         async for event in bus.subscribe():
             yield event.to_sse()
+
+        # Start Redis subscriber (in API server only)
+        await bus.start_redis_subscriber()
     """
 
     _instance: "EventBus | None" = None
@@ -134,6 +156,10 @@ class EventBus:
         self._max_history_per_run = 1000
         self._callbacks: list[Callable[[SimulationEvent], None]] = []
         self._db = None  # Database instance (lazy loaded)
+
+        # Redis Pub/Sub for cross-process event delivery
+        self._redis: "Redis | None" = None
+        self._redis_subscriber_task: asyncio.Task | None = None
 
         # Persistence (JSONL mode)
         if persist_path is None:
@@ -265,19 +291,40 @@ class EventBus:
         """Reset the singleton (for testing)."""
         cls._instance = None
 
-    def emit(self, event: SimulationEvent) -> None:
-        """
-        Emit an event to all subscribers.
-
-        This is synchronous and can be called from non-async code.
-        Events are queued for async subscribers.
+    def set_redis_connection(self, redis_conn: "Redis") -> None:
+        """Set the Redis connection for Pub/Sub.
 
         Args:
-            event: The simulation event to broadcast
+            redis_conn: Redis connection instance
         """
-        # Persist to disk first (for durability)
-        self._persist_event(event)
+        self._redis = redis_conn
 
+    def _publish_to_redis(self, event: SimulationEvent) -> None:
+        """Publish event to Redis Pub/Sub channel.
+
+        This enables cross-process event delivery - worker processes
+        publish events, and the API server receives them.
+        """
+        if self._redis is None:
+            return
+
+        try:
+            self._redis.publish(EVENTS_CHANNEL, event.to_json())
+        except Exception:
+            # Don't let Redis errors break event emission
+            pass
+
+    def dispatch_event(self, event: SimulationEvent) -> None:
+        """Dispatch an event to local subscribers (called by Redis subscriber).
+
+        This method:
+        - Stores event in history
+        - Queues for SSE subscribers
+        - Calls sync callbacks
+
+        Unlike emit(), this does NOT persist or publish to Redis
+        (to avoid infinite loops).
+        """
         # Store in history
         history = self._event_history[event.run_id]
         history.append(event)
@@ -302,6 +349,118 @@ class EventBus:
                 callback(event)
             except Exception:
                 pass  # Don't let callback errors break event flow
+
+    async def start_redis_subscriber(self) -> None:
+        """Start background task to receive events from Redis Pub/Sub.
+
+        This should be called by the API server at startup. It subscribes
+        to the events channel and dispatches incoming events to local
+        SSE subscribers.
+        """
+        if self._redis is None:
+            return
+
+        import logging
+        logger = logging.getLogger("event_bus")
+
+        async def subscriber_loop():
+            """Run Redis Pub/Sub subscription in a thread."""
+            try:
+                # Create a separate connection for subscription
+                # (Redis requires dedicated connection for Pub/Sub)
+                pubsub = self._redis.pubsub()
+                pubsub.subscribe(EVENTS_CHANNEL)
+
+                logger.info(f"Redis subscriber started on channel: {EVENTS_CHANNEL}")
+
+                # Process messages in a thread to avoid blocking
+                for message in pubsub.listen():
+                    if message["type"] == "message":
+                        try:
+                            event = SimulationEvent.from_json(message["data"])
+                            self.dispatch_event(event)
+                        except (json.JSONDecodeError, KeyError) as e:
+                            logger.warning(f"Failed to parse event from Redis: {e}")
+
+                    # Yield control to allow cancellation
+                    await asyncio.sleep(0)
+
+            except asyncio.CancelledError:
+                logger.info("Redis subscriber cancelled")
+                pubsub.unsubscribe()
+                pubsub.close()
+                raise
+            except Exception as e:
+                logger.error(f"Redis subscriber error: {e}")
+
+        # Run subscriber in background
+        self._redis_subscriber_task = asyncio.create_task(
+            asyncio.to_thread(self._run_redis_subscriber)
+        )
+
+    def _run_redis_subscriber(self) -> None:
+        """Synchronous Redis subscriber loop (runs in thread)."""
+        if self._redis is None:
+            return
+
+        import logging
+        logger = logging.getLogger("event_bus")
+
+        try:
+            # Create a separate connection for subscription
+            pubsub = self._redis.pubsub()
+            pubsub.subscribe(EVENTS_CHANNEL)
+
+            logger.info(f"Redis subscriber started on channel: {EVENTS_CHANNEL}")
+
+            for message in pubsub.listen():
+                if message["type"] == "message":
+                    try:
+                        data = message["data"]
+                        # Handle bytes or string
+                        if isinstance(data, bytes):
+                            data = data.decode("utf-8")
+                        event = SimulationEvent.from_json(data)
+                        self.dispatch_event(event)
+                    except (json.JSONDecodeError, KeyError) as e:
+                        logger.warning(f"Failed to parse event from Redis: {e}")
+
+        except Exception as e:
+            logger.error(f"Redis subscriber error: {e}")
+
+    async def stop_redis_subscriber(self) -> None:
+        """Stop the Redis subscriber task."""
+        if self._redis_subscriber_task:
+            self._redis_subscriber_task.cancel()
+            try:
+                await self._redis_subscriber_task
+            except asyncio.CancelledError:
+                pass
+            self._redis_subscriber_task = None
+
+    def emit(self, event: SimulationEvent) -> None:
+        """
+        Emit an event to all subscribers.
+
+        This is synchronous and can be called from non-async code.
+        Events are published to Redis for cross-process delivery.
+
+        Args:
+            event: The simulation event to broadcast
+        """
+        # Persist to disk first (for durability)
+        self._persist_event(event)
+
+        # Publish to Redis for cross-process delivery
+        # The API server's Redis subscriber will receive this and
+        # dispatch to local SSE subscribers
+        self._publish_to_redis(event)
+
+        # Also dispatch locally (for same-process subscribers, e.g., in tests)
+        # This is a no-op if Redis subscriber is running (it will dispatch)
+        # But needed for cases where Redis is not available
+        if self._redis is None:
+            self.dispatch_event(event)
 
     async def subscribe(
         self,

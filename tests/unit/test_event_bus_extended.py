@@ -457,3 +457,118 @@ class TestEventBusThreadSafety:
         # Verify all events were recorded
         total_events = sum(len(bus.get_history(f"thread-test-{i}")) for i in range(num_threads))
         assert total_events == num_threads * events_per_thread
+
+
+class TestEventBusRedisPubSub:
+    """Tests for EventBus Redis Pub/Sub functionality."""
+
+    def setup_method(self):
+        """Reset singleton before each test."""
+        from server.event_bus import EventBus
+        EventBus.reset_instance()
+
+    def teardown_method(self):
+        """Cleanup after each test."""
+        from server.event_bus import EventBus
+        EventBus._test_persist_path = None
+        EventBus.reset_instance()
+
+    def test_set_redis_connection(self, tmp_path):
+        """Test that set_redis_connection stores the connection."""
+        from server.event_bus import EventBus
+
+        EventBus._test_persist_path = tmp_path / "events.jsonl"
+        bus = EventBus.get_instance()
+
+        mock_redis = MagicMock()
+        bus.set_redis_connection(mock_redis)
+
+        assert bus._redis is mock_redis
+
+    def test_publish_to_redis_called_on_emit(self, tmp_path):
+        """Test that emit() publishes to Redis when connection is set."""
+        from server.event_bus import EventBus, SimulationEvent, EVENTS_CHANNEL
+
+        EventBus._test_persist_path = tmp_path / "events.jsonl"
+        bus = EventBus.get_instance()
+
+        mock_redis = MagicMock()
+        bus.set_redis_connection(mock_redis)
+
+        event = SimulationEvent.create("test_event", run_id="redis-test", step=1)
+        bus.emit(event)
+
+        # Verify publish was called
+        mock_redis.publish.assert_called_once()
+        call_args = mock_redis.publish.call_args
+        assert call_args[0][0] == EVENTS_CHANNEL
+        # Second arg is the JSON string
+        published_data = json.loads(call_args[0][1])
+        assert published_data["event_type"] == "test_event"
+        assert published_data["run_id"] == "redis-test"
+
+    def test_emit_without_redis_dispatches_locally(self, tmp_path):
+        """Test that emit() dispatches locally when no Redis connection."""
+        from server.event_bus import EventBus, SimulationEvent
+
+        EventBus._test_persist_path = tmp_path / "events.jsonl"
+        bus = EventBus.get_instance()
+
+        # No Redis connection set
+        assert bus._redis is None
+
+        event = SimulationEvent.create("local_event", run_id="local-test", step=1)
+        bus.emit(event)
+
+        # Event should be in history
+        history = bus.get_history("local-test")
+        assert len(history) == 1
+        assert history[0].event_type == "local_event"
+
+    def test_dispatch_event_adds_to_history(self, tmp_path):
+        """Test that dispatch_event adds event to history."""
+        from server.event_bus import EventBus, SimulationEvent
+
+        EventBus._test_persist_path = tmp_path / "events.jsonl"
+        bus = EventBus.get_instance()
+
+        event = SimulationEvent.create("dispatched", run_id="dispatch-test")
+        bus.dispatch_event(event)
+
+        history = bus.get_history("dispatch-test")
+        assert len(history) == 1
+        assert history[0].event_type == "dispatched"
+
+    def test_dispatch_event_calls_callbacks(self, tmp_path):
+        """Test that dispatch_event triggers callbacks."""
+        from server.event_bus import EventBus, SimulationEvent
+
+        EventBus._test_persist_path = tmp_path / "events.jsonl"
+        bus = EventBus.get_instance()
+
+        received_events = []
+        bus.add_callback(lambda e: received_events.append(e))
+
+        event = SimulationEvent.create("callback_test", run_id="cb-test")
+        bus.dispatch_event(event)
+
+        assert len(received_events) == 1
+        assert received_events[0].event_type == "callback_test"
+
+    def test_redis_publish_error_does_not_break_emit(self, tmp_path):
+        """Test that Redis publish errors don't break event emission."""
+        from server.event_bus import EventBus, SimulationEvent
+
+        EventBus._test_persist_path = tmp_path / "events.jsonl"
+        bus = EventBus.get_instance()
+
+        mock_redis = MagicMock()
+        mock_redis.publish.side_effect = Exception("Redis error")
+        bus.set_redis_connection(mock_redis)
+
+        # Should not raise, event should still be persisted
+        event = SimulationEvent.create("error_test", run_id="error-test")
+        bus.emit(event)
+
+        # Verify file was still written
+        assert tmp_path.joinpath("events.jsonl").exists()

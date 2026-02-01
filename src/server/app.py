@@ -102,6 +102,33 @@ def _initialize_state_manager():
         logger.warning("Could not initialize RunStateManager (job queue not initialized)")
 
 
+def _initialize_event_bus_redis():
+    """Initialize EventBus with Redis connection for cross-process events."""
+    if os.environ.get("SKIP_REDIS", "").lower() in ("1", "true", "yes"):
+        logger.info("Skipping EventBus Redis (SKIP_REDIS=1)")
+        return
+    from server.job_queue import get_redis_connection
+    try:
+        redis_conn = get_redis_connection()
+        event_bus = get_event_bus()
+        event_bus.set_redis_connection(redis_conn)
+        logger.info("EventBus Redis connection initialized")
+    except RuntimeError:
+        logger.warning("Could not initialize EventBus Redis (job queue not initialized)")
+
+
+async def _start_event_bus_subscriber():
+    """Start the EventBus Redis subscriber for real-time cross-process events."""
+    if os.environ.get("SKIP_REDIS", "").lower() in ("1", "true", "yes"):
+        return
+    try:
+        event_bus = get_event_bus()
+        await event_bus.start_redis_subscriber()
+        logger.info("EventBus Redis subscriber started")
+    except Exception as e:
+        logger.warning(f"Could not start EventBus Redis subscriber: {e}")
+
+
 async def _stale_run_checker(interval_seconds: int = 30):
     """Background task that detects and marks stale runs as interrupted.
 
@@ -177,12 +204,15 @@ async def lifespan(app: FastAPI):
     _initialize_database()
     _initialize_job_queue()
     _initialize_state_manager()
+    _initialize_event_bus_redis()
     _generate_mock_data_if_empty()
 
     # Start background tasks
     stale_checker_task = None
     if os.environ.get("SKIP_REDIS", "").lower() not in ("1", "true", "yes"):
         stale_checker_task = asyncio.create_task(_stale_run_checker(interval_seconds=30))
+        # Start EventBus Redis subscriber for real-time cross-process events
+        await _start_event_bus_subscriber()
 
     logger.info("API server ready")
     yield
@@ -194,6 +224,10 @@ async def lifespan(app: FastAPI):
             await stale_checker_task
         except asyncio.CancelledError:
             pass
+
+    # Stop EventBus Redis subscriber
+    event_bus = get_event_bus()
+    await event_bus.stop_redis_subscriber()
 
     logger.info("API server shutting down")
 
