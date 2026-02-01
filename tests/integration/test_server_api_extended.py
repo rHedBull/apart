@@ -354,7 +354,7 @@ class TestRequestValidation:
 class TestSimulationStatusDetermination:
     """Tests for correct status determination from state manager."""
 
-    def test_pending_status_no_started_event(self, test_client, event_bus_reset):
+    def test_pending_status_no_started_event(self, test_client, _event_bus_reset):
         """Test that run in pending state shows as pending."""
         from tests.integration.conftest import create_test_run
         from server.run_state import get_state_manager
@@ -371,7 +371,7 @@ class TestSimulationStatusDetermination:
         data = response.json()
         assert data["status"] == "pending"
 
-    def test_running_status_with_started_event(self, test_client, event_bus_reset):
+    def test_running_status_with_started_event(self, test_client, _event_bus_reset):
         """Test that running status is shown for running run."""
         from server.event_bus import emit_event
         from tests.integration.conftest import create_test_run
@@ -382,7 +382,7 @@ class TestSimulationStatusDetermination:
         response = test_client.get("/api/v1/runs/running-status")
         assert response.json()["status"] == "running"
 
-    def test_completed_overrides_running(self, test_client, event_bus_reset):
+    def test_completed_overrides_running(self, test_client, _event_bus_reset):
         """Test that completed status is shown for completed run."""
         from server.event_bus import emit_event
         from tests.integration.conftest import create_test_run
@@ -394,7 +394,7 @@ class TestSimulationStatusDetermination:
         response = test_client.get("/api/v1/runs/complete-override")
         assert response.json()["status"] == "completed"
 
-    def test_failed_overrides_running(self, test_client, event_bus_reset):
+    def test_failed_overrides_running(self, test_client, _event_bus_reset):
         """Test that failed status is shown for failed run."""
         from server.event_bus import emit_event
         from tests.integration.conftest import create_test_run

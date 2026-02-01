@@ -153,8 +153,6 @@ class TestEmit:
 
 def test_event_types_include_pause_resume():
     """Test that EventTypes includes PAUSED and RESUMED."""
-    from core.event_emitter import EventTypes
-
     assert hasattr(EventTypes, "SIMULATION_PAUSED")
     assert hasattr(EventTypes, "SIMULATION_RESUMED")
     assert EventTypes.SIMULATION_PAUSED == "simulation_paused"

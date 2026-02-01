@@ -594,6 +594,12 @@ async def resume_simulation(run_id: str):
         state = json.load(f)
 
     scenario_path = state.get("scenario_path")
+    if not scenario_path:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Missing scenario_path in state file for run {run_id}"
+        )
+
     snapshots = state.get("snapshots", [])
     last_step = snapshots[-1]["step"] if snapshots else 0
 

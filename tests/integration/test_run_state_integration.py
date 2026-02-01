@@ -250,7 +250,7 @@ class TestHeartbeatIntegration:
         state = state_manager.get_state("hb-worker")
         assert state.worker_id == "w2"
 
-    def test_is_heartbeat_stale_without_heartbeat(self, state_manager, redis_conn):
+    def test_is_heartbeat_stale_without_heartbeat(self, state_manager):
         """Test is_heartbeat_stale returns True when no heartbeat exists."""
         state_manager.create_run("no-hb", "/p.yaml", "scenario")
         state_manager.transition("no-hb", "running", worker_id="w1")
@@ -376,13 +376,13 @@ class TestConcurrentAccess:
             try:
                 state = state_manager.update_progress("concurrent-1", current_step=step)
                 results.append(state.current_step)
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001 - intentionally catching all exceptions for concurrency test
                 errors.append(e)
 
         # Run concurrent updates
         with ThreadPoolExecutor(max_workers=5) as executor:
             futures = [executor.submit(update_progress, i) for i in range(10)]
-            for future in as_completed(futures):
+            for _future in as_completed(futures):
                 pass  # Wait for all
 
         # Should have completed without errors (may have retries internally)
@@ -411,7 +411,7 @@ class TestConcurrentAccess:
                 executor.submit(send_heartbeat, f"w{i}", i)
                 for i in range(10)
             ]
-            for future in as_completed(futures):
+            for _future in as_completed(futures):
                 pass
 
         # Most heartbeats should succeed (some might fail due to contention)
@@ -543,7 +543,7 @@ class TestVersionIncrement:
 
     def test_version_increments_on_progress_update(self, state_manager):
         """Test version increments on progress update."""
-        state = state_manager.create_run("progress-version", "/p.yaml", "scenario")
+        state_manager.create_run("progress-version", "/p.yaml", "scenario")
         state_manager.transition("progress-version", "running", worker_id="w1")
 
         initial_version = state_manager.get_state("progress-version").version

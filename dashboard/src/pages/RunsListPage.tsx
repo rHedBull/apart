@@ -80,8 +80,9 @@ export function RunsListPage() {
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const pageSize = 10;
 
-  const runningSelected = selectedItems.filter(item => item.status === 'running');
-  const deletableSelected = selectedItems.filter(item => item.status !== 'running');
+  const nonDeletableStatuses = new Set(['running', 'stopping']);
+  const runningSelected = selectedItems.filter(item => nonDeletableStatuses.has(item.status));
+  const deletableSelected = selectedItems.filter(item => !nonDeletableStatuses.has(item.status));
 
   const handleDelete = async () => {
     if (selectedItems.length === 0) return;

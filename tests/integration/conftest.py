@@ -76,6 +76,12 @@ def event_bus_reset(tmp_path):
 
 
 @pytest.fixture
+def _event_bus_reset(event_bus_reset):
+    """Alias for event_bus_reset for tests that need it for side effects only."""
+    return event_bus_reset
+
+
+@pytest.fixture
 def state_manager():
     """Provide access to RunStateManager for tests that need to create runs.
 

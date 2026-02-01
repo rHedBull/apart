@@ -124,6 +124,21 @@ export function useRunsList(options: UseRunsListOptions = {}) {
             status: 'failed' as const,
             completedAt: data.timestamp,
           } : r));
+        } else if (data.event_type === 'simulation_paused') {
+          setRuns(prev => prev.map(r => r.runId === data.run_id ? {
+            ...r,
+            status: 'paused' as const,
+          } : r));
+        } else if (data.event_type === 'simulation_resumed') {
+          setRuns(prev => prev.map(r => r.runId === data.run_id ? {
+            ...r,
+            status: 'running' as const,
+          } : r));
+        } else if (data.event_type === 'simulation_interrupted') {
+          setRuns(prev => prev.map(r => r.runId === data.run_id ? {
+            ...r,
+            status: 'interrupted' as const,
+          } : r));
         }
       } catch {
         // Ignore parse errors for non-JSON messages

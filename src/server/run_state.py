@@ -10,7 +10,7 @@ Provides:
 
 import json
 import threading
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, asdict
 from datetime import datetime
 from typing import Optional, Any
 
@@ -515,7 +515,8 @@ class RunStateManager:
 
             return True
 
-        except Exception:
+        except Exception as e:
+            logger.warning("Heartbeat update failed", extra={"run_id": run_id, "error": str(e)})
             return False
         finally:
             pipe.reset()
@@ -539,7 +540,8 @@ class RunStateManager:
 
         A run is considered stale if:
         - Status is "running"
-        - Heartbeat has expired (not refreshed within timeout)
+        - Heartbeat key has expired (TTL based) OR
+        - last_heartbeat timestamp is older than timeout_seconds
 
         Args:
             timeout_seconds: How long without heartbeat before considered stale
@@ -547,19 +549,38 @@ class RunStateManager:
         Returns:
             List of stale run IDs
         """
+        from datetime import timedelta
+
         stale_runs = []
+        now = datetime.now()
+        cutoff = now - timedelta(seconds=timeout_seconds)
 
         # Get all running runs
         running_runs = self.list_runs(status="running", limit=1000)
 
         for state in running_runs:
+            # First check: Redis heartbeat key existence (TTL based)
             if self.is_heartbeat_stale(state.run_id):
                 stale_runs.append(state.run_id)
+                continue
+
+            # Second check: time-based check using last_heartbeat timestamp
+            if state.last_heartbeat is None:
+                stale_runs.append(state.run_id)
+            else:
+                try:
+                    heartbeat_time = datetime.fromisoformat(state.last_heartbeat)
+                    if heartbeat_time < cutoff:
+                        stale_runs.append(state.run_id)
+                except (ValueError, TypeError):
+                    # Invalid timestamp format, consider stale
+                    stale_runs.append(state.run_id)
 
         if stale_runs:
             logger.warning("Found stale runs", extra={
                 "stale_run_ids": stale_runs,
                 "count": len(stale_runs),
+                "timeout_seconds": timeout_seconds,
             })
 
         return stale_runs

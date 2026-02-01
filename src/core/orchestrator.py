@@ -1,3 +1,4 @@
+import json
 import os
 import sys
 import yaml
@@ -535,8 +536,6 @@ Example of a BAD response: "I think about going to the market" (this is just int
             dict: Agent messages to use for the first resumed step,
                   or empty dict if no previous state found.
         """
-        import json
-
         state_file = self.persistence.run_dir / "state.json"
         if not state_file.exists():
             self.logger.warning(

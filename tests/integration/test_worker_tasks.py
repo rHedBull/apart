@@ -21,7 +21,7 @@ class TestRunSimulationTask:
         scenario_path.write_text("name: test\nmax_steps: 1\n")
 
         with patch("core.orchestrator.Orchestrator") as mock_orch_class, \
-             patch("core.event_emitter.enable_event_emitter") as mock_enable:
+             patch("core.event_emitter.enable_event_emitter"):
 
             mock_orchestrator = MagicMock()
             mock_orch_class.return_value = mock_orchestrator
@@ -161,7 +161,7 @@ class TestRunSimulationTaskWithResume:
         scenario_path.write_text("name: test\nmax_steps: 10\n")
 
         with patch("core.orchestrator.Orchestrator") as mock_orch_class, \
-             patch("core.event_emitter.enable_event_emitter") as mock_enable:
+             patch("core.event_emitter.enable_event_emitter"):
 
             mock_orchestrator = MagicMock()
             mock_orch_class.return_value = mock_orchestrator

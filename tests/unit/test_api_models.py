@@ -22,6 +22,7 @@ class TestSimulationStatus:
         assert SimulationStatus.COMPLETED == "completed"
         assert SimulationStatus.FAILED == "failed"
         assert SimulationStatus.STOPPED == "stopped"
+        assert SimulationStatus.INTERRUPTED == "interrupted"
 
     def test_status_is_string_enum(self):
         """Test that status values are strings."""

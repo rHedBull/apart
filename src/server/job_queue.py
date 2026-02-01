@@ -101,12 +101,9 @@ def enqueue_simulation(
         except ValueError:
             # Run already exists (e.g., resume scenario) - that's fine
             pass
-    elif state_manager is not None and resume_from_step is not None:
-        # For resumes, transition back to running
-        try:
-            state_manager.transition(run_id, "running")
-        except Exception as e:
-            logger.warning(f"Could not transition {run_id} to running: {e}")
+    # Note: For resumes, the worker will transition to "running" when it actually
+    # starts processing. We don't transition here to avoid marking runs as "running"
+    # before the worker picks them up.
 
     # Import here to avoid circular imports
     from server.worker_tasks import run_simulation_task

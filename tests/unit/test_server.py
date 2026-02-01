@@ -250,7 +250,7 @@ class TestGetRunStatus:
         from server.routes.v1 import _get_run_status
 
         mock_redis = MagicMock()
-        manager = RunStateManager.initialize(mock_redis)
+        RunStateManager.initialize(mock_redis)
 
         # Mock get_state to return a paused run
         paused_state = RunState(
@@ -272,7 +272,7 @@ class TestGetRunStatus:
         from server.routes.v1 import _get_run_status
 
         mock_redis = MagicMock()
-        manager = RunStateManager.initialize(mock_redis)
+        RunStateManager.initialize(mock_redis)
 
         # Mock get_state to return a running run
         running_state = RunState(
@@ -295,7 +295,7 @@ class TestGetRunStatus:
 
         mock_redis = MagicMock()
         mock_redis.get.return_value = None
-        manager = RunStateManager.initialize(mock_redis)
+        RunStateManager.initialize(mock_redis)
 
         status = _get_run_status("nonexistent")
         assert status is None

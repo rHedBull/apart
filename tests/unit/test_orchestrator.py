@@ -783,7 +783,7 @@ class TestOrchestratorResumeSupport:
                 json.dump(state_data, f)
 
             # Call restore for step 3 (should use snapshot from step 2)
-            result = orch._restore_state_for_resume(3)
+            orch._restore_state_for_resume(3)
 
             # Verify game engine state was updated
             orch.game_engine.apply_state_updates.assert_called_once()

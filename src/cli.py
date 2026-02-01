@@ -5,7 +5,6 @@ allowing users to start, pause, resume, list, and inspect simulation runs.
 """
 
 import os
-import sys
 from pathlib import Path
 from typing import Optional
 
@@ -84,7 +83,7 @@ def run(
         response.raise_for_status()
         data = response.json()
 
-        console.print(f"[green]Simulation started successfully![/green]")
+        console.print("[green]Simulation started successfully![/green]")
         console.print(f"  Run ID: [bold]{data['run_id']}[/bold]")
         console.print(f"  Status: {data['status']}")
         console.print(f"  Message: {data['message']}")
@@ -186,7 +185,7 @@ def resume(
         response.raise_for_status()
         data = response.json()
 
-        console.print(f"[green]Simulation {run_id} resumed![/green]")
+        console.print(f"[green]Simulation {run_id} resumed[/green]")
         console.print(f"  Status: {data['status']}")
         console.print(f"  Resuming from step: {data['resuming_from_step']}")
         console.print(f"  Message: {data['message']}")
@@ -210,7 +209,7 @@ def list_runs(
     status: Optional[str] = typer.Option(
         None,
         "--status", "-s",
-        help="Filter by status (pending, running, paused, completed, failed)",
+        help="Filter by status (pending, running, stopping, paused, completed, failed, interrupted, cancelled)",
     ),
 ) -> None:
     """List all simulation runs.
@@ -391,7 +390,7 @@ def show(
         messages = data.get("messages", [])
         if messages:
             console.print(f"\n[bold]Messages ({len(messages)}):[/bold]")
-            console.print(f"  [dim]Use API for full message history[/dim]")
+            console.print("  [dim]Use API for full message history[/dim]")
 
             # Show last few messages
             console.print("\n  [dim]Recent messages:[/dim]")
@@ -517,7 +516,7 @@ def status() -> None:
             detailed.raise_for_status()
             data = detailed.json()
 
-            console.print(f"\n[bold]Server Status:[/bold]")
+            console.print("\n[bold]Server Status:[/bold]")
             console.print(f"  Tracked runs: {data.get('total_run_ids', 0)}")
             console.print(f"  Event subscribers: {data.get('event_bus_subscribers', 0)}")
             console.print(f"  Persistence mode: {data.get('persistence_mode', 'unknown')}")
@@ -526,15 +525,14 @@ def status() -> None:
             if queue_stats:
                 # Stats are nested by priority, get totals
                 totals = queue_stats.get("total", queue_stats)
-                console.print(f"\n[bold]Job Queue:[/bold]")
+                console.print("\n[bold]Job Queue:[/bold]")
                 console.print(f"  Queued: {totals.get('queued', 0)}")
                 console.print(f"  Running: {totals.get('started', 0)}")
                 console.print(f"  Finished: {totals.get('finished', 0)}")
                 console.print(f"  Failed: {totals.get('failed', 0)}")
 
-        except Exception:
-            # Detailed health not available, that's fine
-            pass
+        except Exception as e:
+            console.print(f"[dim]Detailed health unavailable: {e}[/dim]")
 
     except requests.exceptions.ConnectionError:
         console.print(f"[red]Cannot connect to server at {api_url}[/red]")

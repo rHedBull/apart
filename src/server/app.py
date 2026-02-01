@@ -140,8 +140,8 @@ async def _stale_run_checker(interval_seconds: int = 30):
         except asyncio.CancelledError:
             logger.info("Stale run checker stopped")
             raise
-        except Exception as e:
-            logger.error(f"Error in stale run checker: {e}")
+        except Exception:
+            logger.exception("Error in stale run checker")
 
 
 class RequestLoggingMiddleware(BaseHTTPMiddleware):
@@ -283,7 +283,7 @@ async def event_stream(run_id: Optional[str] = None, history: bool = False):
 
     async def generate():
         # Send connection event
-        yield f"data: {{\"event_type\": \"connected\", \"message\": \"Connected to event stream\"}}\n\n"
+        yield 'data: {"event_type": "connected", "message": "Connected to event stream"}\n\n'
 
         # Use the async iterator subscribe method
         async for event in event_bus.subscribe(

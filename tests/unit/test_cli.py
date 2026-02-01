@@ -109,7 +109,7 @@ class TestRunCommand:
         scenario_file = tmp_path / "test.yaml"
         scenario_file.write_text("name: test")
 
-        with patch("requests.post") as mock_post:
+        with patch("requests.post"):
             result = runner.invoke(app, ["run", str(scenario_file), "--priority", "invalid"])
             assert result.exit_code == 1
             assert "Invalid priority" in result.output

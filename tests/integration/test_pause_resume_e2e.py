@@ -346,7 +346,6 @@ class TestResumeFromCorrectStep:
 
     def test_resume_continues_from_paused_step(self, tmp_path):
         """Test that resume starts from the step after where we paused."""
-        import json
         from core.orchestrator import Orchestrator
         from unittest.mock import patch, MagicMock
 
@@ -401,7 +400,6 @@ class TestResumeFromCorrectStep:
 
     def test_resume_restores_correct_global_vars(self, tmp_path):
         """Test that resume restores the correct global_vars from snapshot."""
-        import json
         from core.orchestrator import Orchestrator
         from unittest.mock import patch, MagicMock
 
@@ -438,7 +436,6 @@ class TestResumeFromCorrectStep:
 
     def test_resume_restores_correct_agent_vars(self, tmp_path):
         """Test that resume restores the correct agent_vars from snapshot."""
-        import json
         from core.orchestrator import Orchestrator
         from unittest.mock import patch, MagicMock
 
