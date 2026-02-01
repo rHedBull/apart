@@ -170,32 +170,56 @@ def run_simulation_task(
             orchestrator.set_step_callback(on_step)
 
         if resume_from_step is not None:
-            orchestrator.run(start_step=resume_from_step)
+            run_result = orchestrator.run(start_step=resume_from_step)
         else:
-            orchestrator.run()
+            run_result = orchestrator.run()
 
-        # Transition to completed
-        if state_manager:
-            try:
-                state_manager.transition(run_id, "completed")
-            except Exception as e:
-                logger.warning(f"Could not transition {run_id} to completed: {e}")
+        # Transition to appropriate state based on run result
+        run_status = run_result.get("status", "completed") if run_result else "completed"
 
-        logger.info("Simulation completed", extra={
-            "run_id": run_id,
-            "scenario": scenario_path.stem,
-            "resumed_from": resume_from_step,
-        })
+        if run_status == "paused":
+            paused_at_step = run_result.get("paused_at_step", 0)
+            if state_manager:
+                try:
+                    state_manager.transition(run_id, "paused", current_step=paused_at_step)
+                except Exception as e:
+                    logger.warning(f"Could not transition {run_id} to paused: {e}")
 
-        result = {
-            "run_id": run_id,
-            "status": "completed",
-            "scenario": scenario_path.stem,
-        }
-        if resume_from_step is not None:
-            result["resumed_from"] = resume_from_step
+            logger.info("Simulation paused", extra={
+                "run_id": run_id,
+                "scenario": scenario_path.stem,
+                "paused_at_step": paused_at_step,
+            })
 
-        return result
+            return {
+                "run_id": run_id,
+                "status": "paused",
+                "scenario": scenario_path.stem,
+                "paused_at_step": paused_at_step,
+            }
+        else:
+            # Transition to completed
+            if state_manager:
+                try:
+                    state_manager.transition(run_id, "completed")
+                except Exception as e:
+                    logger.warning(f"Could not transition {run_id} to completed: {e}")
+
+            logger.info("Simulation completed", extra={
+                "run_id": run_id,
+                "scenario": scenario_path.stem,
+                "resumed_from": resume_from_step,
+            })
+
+            result = {
+                "run_id": run_id,
+                "status": "completed",
+                "scenario": scenario_path.stem,
+            }
+            if resume_from_step is not None:
+                result["resumed_from"] = resume_from_step
+
+            return result
 
     except Exception as e:
         logger.error("Simulation failed", extra={

@@ -601,11 +601,14 @@ Example of a BAD response: "I think about going to the market" (this is just int
             )
             return {}
 
-    def run(self, start_step: int = 1):
+    def run(self, start_step: int = 1) -> dict:
         """Run the simulation loop with SimulatorAgent.
 
         Args:
             start_step: Step to start from (default 1). Use > 1 to resume a paused simulation.
+
+        Returns:
+            dict with 'status' ('completed' or 'paused') and 'paused_at_step' if paused
         """
         enable_event_emitter(self.persistence.run_id)
 
@@ -647,6 +650,7 @@ Example of a BAD response: "I think about going to the market" (this is just int
         print(f"Results will be saved to: {self.persistence.run_dir}\n")
 
         step_messages = []
+        paused_at_step = None
         try:
             if is_resume:
                 # Restore state from saved snapshots
@@ -662,6 +666,8 @@ Example of a BAD response: "I think about going to the market" (this is just int
             for step in range(start_step, self.max_steps + 1):
                 # Check for pause signal at start of each step
                 if self._check_and_handle_pause(step):
+                    paused_at_step = step
+                    print(f"\nSimulation paused at step {step}")
                     break
 
                 with PerformanceTimer(self.logger, MessageCode.PRF001, f"Step {step}", step=step):
@@ -672,7 +678,12 @@ Example of a BAD response: "I think about going to the market" (this is just int
                     agent_responses, step_messages = self._collect_agent_responses(step, agent_messages)
                     agent_messages = self._process_step_results(step, agent_responses, step_messages)
 
-            self._save_final_state(step_messages)
+            # Only save final state if completed (not paused)
+            if paused_at_step is None:
+                self._save_final_state(step_messages)
+                return {"status": "completed"}
+            else:
+                return {"status": "paused", "paused_at_step": paused_at_step}
 
         except KeyboardInterrupt:
             self.logger.warning(MessageCode.SIM002, "Simulation interrupted by user")
