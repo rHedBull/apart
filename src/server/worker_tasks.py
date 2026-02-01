@@ -73,19 +73,22 @@ def _ensure_state_manager_initialized():
 
     The state manager is a singleton that must be initialized once per process.
     In the API server, this happens in lifespan. In worker processes, we need
-    to initialize it here.
+    to initialize it here using the RQ worker's Redis connection.
     """
     from server.run_state import get_state_manager, RunStateManager
 
     if get_state_manager() is not None:
         return  # Already initialized
 
-    # Initialize with Redis connection
+    # Get Redis connection from RQ's current job context
     try:
-        from server.job_queue import get_redis_connection
-        redis_conn = get_redis_connection()
-        RunStateManager.initialize(redis_conn)
-        logger.info("RunStateManager initialized in worker process")
+        from rq import get_current_job
+        job = get_current_job()
+        if job and job.connection:
+            RunStateManager.initialize(job.connection)
+            logger.info("RunStateManager initialized in worker process")
+        else:
+            logger.warning("Could not get Redis connection from RQ job")
     except Exception as e:
         logger.warning(f"Could not initialize RunStateManager in worker: {e}")
 
