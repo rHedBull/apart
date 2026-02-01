@@ -490,7 +490,11 @@ class TestSimulationFailedEventEmission:
     @patch('core.orchestrator.emit')
     @patch('core.orchestrator.enable_event_emitter')
     @patch('core.orchestrator.disable_event_emitter')
-    def test_simulation_failed_not_emitted_on_success(self, mock_disable, mock_enable, mock_emit):
+    @patch('core.orchestrator.check_pause_requested')
+    @patch('core.orchestrator.clear_pause_signal')
+    def test_simulation_failed_not_emitted_on_success(
+        self, mock_clear, mock_check, mock_disable, mock_enable, mock_emit
+    ):
         """Test that SIMULATION_FAILED is NOT emitted when simulation succeeds."""
         from core.event_emitter import EventTypes
 
@@ -499,6 +503,9 @@ class TestSimulationFailedEventEmission:
         orch._collect_agent_responses = Mock(return_value=({}, []))
         orch._process_step_results = Mock(return_value={"Agent1": "msg"})
         orch._save_final_state = Mock()
+
+        # Mock: no pause signal
+        mock_check.return_value = None
 
         orch.run()
 
@@ -510,3 +517,123 @@ class TestSimulationFailedEventEmission:
         # But SIMULATION_STARTED and SIMULATION_COMPLETED should be emitted
         event_types = [c[0][0] for c in mock_emit.call_args_list]
         assert EventTypes.SIMULATION_STARTED in event_types
+
+
+class TestPauseSignalHandling:
+    """Tests for pause signal handling in orchestrator."""
+
+    def _create_mock_orchestrator(self):
+        """Create orchestrator with mocked dependencies."""
+        from core.orchestrator import Orchestrator
+
+        with patch.object(Orchestrator, '__init__', lambda self: None):
+            orch = Orchestrator()
+            orch.agents = []
+            orch.max_steps = 3
+            orch.logger = Mock()
+            orch.game_engine = Mock()
+            orch.persistence = Mock()
+            orch.persistence.run_id = "test-run-id"
+            orch.spatial_graph = None
+            orch.composed_modules = None
+            return orch
+
+    @patch('core.orchestrator.emit')
+    @patch('core.orchestrator.enable_event_emitter')
+    @patch('core.orchestrator.disable_event_emitter')
+    @patch('core.orchestrator.check_pause_requested')
+    @patch('core.orchestrator.clear_pause_signal')
+    def test_orchestrator_checks_pause_signal(
+        self, mock_clear, mock_check, mock_disable, mock_enable, mock_emit
+    ):
+        """Test that orchestrator checks for pause signal between steps."""
+        from core.event_emitter import EventTypes
+
+        orch = self._create_mock_orchestrator()
+        orch._initialize_simulation = Mock(return_value={"Agent1": "msg"})
+        orch._collect_agent_responses = Mock(return_value=({}, []))
+        orch._process_step_results = Mock(return_value={"Agent1": "msg"})
+        orch._save_final_state = Mock()
+
+        # Mock the pause check to return a pause signal on step 2
+        mock_check.side_effect = [None, {"force": False}]  # Step 1: no pause, Step 2: pause
+
+        # Run simulation - should pause after step 1
+        orch.run()
+
+        # Verify pause was checked
+        assert mock_check.call_count >= 1
+        mock_check.assert_called_with("test-run-id")
+
+        # Verify pause signal was cleared
+        mock_clear.assert_called_once_with("test-run-id")
+
+        # Verify SIMULATION_PAUSED was emitted
+        pause_calls = [c for c in mock_emit.call_args_list
+                       if c[0][0] == EventTypes.SIMULATION_PAUSED]
+        assert len(pause_calls) == 1
+        assert pause_calls[0][1]["step"] == 2
+
+    @patch('core.orchestrator.emit')
+    @patch('core.orchestrator.enable_event_emitter')
+    @patch('core.orchestrator.disable_event_emitter')
+    @patch('core.orchestrator.check_pause_requested')
+    @patch('core.orchestrator.clear_pause_signal')
+    def test_orchestrator_completes_without_pause_signal(
+        self, mock_clear, mock_check, mock_disable, mock_enable, mock_emit
+    ):
+        """Test that orchestrator completes normally when no pause signal."""
+        from core.event_emitter import EventTypes
+
+        orch = self._create_mock_orchestrator()
+        orch._initialize_simulation = Mock(return_value={"Agent1": "msg"})
+        orch._collect_agent_responses = Mock(return_value=({}, []))
+        orch._process_step_results = Mock(return_value={"Agent1": "msg"})
+        orch._save_final_state = Mock()
+
+        # Mock: no pause signal ever
+        mock_check.return_value = None
+
+        orch.run()
+
+        # Pause check should be called for each step
+        assert mock_check.call_count == 3  # max_steps = 3
+
+        # Clear should not be called (no pause)
+        mock_clear.assert_not_called()
+
+        # SIMULATION_PAUSED should NOT be emitted
+        pause_calls = [c for c in mock_emit.call_args_list
+                       if c[0][0] == EventTypes.SIMULATION_PAUSED]
+        assert len(pause_calls) == 0
+
+        # Verify _save_final_state was called (which emits SIMULATION_COMPLETED)
+        orch._save_final_state.assert_called_once()
+
+    @patch('core.orchestrator.emit')
+    @patch('core.orchestrator.enable_event_emitter')
+    @patch('core.orchestrator.disable_event_emitter')
+    @patch('core.orchestrator.check_pause_requested')
+    @patch('core.orchestrator.clear_pause_signal')
+    def test_orchestrator_handles_force_pause(
+        self, mock_clear, mock_check, mock_disable, mock_enable, mock_emit
+    ):
+        """Test that orchestrator handles force pause correctly."""
+        from core.event_emitter import EventTypes
+
+        orch = self._create_mock_orchestrator()
+        orch._initialize_simulation = Mock(return_value={"Agent1": "msg"})
+        orch._collect_agent_responses = Mock(return_value=({}, []))
+        orch._process_step_results = Mock(return_value={"Agent1": "msg"})
+        orch._save_final_state = Mock()
+
+        # Force pause on step 1
+        mock_check.return_value = {"force": True}
+
+        orch.run()
+
+        # Should pause immediately at step 1
+        pause_calls = [c for c in mock_emit.call_args_list
+                       if c[0][0] == EventTypes.SIMULATION_PAUSED]
+        assert len(pause_calls) == 1
+        assert pause_calls[0][1]["step"] == 1

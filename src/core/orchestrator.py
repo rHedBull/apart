@@ -11,6 +11,7 @@ from utils.persistence import RunPersistence
 from utils.logging_config import MessageCode, PerformanceTimer
 from utils.config_parser import parse_scripted_events, parse_geography, parse_spatial_graph, parse_modules, merge_module_variables
 from llm.providers import UnifiedLLMProvider
+from server.job_queue import check_pause_requested, clear_pause_signal
 
 
 class Orchestrator:
@@ -473,6 +474,16 @@ Example of a BAD response: "I think about going to the market" (this is just int
 
         return agent_messages
 
+    def _check_and_handle_pause(self, step: int) -> bool:
+        """Check if pause was requested and handle it."""
+        pause_info = check_pause_requested(self.persistence.run_id)
+        if pause_info is None:
+            return False
+
+        clear_pause_signal(self.persistence.run_id)
+        emit(EventTypes.SIMULATION_PAUSED, step=step)
+        return True
+
     def _save_final_state(self, step_messages: list):
         """Save final simulation state."""
         try:
@@ -538,6 +549,10 @@ Example of a BAD response: "I think about going to the market" (this is just int
             agent_messages = self._initialize_simulation()
 
             for step in range(1, self.max_steps + 1):
+                # Check for pause signal at start of each step
+                if self._check_and_handle_pause(step):
+                    break
+
                 with PerformanceTimer(self.logger, MessageCode.PRF001, f"Step {step}", step=step):
                     self.logger.info(MessageCode.SIM003, "Step started", step=step, max_steps=self.max_steps)
                     emit(EventTypes.STEP_STARTED, step=step, max_steps=self.max_steps)
