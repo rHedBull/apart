@@ -266,8 +266,7 @@ class TestEventBusSubscribe:
         EventBus._test_persist_path = None
         EventBus.reset_instance()
 
-    @pytest.mark.asyncio
-    async def test_subscribe_receives_emitted_events(self, tmp_path):
+    def test_subscribe_receives_emitted_events(self, tmp_path):
         """Test subscribe() yields events as they are emitted."""
         from server.event_bus import EventBus, SimulationEvent
 
@@ -276,29 +275,31 @@ class TestEventBusSubscribe:
 
         received = []
 
-        async def collect_events():
-            async for event in bus.subscribe():
-                received.append(event)
-                if len(received) >= 3:
-                    break
+        async def run_test():
+            async def collect_events():
+                async for event in bus.subscribe():
+                    received.append(event)
+                    if len(received) >= 3:
+                        break
 
-        # Start subscriber in background
-        task = asyncio.create_task(collect_events())
+            # Start subscriber in background
+            task = asyncio.create_task(collect_events())
 
-        # Give subscriber time to register
-        await asyncio.sleep(0.01)
+            # Give subscriber time to register
+            await asyncio.sleep(0.01)
 
-        # Emit events
-        for i in range(3):
-            bus.emit(SimulationEvent.create(f"event_{i}", run_id="sub-test"))
+            # Emit events
+            for i in range(3):
+                bus.emit(SimulationEvent.create(f"event_{i}", run_id="sub-test"))
 
-        await asyncio.wait_for(task, timeout=1.0)
+            await asyncio.wait_for(task, timeout=1.0)
+
+        asyncio.run(run_test())
 
         assert len(received) == 3
         assert [e.event_type for e in received] == ["event_0", "event_1", "event_2"]
 
-    @pytest.mark.asyncio
-    async def test_subscribe_filter_by_run_id(self, tmp_path):
+    def test_subscribe_filter_by_run_id(self, tmp_path):
         """Test subscribe() filters events by run_id."""
         from server.event_bus import EventBus, SimulationEvent
 
@@ -307,28 +308,30 @@ class TestEventBusSubscribe:
 
         received = []
 
-        async def collect_events():
-            async for event in bus.subscribe(run_id="target-run"):
-                received.append(event)
-                if len(received) >= 2:
-                    break
+        async def run_test():
+            async def collect_events():
+                async for event in bus.subscribe(run_id="target-run"):
+                    received.append(event)
+                    if len(received) >= 2:
+                        break
 
-        task = asyncio.create_task(collect_events())
-        await asyncio.sleep(0.01)
+            task = asyncio.create_task(collect_events())
+            await asyncio.sleep(0.01)
 
-        # Emit mix of run_ids
-        bus.emit(SimulationEvent.create("other_1", run_id="other-run"))
-        bus.emit(SimulationEvent.create("target_1", run_id="target-run"))
-        bus.emit(SimulationEvent.create("other_2", run_id="other-run"))
-        bus.emit(SimulationEvent.create("target_2", run_id="target-run"))
+            # Emit mix of run_ids
+            bus.emit(SimulationEvent.create("other_1", run_id="other-run"))
+            bus.emit(SimulationEvent.create("target_1", run_id="target-run"))
+            bus.emit(SimulationEvent.create("other_2", run_id="other-run"))
+            bus.emit(SimulationEvent.create("target_2", run_id="target-run"))
 
-        await asyncio.wait_for(task, timeout=1.0)
+            await asyncio.wait_for(task, timeout=1.0)
+
+        asyncio.run(run_test())
 
         assert len(received) == 2
         assert all(e.run_id == "target-run" for e in received)
 
-    @pytest.mark.asyncio
-    async def test_subscribe_include_history(self, tmp_path):
+    def test_subscribe_include_history(self, tmp_path):
         """Test subscribe() yields history first when include_history=True."""
         from server.event_bus import EventBus, SimulationEvent
 
@@ -341,58 +344,64 @@ class TestEventBusSubscribe:
 
         received = []
 
-        async def collect_events():
-            async for event in bus.subscribe(run_id="history-run", include_history=True):
-                received.append(event)
-                if len(received) >= 3:
-                    break
+        async def run_test():
+            async def collect_events():
+                async for event in bus.subscribe(run_id="history-run", include_history=True):
+                    received.append(event)
+                    if len(received) >= 3:
+                        break
 
-        task = asyncio.create_task(collect_events())
-        await asyncio.sleep(0.01)
+            task = asyncio.create_task(collect_events())
+            await asyncio.sleep(0.01)
 
-        # Emit new event after subscription started
-        bus.emit(SimulationEvent.create("live_event", run_id="history-run", step=3))
+            # Emit new event after subscription started
+            bus.emit(SimulationEvent.create("live_event", run_id="history-run", step=3))
 
-        await asyncio.wait_for(task, timeout=1.0)
+            await asyncio.wait_for(task, timeout=1.0)
+
+        asyncio.run(run_test())
 
         assert len(received) == 3
         assert received[0].event_type == "historical_1"
         assert received[1].event_type == "historical_2"
         assert received[2].event_type == "live_event"
 
-    @pytest.mark.asyncio
-    async def test_subscribe_include_all_history_sorted(self, tmp_path):
+    def test_subscribe_include_all_history_sorted(self, tmp_path):
         """Test subscribe() with include_history=True and no run_id sorts all events."""
+        import time
         from server.event_bus import EventBus, SimulationEvent
 
         EventBus._test_persist_path = tmp_path / "events.jsonl"
         bus = EventBus.get_instance()
 
-        # Emit events for multiple runs
+        # Emit events for multiple runs with small delays for different timestamps
         bus.emit(SimulationEvent.create("run1_e1", run_id="run1"))
-        await asyncio.sleep(0.001)  # Ensure different timestamps
+        time.sleep(0.001)
         bus.emit(SimulationEvent.create("run2_e1", run_id="run2"))
-        await asyncio.sleep(0.001)
+        time.sleep(0.001)
         bus.emit(SimulationEvent.create("run1_e2", run_id="run1"))
 
         received = []
 
-        async def collect_events():
-            async for event in bus.subscribe(include_history=True):
-                received.append(event)
-                if len(received) >= 3:
-                    break
+        async def run_test():
+            async def collect_events():
+                async for event in bus.subscribe(include_history=True):
+                    received.append(event)
+                    if len(received) >= 3:
+                        break
 
-        # Need a live event to finish collecting since we break at 3
-        task = asyncio.create_task(collect_events())
-        await asyncio.sleep(0.01)
+            # Need a live event to finish collecting since we break at 3
+            task = asyncio.create_task(collect_events())
+            await asyncio.sleep(0.01)
 
-        # Cancel task after history is yielded
-        task.cancel()
-        try:
-            await task
-        except asyncio.CancelledError:
-            pass
+            # Cancel task after history is yielded
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
+
+        asyncio.run(run_test())
 
         # Should have received all historical events in timestamp order
         assert len(received) == 3
@@ -400,36 +409,38 @@ class TestEventBusSubscribe:
         assert received[1].event_type == "run2_e1"
         assert received[2].event_type == "run1_e2"
 
-    @pytest.mark.asyncio
-    async def test_subscribe_cleanup_on_cancellation(self, tmp_path):
+    def test_subscribe_cleanup_on_cancellation(self, tmp_path):
         """Test that subscriber is removed when iterator is cancelled."""
-        from server.event_bus import EventBus, SimulationEvent
+        from server.event_bus import EventBus
 
         EventBus._test_persist_path = tmp_path / "events.jsonl"
         bus = EventBus.get_instance()
 
         initial_subscribers = len(bus._subscribers)
 
-        async def long_subscription():
-            async for event in bus.subscribe():
-                pass  # Would run forever
+        async def run_test():
+            async def long_subscription():
+                async for event in bus.subscribe():
+                    pass  # Would run forever
 
-        # Start subscription
-        task = asyncio.create_task(long_subscription())
-        await asyncio.sleep(0.01)
+            # Start subscription
+            task = asyncio.create_task(long_subscription())
+            await asyncio.sleep(0.01)
 
-        # Subscriber should be registered
-        assert len(bus._subscribers) == initial_subscribers + 1
+            # Subscriber should be registered
+            assert len(bus._subscribers) == initial_subscribers + 1
 
-        # Cancel the task
-        task.cancel()
-        try:
-            await task
-        except asyncio.CancelledError:
-            pass
+            # Cancel the task
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
 
-        # Give cleanup time to run
-        await asyncio.sleep(0.01)
+            # Give cleanup time to run
+            await asyncio.sleep(0.01)
+
+        asyncio.run(run_test())
 
         # Subscriber should be cleaned up via finally block
         assert len(bus._subscribers) == initial_subscribers
