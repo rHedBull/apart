@@ -20,18 +20,20 @@ from llm.llm_provider import LLMProvider
 @pytest.fixture
 def test_client():
     """Create a test client for the FastAPI app with mocked Redis."""
-    from unittest.mock import patch
+    from unittest.mock import patch, AsyncMock
     from fastapi.testclient import TestClient
     from fakeredis import FakeRedis
     from server.app import app
     from server.run_state import RunStateManager
+    from server.event_bus import EventBus
     import server.job_queue as job_queue_module
 
     # Create a fake Redis connection (decode_responses=True for consistency)
     fake_redis = FakeRedis(decode_responses=True)
 
-    # Reset RunStateManager singleton before initializing
+    # Reset singletons before initializing
     RunStateManager.reset_instance()
+    EventBus.reset_instance()
 
     # Mock the job queue initialization to use fake Redis
     def mock_init_job_queue(redis_url: str):
@@ -47,15 +49,28 @@ def test_client():
     def mock_init_state_manager():
         RunStateManager.initialize(fake_redis)
 
+    # Mock EventBus Redis initialization (don't start actual subscriber in tests)
+    def mock_init_event_bus_redis():
+        # Set Redis but don't start subscriber (it would block on FakeRedis)
+        event_bus = EventBus.get_instance()
+        event_bus.set_redis_connection(fake_redis)
+
+    # Mock the subscriber start (no-op in tests to avoid blocking)
+    async def mock_start_event_bus_subscriber():
+        pass
+
     with patch.object(job_queue_module, 'init_job_queue', mock_init_job_queue):
         with patch('server.app._initialize_state_manager', mock_init_state_manager):
-            with TestClient(app) as client:
-                yield client
+            with patch('server.app._initialize_event_bus_redis', mock_init_event_bus_redis):
+                with patch('server.app._start_event_bus_subscriber', mock_start_event_bus_subscriber):
+                    with TestClient(app) as client:
+                        yield client
 
     # Reset state after test
     job_queue_module._redis_conn = None
     job_queue_module._queues = {}
     RunStateManager.reset_instance()
+    EventBus.reset_instance()
 
 
 @pytest.fixture
