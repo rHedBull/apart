@@ -16,11 +16,16 @@ export interface RunSummary {
 }
 
 interface UseRunsListOptions {
+  /**
+   * Whether to include historical events from SSE stream.
+   * Default is false for the list view since REST API provides authoritative state.
+   * Historical events can cause incorrect status display due to race conditions.
+   */
   includeHistory?: boolean;
 }
 
 export function useRunsList(options: UseRunsListOptions = {}) {
-  const { includeHistory = true } = options;
+  const { includeHistory = false } = options;
   const [runs, setRuns] = useState<RunSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -45,7 +50,13 @@ export function useRunsList(options: UseRunsListOptions = {}) {
 
   // SSE subscription for real-time updates
   useEffect(() => {
-    fetchRuns();
+    // Track whether initial fetch has completed - historical events should not
+    // override status for runs that already exist (REST API has authoritative status)
+    let initialFetchComplete = false;
+
+    fetchRuns().then(() => {
+      initialFetchComplete = true;
+    });
 
     const url = `/api/events/stream${includeHistory ? '?history=true' : ''}`;
     const eventSource = new EventSource(url);
@@ -68,6 +79,11 @@ export function useRunsList(options: UseRunsListOptions = {}) {
           setRuns(prev => {
             const existing = prev.find(r => r.runId === data.run_id);
             if (existing) {
+              // Only update status if this is a live event (after initial fetch)
+              // Historical events should not override the authoritative status from REST API
+              if (!initialFetchComplete) {
+                return prev; // Skip - REST API has the correct status
+              }
               return prev.map(r => r.runId === data.run_id ? {
                 ...r,
                 status: 'running' as const,

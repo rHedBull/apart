@@ -155,7 +155,8 @@ class TestStartSimulationEndpoint:
         )
 
         assert response.status_code == 200
-        assert response.json()["run_id"] == "my-custom-id"
+        # Custom run_id is used as prefix, UUID suffix is always appended for uniqueness
+        assert response.json()["run_id"].startswith("my-custom-id-")
 
     def test_start_simulation_with_priority(self, test_client, event_bus_reset, sample_scenario):
         """Test starting simulation with different priorities."""

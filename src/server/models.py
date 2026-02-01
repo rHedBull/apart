@@ -55,7 +55,7 @@ class JobPriority(str, Enum):
 class StartSimulationRequest(BaseModel):
     """Request to start a new simulation."""
     scenario_path: str
-    run_id: str | None = None  # Optional custom run ID
+    run_id: str | None = None  # Optional run ID prefix (UUID suffix always appended for uniqueness)
     priority: JobPriority | None = JobPriority.NORMAL  # Job queue priority
 
 

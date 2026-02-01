@@ -340,8 +340,12 @@ async def start_simulation(request: StartSimulationRequest):
     if not scenario_path.exists():
         raise HTTPException(status_code=400, detail=f"Scenario not found: {request.scenario_path}")
 
-    # Generate run ID
-    run_id = request.run_id or str(uuid.uuid4())[:8]
+    # Generate unique run ID (always includes UUID suffix to prevent collisions)
+    unique_suffix = str(uuid.uuid4())[:8]
+    if request.run_id:
+        run_id = f"{request.run_id}-{unique_suffix}"
+    else:
+        run_id = unique_suffix
 
     # Enqueue to Redis
     priority = request.priority.value if request.priority else "normal"

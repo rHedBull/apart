@@ -631,6 +631,7 @@ Example of a BAD response: "I think about going to the market" (this is just int
         geojson_data = self.composed_modules.geojson if self.composed_modules else None
         emit(
             EventTypes.SIMULATION_STARTED,
+            scenario_name=self.persistence.scenario_name,
             num_agents=len(self.agents),
             max_steps=self.max_steps,
             agent_names=[a.name for a in self.agents],
