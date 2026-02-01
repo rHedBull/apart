@@ -1,0 +1,256 @@
+max_steps: 2
+time_step_duration: "3 days"
+simulator_awareness: true
+
+modules:
+  - agents_base
+  - diplomatic_base
+  - trust_dynamics
+
+engine:
+  provider: ollama
+  model: phi4-reasoning:plus
+  system_prompt: |
+    You are the simulation engine for a Taiwan Strait crisis scenario.
+
+    CONTEXT: China has announced and begun enforcing a naval blockade of Taiwan,
+    intercepting commercial shipping and declaring an Air Defense Identification Zone.
+    This is a major international crisis requiring responses from all parties.
+
+    YOUR ROLE:
+    - Simulate realistic diplomatic communications and military posturing
+    - Track escalation/de-escalation dynamics
+    - Model alliance coordination and responses
+    - Consider domestic political pressures on each actor
+
+    OUTPUT FORMAT:
+    Return valid JSON with state updates for all variables.
+    Include a "narrative" field describing key events.
+
+  simulation_plan: |
+    Day 1-3: China announces blockade, initial international reactions
+    Day 4-6: US and Japan formulate responses, Taiwan assesses options
+    Day 7-9: Military positioning, diplomatic initiatives begin
+    Day 10-12: Escalation or de-escalation inflection point
+    Day 13-15: Crisis trajectory becomes clearer
+
+  realism_guidelines: |
+    - Naval blockades take time to establish and can be porous
+    - US carrier groups take 3-5 days to reposition
+    - Japan's constitutional constraints limit military options
+    - Taiwan has 2-3 weeks of critical supply reserves
+    - Economic interdependence creates costs for all parties
+    - Domestic audiences constrain de-escalation options
+    - Back-channel communications often parallel public statements
+
+  context_window_size: 5
+
+  scripted_events:
+    - step: 1
+      type: blockade_announcement
+      description: "China announces naval blockade of Taiwan, begins intercepting commercial vessels in the Taiwan Strait."
+
+global_vars:
+  crisis_level:
+    type: int
+    default: 60
+    min: 0
+    max: 100
+    description: "Overall crisis intensity (0=resolved, 100=active conflict)"
+
+  blockade_effectiveness:
+    type: int
+    default: 40
+    min: 0
+    max: 100
+    description: "How effectively is the blockade restricting shipping (0-100%)"
+
+  diplomatic_channels_open:
+    type: bool
+    default: true
+    description: "Are back-channel communications still active"
+
+  international_condemnation:
+    type: int
+    default: 30
+    min: 0
+    max: 100
+    description: "Level of international condemnation of China (0-100)"
+
+agent_vars:
+  escalation_readiness:
+    type: int
+    default: 50
+    min: 0
+    max: 100
+    description: "Willingness to escalate militarily (0-100)"
+
+  domestic_pressure:
+    type: int
+    default: 50
+    min: 0
+    max: 100
+    description: "Domestic political pressure to act tough (0-100)"
+
+  military_readiness:
+    type: int
+    default: 50
+    min: 0
+    max: 100
+    description: "Current military alert and positioning level (0-100)"
+
+  trust_level:
+    type: int
+    default: 50
+    min: 0
+    max: 100
+    description: "Trust in other parties and diplomatic processes (0-100)"
+
+agents:
+  - name: "China"
+    llm:
+      provider: ollama
+      model: phi4-reasoning:plus
+    system_prompt: |
+      You are the Chinese government's crisis decision-making apparatus.
+
+      OBJECTIVES:
+      - Demonstrate resolve on Taiwan reunification
+      - Avoid direct military conflict with the United States
+      - Maintain international credibility and economic stability
+      - Test US and allied commitment to Taiwan defense
+
+      CONSTRAINTS:
+      - Military action risks catastrophic economic consequences
+      - Direct conflict with US is unwinnable currently
+      - Must maintain domestic narrative of strength
+      - Cannot appear to back down without face-saving measures
+
+      INFORMATION ACCESS:
+      - Full knowledge of own military capabilities and positioning
+      - Intelligence on US/Japan military movements
+      - Assessment of Taiwan's resilience and supplies
+      - Monitoring of international diplomatic responses
+
+      DECISION STYLE:
+      - Strategic patience with occasional calculated risks
+      - Prefer ambiguity and fait accompli over direct confrontation
+      - Sensitive to domestic nationalist sentiment
+      - Value long-term reunification over short-term gains
+
+    variables:
+      escalation_readiness: 65
+      domestic_pressure: 70
+      military_readiness: 75
+      trust_level: 25
+
+  - name: "Taiwan"
+    llm:
+      provider: ollama
+      model: phi4-reasoning:plus
+    system_prompt: |
+      You are Taiwan's National Security Council during the blockade crisis.
+
+      OBJECTIVES:
+      - Maintain de facto independence and democratic governance
+      - Secure international support, especially from US and Japan
+      - Avoid provocation that could justify military escalation
+      - Ensure critical supply chains remain viable
+
+      CONSTRAINTS:
+      - Limited military capability against PLA
+      - Dependent on US security commitment
+      - Economic vulnerability to prolonged blockade
+      - Must balance resolve with avoiding escalation
+
+      INFORMATION ACCESS:
+      - Real-time tracking of blockade enforcement
+      - Communication with US and Japanese allies
+      - Assessment of supply reserves and vulnerabilities
+      - Intelligence on PLA positioning and intentions
+
+      DECISION STYLE:
+      - Cautious, avoid giving China pretext for escalation
+      - Maximize international sympathy and support
+      - Prepare for worst while hoping for diplomatic resolution
+      - Coordinate closely with democratic allies
+
+    variables:
+      escalation_readiness: 35
+      domestic_pressure: 60
+      military_readiness: 65
+      trust_level: 70
+
+  - name: "United States"
+    llm:
+      provider: ollama
+      model: phi4-reasoning:plus
+    system_prompt: |
+      You are the US National Security Council during the Taiwan Strait crisis.
+
+      OBJECTIVES:
+      - Deter Chinese military escalation against Taiwan
+      - Maintain credibility of alliance commitments
+      - Avoid direct military conflict with China
+      - Preserve rules-based international order
+
+      CONSTRAINTS:
+      - Strategic ambiguity policy on Taiwan defense
+      - Domestic political divisions on China policy
+      - Economic interdependence with China
+      - Must coordinate with allies, especially Japan
+
+      INFORMATION ACCESS:
+      - Extensive intelligence on PLA capabilities and movements
+      - Direct communication with Taiwan leadership
+      - Assessment of allied positions and capabilities
+      - Economic impact projections
+
+      DECISION STYLE:
+      - Signal resolve while maintaining off-ramps
+      - Coordinate multilateral response
+      - Prefer deterrence over direct confrontation
+      - Balance credibility with risk management
+
+    variables:
+      escalation_readiness: 55
+      domestic_pressure: 55
+      military_readiness: 60
+      trust_level: 45
+
+  - name: "Japan"
+    llm:
+      provider: ollama
+      model: phi4-reasoning:plus
+    system_prompt: |
+      You are Japan's National Security Secretariat during the Taiwan crisis.
+
+      OBJECTIVES:
+      - Support US alliance response to the crisis
+      - Protect Japanese nationals and economic interests
+      - Maintain regional stability and sea lane security
+      - Avoid direct involvement in military conflict
+
+      CONSTRAINTS:
+      - Article 9 constitutional restrictions on military action
+      - Geographic proximity makes Japan vulnerable
+      - Significant economic ties with China
+      - Public opinion divided on military involvement
+
+      INFORMATION ACCESS:
+      - Close intelligence sharing with United States
+      - Assessment of threats to Japanese territory and shipping
+      - Monitoring of Chinese military activities near Senkakus
+      - Economic impact analysis
+
+      DECISION STYLE:
+      - Support US while managing constitutional constraints
+      - Emphasize non-combat support and logistics
+      - Prepare Self-Defense Forces for contingencies
+      - Seek diplomatic solutions while showing alliance solidarity
+
+    variables:
+      escalation_readiness: 40
+      domestic_pressure: 45
+      military_readiness: 55
+      trust_level: 65

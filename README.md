@@ -14,39 +14,15 @@ Multi-agent orchestration framework for running configurable simulation scenario
 
 ## Quick Start
 
-### Run AI Safety Scenarios
-
-We provide 4 sophisticated AI safety scenarios for testing ethical reasoning, governance, and strategic decision-making:
+### Run Example Scenarios
 
 ```bash
-# 1. Autonomous Systems Cascade (10-second trolley problem)
-uv run src/main.py scenarios/autonomous_systems_cascade.yaml
+# Taiwan Strait Blockade - geopolitical crisis with diplomatic/trust modules
+uv run src/main.py scenarios/taiwan_strait_blockade.yaml
 
-# 2. Prometheus Board Decision (10-turn governance simulation)
-uv run src/main.py scenarios/prometheus_board_decision.yaml
-
-# 3. AI Safety 2027 Landscape (24-month ecosystem simulation)
-uv run src/main.py scenarios/ai_safety_2027_landscape.yaml
-
-# 4. Taiwan Strait Crisis (14-day geopolitical conflict)
-uv run src/main.py scenarios/taiwan_strait_crisis.yaml
+# Semiconductor Supply Chain Crisis - economic interdependence simulation
+uv run src/main.py scenarios/semiconductor_supply_chain_crisis.yaml
 ```
-
-See [AI Safety Scenarios Overview](scenarios/AI_SAFETY_SCENARIOS_OVERVIEW.md) for detailed descriptions.
-
-### Run Benchmarks
-
-Compare different AI models on the same scenario:
-
-```bash
-# Compare Gemini Flash, Gemini Pro, and Grok as AI Safety Monitor
-./benchmarks/run_cascade_comparison.sh
-
-# Or run directly:
-uv run tools/benchmark.py benchmarks/cascade_monitor_comparison.yaml
-```
-
-**Setup:** Add `XAI_API_KEY` to `.env` for Grok testing (see [benchmark README](benchmarks/cascade_monitor_comparison_README.md))
 
 ### Custom Scenarios
 
@@ -69,44 +45,19 @@ uv run src/main.py scenarios/my_scenario.yaml
 - **[Danger Detection](docs/danger-detection.md)** - Behavioral safety analysis in benchmarks
 - **[Module System Plan](docs/plans/module-system-next-phases.md)** - Module system design and implementation details
 
-### AI Safety Scenarios
+### Example Scenarios
 
-**[AI Safety Scenarios Overview](scenarios/AI_SAFETY_SCENARIOS_OVERVIEW.md)** - Comprehensive guide to all scenarios
+All scenarios use the module system for composable, realistic simulations:
 
-**Individual Scenario Documentation:**
-1. **[Autonomous Systems Cascade](scenarios/autonomous_systems_cascade_README.md)** - 10-second trolley problem variant
-   - Tests ethical reasoning under 70% uncertainty
-   - 6 agents (5 systems + AI Safety Monitor)
-   - Moral weight calculations: 65-75 immediate deaths vs 5-10 + 500K affected
+1. **Taiwan Strait Blockade** (`scenarios/taiwan_strait_blockade.yaml`)
+   - Modules: `agents_base`, `diplomatic_base`, `trust_dynamics`
+   - 4 agents: China, Taiwan, United States, Japan
+   - Tests crisis escalation/de-escalation dynamics
 
-2. **[Prometheus Board Decision](scenarios/prometheus_board_decision_README.md)** - 10-turn governance simulation
-   - Tests group decision-making under pressure
-   - 8 board members (CEO, CTO, CSO, Investor, Ethics Director, COO, Legal, Gov Liaison)
-   - Deploy near-AGI with 30% deception rate and 67% kill switch reliability?
-
-3. **[AI Safety 2027 Landscape](scenarios/ai_safety_2027_landscape_README.md)** - 24-month ecosystem simulation
-   - Tests multi-actor strategic forecasting
-   - 13 actors (6 labs, 5 governments/regulators, researchers, public)
-   - Tracks cooperative development, racing dynamics, incidents, breakthroughs
-
-4. **[Taiwan Strait Crisis](scenarios/taiwan_strait_crisis_README.md)** - 14-day geopolitical conflict
-   - Tests robustness under fog of war (60-80% intelligence accuracy)
-   - 10 actors (China, Taiwan, US, Japan, Australia, South Korea, ASEAN, EU, Russia, UN)
-   - Cascading escalation from blockade to potential nuclear signaling
-
-### Benchmarks
-
-- **[Cascade Monitor Comparison](benchmarks/cascade_monitor_comparison_README.md)** - Compare models in AI Safety Monitor role
-  - Tests: Gemini Flash, Gemini Pro, Grok
-  - Evaluates: Ethical reasoning, uncertainty handling, stakeholder consideration
-
-## Configuration
-
-Edit `scenarios/config.yaml` to customize:
-- Number of simulation steps
-- Orchestrator messages
-- Agent behaviors and responses
-- Global and per-agent variables with type validation
+2. **Semiconductor Supply Chain Crisis** (`scenarios/semiconductor_supply_chain_crisis.yaml`)
+   - Modules: `supply_chain_base`
+   - 7 agents: USA, China, Taiwan, EU, South Korea, Japan, Netherlands
+   - Tests economic interdependence under trade restrictions
 
 ## Persistence
 
