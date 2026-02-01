@@ -417,3 +417,102 @@ class TestCancelJob:
             result = jq.cancel_job("missing-job")
 
         assert result is False
+
+
+class TestPauseSignaling:
+    """Tests for pause signaling functions."""
+
+    def setup_method(self):
+        """Initialize job queue with mocks."""
+        import server.job_queue as jq
+
+        self.mock_redis = MagicMock()
+        self.mock_redis.ping.return_value = True
+        jq._redis_conn = self.mock_redis
+        jq._queues = {"normal": MagicMock()}
+
+    def teardown_method(self):
+        """Reset module state."""
+        import server.job_queue as jq
+        jq._redis_conn = None
+        jq._queues = {}
+
+    def test_publish_pause_signal(self):
+        """Test publishing pause signal to Redis."""
+        import server.job_queue as jq
+
+        result = jq.publish_pause_signal("test_run_123", force=False)
+
+        assert result is True
+        # Verify message was published via setex
+        self.mock_redis.setex.assert_called_once()
+        call_args = self.mock_redis.setex.call_args
+        assert "apart:pause:test_run_123" in str(call_args)
+
+    def test_publish_pause_signal_with_force(self):
+        """Test publishing pause signal with force=True."""
+        import server.job_queue as jq
+        import json
+
+        jq.publish_pause_signal("run_456", force=True)
+
+        call_args = self.mock_redis.setex.call_args
+        # Check the signal data contains force=True
+        signal_data = call_args[0][2]  # Third positional arg is the value
+        parsed = json.loads(signal_data)
+        assert parsed["force"] is True
+
+    def test_publish_pause_signal_raises_when_not_initialized(self):
+        """Test publish_pause_signal raises when not initialized."""
+        import server.job_queue as jq
+        jq._redis_conn = None
+
+        with pytest.raises(RuntimeError, match="not initialized"):
+            jq.publish_pause_signal("test_run")
+
+    def test_check_pause_requested_returns_none_when_no_pause(self):
+        """Test checking if pause was requested returns None when not set."""
+        import server.job_queue as jq
+
+        self.mock_redis.get.return_value = None
+
+        result = jq.check_pause_requested("test_run")
+
+        assert result is None
+        self.mock_redis.get.assert_called_once_with("apart:pause:test_run")
+
+    def test_check_pause_requested_returns_data_when_set(self):
+        """Test checking if pause was requested returns data when set."""
+        import server.job_queue as jq
+        import json
+
+        self.mock_redis.get.return_value = json.dumps({"force": True})
+
+        result = jq.check_pause_requested("run_789")
+
+        assert result == {"force": True}
+
+    def test_check_pause_requested_returns_none_when_not_initialized(self):
+        """Test check_pause_requested returns None gracefully when not initialized."""
+        import server.job_queue as jq
+        jq._redis_conn = None
+
+        result = jq.check_pause_requested("test_run")
+        assert result is None
+
+    def test_clear_pause_signal(self):
+        """Test clearing pause signal."""
+        import server.job_queue as jq
+
+        result = jq.clear_pause_signal("test_run_123")
+
+        assert result is True
+        self.mock_redis.delete.assert_called_once_with("apart:pause:test_run_123")
+
+    def test_clear_pause_signal_returns_false_when_not_initialized(self):
+        """Test clear_pause_signal returns False gracefully when not initialized."""
+        import server.job_queue as jq
+        jq._redis_conn = None
+
+        result = jq.clear_pause_signal("test_run")
+        assert result is False

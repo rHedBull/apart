@@ -24,6 +24,8 @@ import { useRunsList, RunSummary } from '../hooks/useRunsList';
 const STATUS_OPTIONS = [
   { value: 'all', label: 'All statuses' },
   { value: 'running', label: 'Running' },
+  { value: 'stopping', label: 'Stopping' },
+  { value: 'paused', label: 'Paused' },
   { value: 'completed', label: 'Completed' },
   { value: 'failed', label: 'Failed' },
   { value: 'pending', label: 'Pending' },
@@ -33,6 +35,10 @@ function getStatusIndicator(status: RunSummary['status']) {
   switch (status) {
     case 'running':
       return <StatusIndicator type="in-progress">Running</StatusIndicator>;
+    case 'stopping':
+      return <StatusIndicator type="pending">Stopping</StatusIndicator>;
+    case 'paused':
+      return <StatusIndicator type="stopped">Paused</StatusIndicator>;
     case 'completed':
       return <StatusIndicator type="success">Completed</StatusIndicator>;
     case 'failed':
@@ -74,8 +80,9 @@ export function RunsListPage() {
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const pageSize = 10;
 
-  const runningSelected = selectedItems.filter(item => item.status === 'running');
-  const deletableSelected = selectedItems.filter(item => item.status !== 'running');
+  const nonDeletableStatuses = new Set(['running', 'stopping']);
+  const runningSelected = selectedItems.filter(item => nonDeletableStatuses.has(item.status));
+  const deletableSelected = selectedItems.filter(item => !nonDeletableStatuses.has(item.status));
 
   const handleDelete = async () => {
     if (selectedItems.length === 0) return;

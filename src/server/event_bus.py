@@ -306,7 +306,8 @@ class EventBus:
     async def subscribe(
         self,
         run_id: str | None = None,
-        include_history: bool = False
+        include_history: bool = False,
+        history_run_ids: set[str] | None = None,
     ) -> AsyncIterator[SimulationEvent]:
         """
         Subscribe to events as an async iterator.
@@ -314,6 +315,8 @@ class EventBus:
         Args:
             run_id: Optional filter to only receive events for specific run
             include_history: If True, yield historical events first
+            history_run_ids: If provided, only yield history for these run IDs
+                           (used to filter out stale runs not in RunStateManager)
 
         Yields:
             SimulationEvent objects as they are emitted
@@ -328,18 +331,23 @@ class EventBus:
                 self._check_and_reload_if_stale()
 
                 if run_id:
-                    for event in self._event_history.get(run_id, []):
-                        yield event
+                    # Single run history - check if it's in the valid set
+                    if history_run_ids is None or run_id in history_run_ids:
+                        for event in self._event_history.get(run_id, []):
+                            yield event
                 else:
-                    # Yield all history, sorted by timestamp
+                    # Yield all history, sorted by timestamp, filtered by valid run IDs
                     all_events = []
-                    for events in self._event_history.values():
+                    for rid, events in self._event_history.items():
+                        # Skip runs not in the valid set
+                        if history_run_ids is not None and rid not in history_run_ids:
+                            continue
                         all_events.extend(events)
                     all_events.sort(key=lambda e: e.timestamp)
                     for event in all_events:
                         yield event
 
-            # Then yield new events
+            # Then yield new events (no filtering - these are live)
             while True:
                 event = await queue.get()
                 if run_id is None or event.run_id == run_id:

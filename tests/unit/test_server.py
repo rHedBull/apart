@@ -228,3 +228,74 @@ class TestEventEmitter:
 
         # Cleanup
         disable_event_emitter()
+
+
+class TestGetRunStatus:
+    """Tests for the _get_run_status function using RunStateManager."""
+
+    def setup_method(self):
+        """Reset state manager before each test."""
+        from server.run_state import RunStateManager
+        RunStateManager.reset_instance()
+
+    def teardown_method(self):
+        """Cleanup after each test."""
+        from server.run_state import RunStateManager
+        RunStateManager.reset_instance()
+
+    def test_get_run_status_paused(self):
+        """Test that _get_run_status returns paused status from state manager."""
+        from unittest.mock import MagicMock
+        from server.run_state import RunStateManager, RunState
+        from server.routes.v1 import _get_run_status
+
+        mock_redis = MagicMock()
+        RunStateManager.initialize(mock_redis)
+
+        # Mock get_state to return a paused run
+        paused_state = RunState(
+            run_id="test_paused",
+            status="paused",
+            scenario_path="/path.yaml",
+            scenario_name="test",
+            created_at="2024-01-15T10:00:00",
+        )
+        mock_redis.get.return_value = paused_state.to_json()
+
+        status = _get_run_status("test_paused")
+        assert status == "paused"
+
+    def test_get_run_status_running(self):
+        """Test that _get_run_status returns running status from state manager."""
+        from unittest.mock import MagicMock
+        from server.run_state import RunStateManager, RunState
+        from server.routes.v1 import _get_run_status
+
+        mock_redis = MagicMock()
+        RunStateManager.initialize(mock_redis)
+
+        # Mock get_state to return a running run
+        running_state = RunState(
+            run_id="test_running",
+            status="running",
+            scenario_path="/path.yaml",
+            scenario_name="test",
+            created_at="2024-01-15T10:00:00",
+        )
+        mock_redis.get.return_value = running_state.to_json()
+
+        status = _get_run_status("test_running")
+        assert status == "running"
+
+    def test_get_run_status_not_found(self):
+        """Test that _get_run_status returns None for non-existent run."""
+        from unittest.mock import MagicMock
+        from server.run_state import RunStateManager
+        from server.routes.v1 import _get_run_status
+
+        mock_redis = MagicMock()
+        mock_redis.get.return_value = None
+        RunStateManager.initialize(mock_redis)
+
+        status = _get_run_status("nonexistent")
+        assert status is None

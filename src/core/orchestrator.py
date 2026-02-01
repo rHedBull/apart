@@ -1,3 +1,4 @@
+import json
 import os
 import sys
 import yaml
@@ -11,6 +12,7 @@ from utils.persistence import RunPersistence
 from utils.logging_config import MessageCode, PerformanceTimer
 from utils.config_parser import parse_scripted_events, parse_geography, parse_spatial_graph, parse_modules, merge_module_variables
 from llm.providers import UnifiedLLMProvider
+from server.job_queue import check_pause_requested, clear_pause_signal
 
 
 class Orchestrator:
@@ -473,6 +475,24 @@ Example of a BAD response: "I think about going to the market" (this is just int
 
         return agent_messages
 
+    def _check_and_handle_pause(self, step: int) -> bool:
+        """Check if pause was requested and handle it."""
+        pause_info = check_pause_requested(self.persistence.run_id)
+        if pause_info is None:
+            return False
+
+        force = pause_info.get("force", False)
+        self.logger.info(
+            MessageCode.SIM002,
+            "Pause signal detected",
+            step=step,
+            force=force,
+            run_id=self.persistence.run_id
+        )
+        clear_pause_signal(self.persistence.run_id)
+        emit(EventTypes.SIMULATION_PAUSED, step=step)
+        return True
+
     def _save_final_state(self, step_messages: list):
         """Save final simulation state."""
         try:
@@ -506,22 +526,122 @@ Example of a BAD response: "I think about going to the market" (this is just int
         print(f"Final game state: {self.game_engine.get_state()}")
         print(f"\nResults saved to: {self.persistence.run_dir}")
 
-    def run(self):
-        """Run the simulation loop with SimulatorAgent."""
+    def _restore_state_for_resume(self, start_step: int) -> dict:
+        """Restore game state from saved state file for resume.
+
+        Args:
+            start_step: The step to resume from.
+
+        Returns:
+            dict: Agent messages to use for the first resumed step,
+                  or empty dict if no previous state found.
+        """
+        state_file = self.persistence.run_dir / "state.json"
+        if not state_file.exists():
+            self.logger.warning(
+                MessageCode.PER004,
+                "No state file found for resume",
+                state_file=str(state_file)
+            )
+            return {}
+
+        try:
+            with open(state_file, "r") as f:
+                state_data = json.load(f)
+
+            snapshots = state_data.get("snapshots", [])
+            if not snapshots:
+                self.logger.warning(
+                    MessageCode.PER004,
+                    "No snapshots found in state file for resume"
+                )
+                return {}
+
+            # Find the snapshot closest to (but not exceeding) start_step - 1
+            # We want state from after step N-1 completed to resume at step N
+            target_step = start_step - 1
+            best_snapshot = None
+            for snapshot in snapshots:
+                if snapshot["step"] <= target_step:
+                    best_snapshot = snapshot
+
+            if best_snapshot is None:
+                self.logger.warning(
+                    MessageCode.PER004,
+                    "No suitable snapshot found for resume",
+                    target_step=target_step
+                )
+                return {}
+
+            # Restore game engine state
+            state_updates = {
+                "global_vars": best_snapshot.get("global_vars", {}),
+                "agent_vars": best_snapshot.get("agent_vars", {})
+            }
+            self.game_engine.apply_state_updates(state_updates)
+
+            # Restore round counter to match
+            restored_step = best_snapshot["step"]
+            self.game_engine.state.round = restored_step
+
+            # Update agent stats from restored state
+            for agent in self.agents:
+                agent_stats = best_snapshot.get("agent_vars", {}).get(agent.name, {})
+                agent.update_stats(agent_stats)
+
+            self.logger.info(
+                MessageCode.PER002,
+                "State restored for resume",
+                restored_from_step=restored_step,
+                resuming_at_step=start_step
+            )
+
+            # Return empty agent_messages - SimulatorAgent will generate fresh ones
+            # based on restored state
+            return {}
+
+        except (json.JSONDecodeError, KeyError) as e:
+            self.logger.error(
+                MessageCode.PER004,
+                "Failed to parse state file for resume",
+                error=str(e)
+            )
+            return {}
+
+    def run(self, start_step: int = 1) -> dict:
+        """Run the simulation loop with SimulatorAgent.
+
+        Args:
+            start_step: Step to start from (default 1). Use > 1 to resume a paused simulation.
+
+        Returns:
+            dict with 'status' ('completed' or 'paused') and 'paused_at_step' if paused
+        """
         enable_event_emitter(self.persistence.run_id)
 
-        self.logger.info(
-            MessageCode.SIM001,
-            "Simulation started",
-            num_agents=len(self.agents),
-            max_steps=self.max_steps
-        )
+        is_resume = start_step > 1
+        if is_resume:
+            self.logger.info(
+                MessageCode.SIM001,
+                "Simulation resuming",
+                start_step=start_step,
+                num_agents=len(self.agents),
+                max_steps=self.max_steps
+            )
+        else:
+            self.logger.info(
+                MessageCode.SIM001,
+                "Simulation started",
+                num_agents=len(self.agents),
+                max_steps=self.max_steps
+            )
 
         # Emit simulation started event
         spatial_graph_data = self.spatial_graph.to_dict() if self.spatial_graph else None
         geojson_data = self.composed_modules.geojson if self.composed_modules else None
         emit(
             EventTypes.SIMULATION_STARTED,
+            scenario_name=self.persistence.scenario_name,
             num_agents=len(self.agents),
             max_steps=self.max_steps,
             agent_names=[a.name for a in self.agents],
@@ -530,23 +650,58 @@ Example of a BAD response: "I think about going to the market" (this is just int
             geojson=geojson_data
         )
 
-        print(f"Starting simulation with {len(self.agents)} agent(s) for {self.max_steps} steps")
+        if is_resume:
+            print(f"Resuming simulation from step {start_step} with {len(self.agents)} agent(s)")
+        else:
+            print(f"Starting simulation with {len(self.agents)} agent(s) for {self.max_steps} steps")
         print(f"Results will be saved to: {self.persistence.run_dir}\n")
 
         step_messages = []
+        paused_at_step = None
         try:
-            agent_messages = self._initialize_simulation()
+            if is_resume:
+                # Restore state from saved snapshots
+                self._restore_state_for_resume(start_step)
+                # For resume, we need to get fresh agent messages from SimulatorAgent
+                # based on the restored state
+                agent_names = [agent.name for agent in self.agents]
+                agent_messages = self.simulator_agent.initialize_simulation(agent_names)
+                print(f"[Resumed from step {start_step}]")
+            else:
+                agent_messages = self._initialize_simulation()
 
-            for step in range(1, self.max_steps + 1):
+            # Check for pause after initialization
+            if self._check_and_handle_pause(0):
+                return {"status": "paused", "paused_at_step": 0}
+
+            for step in range(start_step, self.max_steps + 1):
+                # Check for pause signal at start of each step
+                if self._check_and_handle_pause(step):
+                    paused_at_step = step
+                    print(f"\nSimulation paused at step {step}")
+                    break
+
                 with PerformanceTimer(self.logger, MessageCode.PRF001, f"Step {step}", step=step):
                     self.logger.info(MessageCode.SIM003, "Step started", step=step, max_steps=self.max_steps)
                     emit(EventTypes.STEP_STARTED, step=step, max_steps=self.max_steps)
                     print(f"\n=== Step {step}/{self.max_steps} ===")
 
                     agent_responses, step_messages = self._collect_agent_responses(step, agent_messages)
+
+                    # Check for pause after agent responses (more responsive to pause requests)
+                    if self._check_and_handle_pause(step):
+                        paused_at_step = step
+                        print(f"\nSimulation paused at step {step} (after agent responses)")
+                        break
+
                     agent_messages = self._process_step_results(step, agent_responses, step_messages)
 
-            self._save_final_state(step_messages)
+            # Only save final state if completed (not paused)
+            if paused_at_step is None:
+                self._save_final_state(step_messages)
+                return {"status": "completed"}
+            else:
+                return {"status": "paused", "paused_at_step": paused_at_step}
 
         except KeyboardInterrupt:
             self.logger.warning(MessageCode.SIM002, "Simulation interrupted by user")

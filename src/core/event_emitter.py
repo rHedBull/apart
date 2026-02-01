@@ -72,6 +72,8 @@ class EventTypes:
     SIMULATION_STARTED = "simulation_started"
     SIMULATION_COMPLETED = "simulation_completed"
     SIMULATION_FAILED = "simulation_failed"
+    SIMULATION_PAUSED = "simulation_paused"
+    SIMULATION_RESUMED = "simulation_resumed"
 
     # Step events
     STEP_STARTED = "step_started"

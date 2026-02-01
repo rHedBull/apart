@@ -13,9 +13,11 @@ class SimulationStatus(str, Enum):
     """Status of a simulation run."""
     PENDING = "pending"
     RUNNING = "running"
+    PAUSED = "paused"
     COMPLETED = "completed"
     FAILED = "failed"
     STOPPED = "stopped"
+    INTERRUPTED = "interrupted"  # Worker died mid-run, job back in queue
 
 
 class AgentInfo(BaseModel):
@@ -53,7 +55,7 @@ class JobPriority(str, Enum):
 class StartSimulationRequest(BaseModel):
     """Request to start a new simulation."""
     scenario_path: str
-    run_id: str | None = None  # Optional custom run ID
+    run_id: str | None = None  # Optional run ID prefix (UUID suffix always appended for uniqueness)
     priority: JobPriority | None = JobPriority.NORMAL  # Job queue priority
 
 
@@ -80,3 +82,18 @@ class DangerSummary(BaseModel):
     total_signals: int
     by_category: dict[str, int] = Field(default_factory=dict)
     signals: list[DangerSignal] = Field(default_factory=list)
+
+
+class PauseSimulationResponse(BaseModel):
+    """Response after requesting simulation pause."""
+    run_id: str
+    status: str  # "pause_requested"
+    message: str
+
+
+class ResumeSimulationResponse(BaseModel):
+    """Response after resuming a simulation."""
+    run_id: str
+    status: str  # "resumed"
+    resuming_from_step: int
+    message: str

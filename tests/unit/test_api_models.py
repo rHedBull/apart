@@ -18,9 +18,11 @@ class TestSimulationStatus:
 
         assert SimulationStatus.PENDING == "pending"
         assert SimulationStatus.RUNNING == "running"
+        assert SimulationStatus.PAUSED == "paused"
         assert SimulationStatus.COMPLETED == "completed"
         assert SimulationStatus.FAILED == "failed"
         assert SimulationStatus.STOPPED == "stopped"
+        assert SimulationStatus.INTERRUPTED == "interrupted"
 
     def test_status_is_string_enum(self):
         """Test that status values are strings."""
@@ -29,6 +31,13 @@ class TestSimulationStatus:
         assert isinstance(SimulationStatus.PENDING.value, str)
         # Can be used as string via .value
         assert SimulationStatus.RUNNING.value == "running"
+
+    def test_simulation_status_includes_paused(self):
+        """Test that SimulationStatus enum includes PAUSED."""
+        from server.models import SimulationStatus
+
+        assert hasattr(SimulationStatus, "PAUSED")
+        assert SimulationStatus.PAUSED.value == "paused"
 
 
 class TestAgentInfo:

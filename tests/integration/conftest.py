@@ -24,10 +24,14 @@ def test_client():
     from fastapi.testclient import TestClient
     from fakeredis import FakeRedis
     from server.app import app
+    from server.run_state import RunStateManager
     import server.job_queue as job_queue_module
 
-    # Create a fake Redis connection
-    fake_redis = FakeRedis()
+    # Create a fake Redis connection (decode_responses=True for consistency)
+    fake_redis = FakeRedis(decode_responses=True)
+
+    # Reset RunStateManager singleton before initializing
+    RunStateManager.reset_instance()
 
     # Mock the job queue initialization to use fake Redis
     def mock_init_job_queue(redis_url: str):
@@ -39,13 +43,19 @@ def test_client():
             "low": Queue("simulations-low", connection=fake_redis),
         }
 
-    with patch.object(job_queue_module, 'init_job_queue', mock_init_job_queue):
-        with TestClient(app) as client:
-            yield client
+    # Mock the state manager initialization to use our fake Redis
+    def mock_init_state_manager():
+        RunStateManager.initialize(fake_redis)
 
-    # Reset job queue state after test
+    with patch.object(job_queue_module, 'init_job_queue', mock_init_job_queue):
+        with patch('server.app._initialize_state_manager', mock_init_state_manager):
+            with TestClient(app) as client:
+                yield client
+
+    # Reset state after test
     job_queue_module._redis_conn = None
     job_queue_module._queues = {}
+    RunStateManager.reset_instance()
 
 
 @pytest.fixture
@@ -63,6 +73,81 @@ def event_bus_reset(tmp_path):
     # Cleanup
     EventBus._test_persist_path = None
     EventBus.reset_instance()
+
+
+@pytest.fixture
+def _event_bus_reset(event_bus_reset):
+    """Alias for event_bus_reset for tests that need it for side effects only."""
+    return event_bus_reset
+
+
+@pytest.fixture
+def state_manager():
+    """Provide access to RunStateManager for tests that need to create runs.
+
+    This fixture provides the state manager singleton after it's been
+    initialized by the test_client fixture.
+    """
+    from server.run_state import get_state_manager
+    return get_state_manager()
+
+
+def create_test_run(
+    run_id: str,
+    scenario_name: str = "test-scenario",
+    scenario_path: str = "/test/scenario.yaml",
+    status: str = "running",
+    max_steps: int | None = None,
+    current_step: int = 0,
+    worker_id: str = "test-worker",
+):
+    """Helper to create a run in state manager for testing.
+
+    Creates a run with the given parameters and optionally transitions
+    to running status.
+
+    Args:
+        run_id: Unique run ID
+        scenario_name: Human-readable scenario name
+        scenario_path: Path to scenario file
+        status: Target status (pending, running, completed, failed)
+        max_steps: Total number of steps (if known)
+        current_step: Current step (for running simulations)
+        worker_id: Worker ID (for running simulations)
+
+    Returns:
+        The created RunState
+    """
+    from server.run_state import get_state_manager
+
+    manager = get_state_manager()
+    if manager is None:
+        raise RuntimeError("RunStateManager not initialized - use test_client fixture first")
+
+    # Create the run
+    state = manager.create_run(
+        run_id=run_id,
+        scenario_path=scenario_path,
+        scenario_name=scenario_name,
+        total_steps=max_steps,
+    )
+
+    # Transition to target status if not pending
+    if status == "running":
+        state = manager.transition(run_id, "running", worker_id=worker_id)
+        if current_step > 0:
+            state = manager.update_progress(run_id, current_step=current_step)
+    elif status == "completed":
+        state = manager.transition(run_id, "running", worker_id=worker_id)
+        state = manager.transition(run_id, "completed")
+    elif status == "failed":
+        state = manager.transition(run_id, "running", worker_id=worker_id)
+        state = manager.transition(run_id, "failed", error="Test failure")
+    elif status == "paused":
+        state = manager.transition(run_id, "running", worker_id=worker_id)
+        state = manager.transition(run_id, "paused")
+
+    return state
 
 
 @pytest.fixture

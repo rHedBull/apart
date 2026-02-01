@@ -151,6 +151,14 @@ class TestEmit:
             emit("test_event")
 
 
+def test_event_types_include_pause_resume():
+    """Test that EventTypes includes PAUSED and RESUMED."""
+    assert hasattr(EventTypes, "SIMULATION_PAUSED")
+    assert hasattr(EventTypes, "SIMULATION_RESUMED")
+    assert EventTypes.SIMULATION_PAUSED == "simulation_paused"
+    assert EventTypes.SIMULATION_RESUMED == "simulation_resumed"
+
+
 class TestEventTypes:
     """Tests for EventTypes constants."""
 
@@ -180,6 +188,8 @@ class TestEventTypes:
             EventTypes.SIMULATION_STARTED,
             EventTypes.SIMULATION_COMPLETED,
             EventTypes.SIMULATION_FAILED,
+            EventTypes.SIMULATION_PAUSED,
+            EventTypes.SIMULATION_RESUMED,
             EventTypes.STEP_STARTED,
             EventTypes.STEP_COMPLETED,
             EventTypes.AGENT_MESSAGE_SENT,
@@ -196,6 +206,8 @@ class TestEventTypes:
             EventTypes.SIMULATION_STARTED,
             EventTypes.SIMULATION_COMPLETED,
             EventTypes.SIMULATION_FAILED,
+            EventTypes.SIMULATION_PAUSED,
+            EventTypes.SIMULATION_RESUMED,
             EventTypes.STEP_STARTED,
             EventTypes.STEP_COMPLETED,
             EventTypes.AGENT_MESSAGE_SENT,

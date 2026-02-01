@@ -1,13 +1,15 @@
 """
-Tests for run status tracking bugs.
+Tests for run status tracking via RunStateManager.
 
 These tests verify that simulation run status is correctly tracked
-throughout the simulation lifecycle, especially:
+throughout the simulation lifecycle using RunStateManager as the
+single source of truth:
 - When simulations complete successfully
 - When simulations fail with errors
-- When worker processes crash or timeout
+- When worker processes crash or timeout (stale run detection)
 
-Bug reference: Runs get stuck in "running" status even when no longer running.
+Architecture: RunStateManager (Redis-backed) is the authoritative source
+for run status. EventBus is used for detailed event data only.
 """
 
 import pytest
@@ -17,20 +19,19 @@ from unittest.mock import patch, MagicMock
 class TestRunStatusAfterCompletion:
     """Tests verifying run status is updated when simulations complete."""
 
-    def test_status_becomes_completed_after_simulation_completed_event(
+    def test_status_becomes_completed_after_transition(
         self, test_client, event_bus_reset
     ):
-        """
-        FAILING TEST: Status should be 'completed' after simulation_completed event.
-
-        This test demonstrates the bug where runs stay in 'running' status
-        even after the simulation has completed.
-        """
+        """Status should be 'completed' after RunStateManager transition."""
         from server.event_bus import emit_event
+        from tests.integration.conftest import create_test_run
 
         run_id = "status-test-completed"
 
-        # Emit simulation lifecycle events
+        # Create run and transition to completed via state manager
+        create_test_run(run_id, status="completed", max_steps=3)
+
+        # Emit simulation lifecycle events (for detailed event data)
         emit_event("simulation_started", run_id=run_id, max_steps=3, num_agents=2)
         emit_event("step_completed", run_id=run_id, step=1)
         emit_event("step_completed", run_id=run_id, step=2)
@@ -43,21 +44,19 @@ class TestRunStatusAfterCompletion:
 
         data = response.json()
         assert data["runId"] == run_id
-        # BUG: This assertion may fail if status tracking is broken
-        assert data["status"] == "completed", (
-            f"Expected status 'completed' but got '{data['status']}'. "
-            "Run is stuck in running state after completion event."
-        )
+        assert data["status"] == "completed"
 
-    def test_status_becomes_failed_after_simulation_failed_event(
+    def test_status_becomes_failed_after_transition(
         self, test_client, event_bus_reset
     ):
-        """
-        Status should be 'failed' after simulation_failed event.
-        """
+        """Status should be 'failed' after RunStateManager transition."""
         from server.event_bus import emit_event
+        from tests.integration.conftest import create_test_run
 
         run_id = "status-test-failed"
+
+        # Create run and transition to failed via state manager
+        create_test_run(run_id, status="failed", max_steps=5)
 
         emit_event("simulation_started", run_id=run_id, max_steps=5, num_agents=1)
         emit_event("step_completed", run_id=run_id, step=1)
@@ -67,20 +66,21 @@ class TestRunStatusAfterCompletion:
         assert response.status_code == 200
 
         data = response.json()
-        assert data["status"] == "failed", (
-            f"Expected status 'failed' but got '{data['status']}'. "
-            "Run is stuck in running state after failure event."
-        )
+        assert data["status"] == "failed"
 
     def test_list_simulations_shows_correct_status_after_completion(
         self, test_client, event_bus_reset
     ):
-        """
-        List simulations endpoint should show correct status for completed runs.
-        """
+        """List simulations endpoint should show correct status for all runs."""
         from server.event_bus import emit_event
+        from tests.integration.conftest import create_test_run
 
-        # Create multiple runs with different statuses
+        # Create runs with different statuses via state manager
+        create_test_run("run-running", status="running", max_steps=10, current_step=1)
+        create_test_run("run-completed", status="completed", max_steps=3)
+        create_test_run("run-failed", status="failed", max_steps=5)
+
+        # Emit events for detail data
         emit_event("simulation_started", run_id="run-running", max_steps=10, num_agents=1)
         emit_event("step_completed", run_id="run-running", step=1)
 
@@ -98,24 +98,15 @@ class TestRunStatusAfterCompletion:
         runs = {r["runId"]: r["status"] for r in runs_list}
 
         assert runs.get("run-running") == "running"
-        assert runs.get("run-completed") == "completed", (
-            f"Completed run shows status '{runs.get('run-completed')}' instead of 'completed'"
-        )
-        assert runs.get("run-failed") == "failed", (
-            f"Failed run shows status '{runs.get('run-failed')}' instead of 'failed'"
-        )
+        assert runs.get("run-completed") == "completed"
+        assert runs.get("run-failed") == "failed"
 
 
 class TestWorkerTaskStatusTracking:
     """Tests for status tracking when running via RQ worker task."""
 
     def test_worker_task_success_emits_completion_event(self, tmp_path):
-        """
-        FAILING TEST: Worker task should result in status being 'completed'.
-
-        The worker task calls orchestrator.run(), which emits SIMULATION_COMPLETED.
-        We verify this event is actually emitted and would be received by event bus.
-        """
+        """Worker task should result in status being 'completed'."""
         from server.worker_tasks import run_simulation_task
 
         scenario_path = tmp_path / "test_scenario.yaml"
@@ -151,15 +142,10 @@ class TestWorkerTaskStatusTracking:
 
             # Verify simulation_completed event was emitted
             completion_events = [e for e in emitted_events if e["event_type"] == "simulation_completed"]
-            assert len(completion_events) >= 1, (
-                "No simulation_completed event was emitted. "
-                "This would cause the run to stay in 'running' status."
-            )
+            assert len(completion_events) >= 1
 
     def test_worker_task_failure_emits_failed_event(self, tmp_path):
-        """
-        Worker task should emit simulation_failed event on error.
-        """
+        """Worker task should emit simulation_failed event on error."""
         from server.worker_tasks import run_simulation_task
 
         scenario_path = tmp_path / "failing_scenario.yaml"
@@ -187,49 +173,39 @@ class TestWorkerTaskStatusTracking:
 
             # Verify simulation_failed event was emitted
             failure_events = [e for e in emitted_events if e["event_type"] == "simulation_failed"]
-            assert len(failure_events) == 1, (
-                f"Expected 1 simulation_failed event, got {len(failure_events)}. "
-                "This would cause the run to stay in 'running' status."
-            )
+            assert len(failure_events) == 1
             assert failure_events[0]["data"].get("error") == "Simulation crashed"
 
 
 class TestStaleRunDetection:
-    """Tests for detecting and handling stale runs."""
+    """Tests for detecting and handling stale runs via RunStateManager."""
 
-    def test_run_without_completion_event_shows_running(self, test_client, event_bus_reset):
-        """
-        A run with only simulation_started event should show as 'running'.
-
-        This is expected behavior, but becomes a bug when the simulation
-        actually finished but no completion event was emitted.
-        """
-        from server.event_bus import emit_event
+    def test_run_without_heartbeat_detected_as_stale(self, test_client, event_bus_reset):
+        """A running run without heartbeat should be detected as stale."""
+        from server.run_state import get_state_manager
+        from tests.integration.conftest import create_test_run
 
         run_id = "stale-run-test"
-        emit_event("simulation_started", run_id=run_id, max_steps=5, num_agents=1)
+        create_test_run(run_id, status="running", max_steps=5)
 
-        response = test_client.get(f"/api/v1/runs/{run_id}")
-        assert response.status_code == 200
+        state_manager = get_state_manager()
 
-        data = response.json()
-        # This is technically correct - without completion event, status is running
-        assert data["status"] == "running"
+        # Without sending a heartbeat, the run should be stale
+        assert state_manager.is_heartbeat_stale(run_id) is True
 
     def test_multiple_runs_track_status_independently(self, test_client, event_bus_reset):
-        """
-        Each run should track its status independently.
-
-        Bug scenario: One run completing might not affect another run's status.
-        """
+        """Each run should track its status independently via RunStateManager."""
         from server.event_bus import emit_event
+        from tests.integration.conftest import create_test_run
 
-        # Start two runs
+        # Create two runs with different statuses
+        create_test_run("run-A", status="completed", max_steps=3)
+        create_test_run("run-B", status="running", max_steps=3, current_step=1)
+
         emit_event("simulation_started", run_id="run-A", max_steps=3, num_agents=1)
-        emit_event("simulation_started", run_id="run-B", max_steps=3, num_agents=1)
-
-        # Complete only run-A
         emit_event("simulation_completed", run_id="run-A", step=3, total_steps=3)
+
+        emit_event("simulation_started", run_id="run-B", max_steps=3, num_agents=1)
 
         # Check run-A is completed
         response_a = test_client.get("/api/v1/runs/run-A")
@@ -241,23 +217,23 @@ class TestStaleRunDetection:
 
 
 class TestSingleSourceOfTruth:
-    """Tests verifying EventBus is the single source of truth for status."""
+    """Tests verifying RunStateManager is the single source of truth for status."""
 
-    def test_eventbus_is_single_source_of_truth(self, test_client, event_bus_reset):
-        """
-        EventBus should be the only source of truth for run status.
-
-        All API endpoints should derive status from EventBus events,
-        not from any separate in-memory registry.
-        """
+    def test_runstatemanager_is_single_source_of_truth(self, test_client, event_bus_reset):
+        """RunStateManager should be the only source of truth for run status."""
         from server.event_bus import emit_event
+        from tests.integration.conftest import create_test_run
+        from server.run_state import get_state_manager
 
         run_id = "single-source-test"
+
+        # Create run in state manager
+        create_test_run(run_id, status="running", max_steps=5)
 
         # Emit events to EventBus
         emit_event("simulation_started", run_id=run_id, max_steps=5, num_agents=2)
 
-        # Both /api/v1/runs and /api/v1/runs should see the same status
+        # Both endpoints should see running status from state manager
         response1 = test_client.get(f"/api/v1/runs/{run_id}")
         assert response1.status_code == 200
         assert response1.json()["status"] == "running"
@@ -267,8 +243,9 @@ class TestSingleSourceOfTruth:
         assert run_id in runs
         assert runs[run_id]["status"] == "running"
 
-        # Complete the simulation
-        emit_event("simulation_completed", run_id=run_id, step=5, total_steps=5)
+        # Transition via state manager
+        state_manager = get_state_manager()
+        state_manager.transition(run_id, "completed")
 
         # Both endpoints should now show completed
         response3 = test_client.get(f"/api/v1/runs/{run_id}")
@@ -278,48 +255,37 @@ class TestSingleSourceOfTruth:
         runs = {r["runId"]: r for r in response4.json().get("runs", [])}
         assert runs[run_id]["status"] == "completed"
 
-    def test_no_separate_registry_needed(self, test_client, event_bus_reset):
-        """
-        Status should work without any registration step.
+    def test_state_manager_required_for_run_visibility(self, test_client, event_bus_reset):
+        """Runs must be in RunStateManager to be visible via API."""
+        from tests.integration.conftest import create_test_run
 
-        Just emitting events should be sufficient for status tracking.
-        """
-        from server.event_bus import emit_event
+        run_id = "visibility-test"
 
-        run_id = "no-registry-test"
+        # Create run in state manager
+        create_test_run(run_id, max_steps=3)
 
-        # Just emit events - no separate registration needed
-        emit_event(
-            "simulation_started",
-            run_id=run_id,
-            max_steps=3,
-            num_agents=1,
-            agent_names=["TestAgent"],
-            scenario_name="Test Scenario"
-        )
-
-        # Should be visible in API immediately
+        # Should be visible via API
         response = test_client.get(f"/api/v1/runs/{run_id}")
         assert response.status_code == 200
         data = response.json()
         assert data["status"] == "running"
         assert data["maxSteps"] == 3
-        assert len(data["agentNames"]) == 1
 
 
 class TestRunsApiStatusConsistency:
     """Tests for /api/v1/runs endpoint status consistency."""
 
-    def test_runs_api_reflects_completed_status(self, test_client, event_bus_reset, tmp_path):
+    def test_runs_api_reflects_state_manager_status(self, test_client, event_bus_reset):
         """
-        FAILING TEST: /api/v1/runs should show 'completed' for finished simulations.
-
-        The /api/v1/runs endpoint merges data from results/ directory and EventBus.
-        This test verifies the status is correctly determined.
+        /api/v1/runs should show status from RunStateManager.
         """
         from server.event_bus import emit_event
+        from tests.integration.conftest import create_test_run
 
         run_id = "api-runs-test"
+
+        # Create completed run in state manager
+        create_test_run(run_id, status="completed", max_steps=2)
 
         # Emit full simulation lifecycle
         emit_event("simulation_started", run_id=run_id, max_steps=2, num_agents=1,
@@ -334,281 +300,98 @@ class TestRunsApiStatusConsistency:
         runs = response.json().get("runs", [])
         our_run = next((r for r in runs if r["runId"] == run_id), None)
 
-        assert our_run is not None, f"Run {run_id} not found in /api/v1/runs response"
-        assert our_run["status"] == "completed", (
-            f"Expected status 'completed' but got '{our_run['status']}' in /api/v1/runs. "
-            "This indicates the status tracking bug where runs stay stuck in 'running'."
-        )
+        assert our_run is not None
+        assert our_run["status"] == "completed"
 
 
 class TestCrossProcessEventDelivery:
     """
     Tests for event delivery across process boundaries.
 
-    When RQ workers run simulations in separate processes, events emitted
-    by the worker must somehow be visible to the API server. This is where
-    the bug likely lives - events stay in the worker's EventBus and never
-    reach the server.
+    With RunStateManager, state is stored in Redis which is shared between
+    API server and worker processes. Events are still stored in EventBus
+    for detailed history but status comes from RunStateManager.
     """
 
-    def test_events_persisted_can_be_loaded_by_new_eventbus_instance(
-        self, tmp_path
-    ):
+    def test_state_manager_shared_across_processes(self):
         """
-        Events written by one EventBus instance should be loadable by another.
+        RunStateManager uses Redis as backend, enabling cross-process state sharing.
 
-        This simulates what happens when a worker emits events and then
-        the API server (with its own EventBus) needs to read them.
+        This test verifies the state manager can be accessed from different
+        contexts (simulating API server and worker processes).
         """
-        from server.event_bus import EventBus, emit_event
+        from fakeredis import FakeRedis
+        from server.run_state import RunStateManager
 
-        persist_path = tmp_path / "shared_events.jsonl"
+        # Create shared Redis (simulating real Redis shared between processes)
+        shared_redis = FakeRedis(decode_responses=True)
 
-        # First EventBus instance (simulates worker)
-        EventBus._test_persist_path = persist_path
-        EventBus.reset_instance()
-        worker_bus = EventBus.get_instance()
+        # "API server" initializes state manager
+        RunStateManager.reset_instance()
+        api_manager = RunStateManager.initialize(shared_redis)
 
-        # Worker emits events
-        emit_event("simulation_started", run_id="cross-process-test", max_steps=3)
-        emit_event("simulation_completed", run_id="cross-process-test", step=3)
-
-        # Verify events are persisted
-        assert persist_path.exists(), "Events should be persisted to disk"
-
-        # Reset to simulate a new process (API server)
-        EventBus.reset_instance()
-        server_bus = EventBus.get_instance()
-
-        # Server should be able to see the events
-        history = server_bus.get_history("cross-process-test")
-
-        assert len(history) >= 2, (
-            f"Expected at least 2 events, got {len(history)}. "
-            "Events from worker process are not visible to server process."
+        # API creates a run
+        api_manager.create_run(
+            run_id="cross-process-test",
+            scenario_path="/path.yaml",
+            scenario_name="test-scenario",
         )
 
-        event_types = [e.event_type for e in history]
-        assert "simulation_started" in event_types
-        assert "simulation_completed" in event_types, (
-            "simulation_completed event not found. "
-            "This would cause run to stay stuck in 'running' status."
-        )
+        # Verify pending status
+        state = api_manager.get_state("cross-process-test")
+        assert state.status == "pending"
 
-        # Cleanup
-        EventBus._test_persist_path = None
-        EventBus.reset_instance()
+        # "Worker" (using same Redis instance) transitions the run
+        api_manager.transition("cross-process-test", "running", worker_id="worker-1")
 
-    def test_database_mode_events_persist_across_instances(self, tmp_path):
+        # "API" can see the updated status
+        state = api_manager.get_state("cross-process-test")
+        assert state.status == "running"
+        assert state.worker_id == "worker-1"
+
+        # Worker completes
+        api_manager.transition("cross-process-test", "completed")
+
+        # API sees completed
+        state = api_manager.get_state("cross-process-test")
+        assert state.status == "completed"
+
+        RunStateManager.reset_instance()
+
+    def test_heartbeat_stale_detection_works(self):
         """
-        FAILING TEST: In database mode, events should persist across EventBus instances.
+        Test that heartbeat expiration detection works.
 
-        When APART_USE_DATABASE=1, events go to SQLite instead of JSONL.
-        The database should be the source of truth for run status.
+        When a worker crashes, its heartbeat TTL expires and the run
+        is detected as stale.
         """
-        from server.event_bus import EventBus, SimulationEvent
-        from server.database import init_db, reset_db, get_db, set_db_path
+        from fakeredis import FakeRedis
+        from server.run_state import RunStateManager, KEY_PREFIX, HEARTBEAT_SUFFIX
 
-        db_path = tmp_path / "test_status.db"
-        set_db_path(db_path)
-        init_db()
+        shared_redis = FakeRedis(decode_responses=True)
 
-        # Enable database mode
-        original_use_db = EventBus._use_database
-        EventBus._use_database = True
+        RunStateManager.reset_instance()
+        manager = RunStateManager.initialize(shared_redis)
 
-        try:
-            # Reset EventBus to pick up database mode
-            EventBus.reset_instance()
-            worker_bus = EventBus.get_instance()
+        # Create and start a run
+        manager.create_run("stale-detection", "/path.yaml", "scenario")
+        manager.transition("stale-detection", "running", worker_id="dying-worker")
 
-            # Insert simulation to database
-            db = get_db()
-            db.insert_simulation(
-                run_id="db-test-run",
-                scenario_name="test",
-                max_steps=3
-            )
+        # Worker sends heartbeat
+        manager.heartbeat("stale-detection", "dying-worker", step=1)
 
-            # Emit events (worker process)
-            event1 = SimulationEvent.create(
-                "simulation_started", "db-test-run", step=0, max_steps=3
-            )
-            event2 = SimulationEvent.create(
-                "simulation_completed", "db-test-run", step=3, total_steps=3
-            )
-            worker_bus.emit(event1)
-            worker_bus.emit(event2)
+        # Heartbeat exists - not stale
+        assert manager.is_heartbeat_stale("stale-detection") is False
 
-            # Simulate server process getting the events
-            EventBus.reset_instance()
-            server_bus = EventBus.get_instance()
+        # Simulate heartbeat TTL expiration by deleting the key
+        heartbeat_key = f"{KEY_PREFIX}stale-detection{HEARTBEAT_SUFFIX}"
+        shared_redis.delete(heartbeat_key)
 
-            history = server_bus.get_history("db-test-run")
-            event_types = [e.event_type for e in history]
+        # Now should be stale
+        assert manager.is_heartbeat_stale("stale-detection") is True
 
-            assert "simulation_completed" in event_types, (
-                f"Events in history: {event_types}. "
-                "simulation_completed not found - status would be stuck as 'running'."
-            )
+        # check_stale_runs should find it
+        stale_runs = manager.check_stale_runs()
+        assert "stale-detection" in stale_runs
 
-            # Also verify database has correct status
-            sim = db.get_simulation("db-test-run")
-            # Note: The database status is set via update_simulation_status,
-            # not automatically from events. This is a potential bug!
-
-        finally:
-            EventBus._use_database = original_use_db
-            EventBus._test_persist_path = None
-            EventBus.reset_instance()
-            set_db_path(None)
-
-    def test_worker_and_server_share_no_memory(self):
-        """
-        Demonstrates that worker and server EventBus instances are isolated.
-
-        This is the fundamental cause of the bug: RQ workers run in separate
-        processes with their own memory space. Events emitted in the worker
-        only go to the worker's in-memory EventBus, not the server's.
-
-        The only way events can cross is through:
-        1. Shared file persistence (JSONL)
-        2. Shared database (SQLite)
-        3. Message queue (Redis pub/sub - not implemented)
-        """
-        from server.event_bus import EventBus
-
-        # Create two separate EventBus "instances" by resetting
-        EventBus.reset_instance()
-        bus1 = EventBus.get_instance()
-        bus1._event_history["isolated-run"] = []  # Add directly to memory
-
-        # Get "another instance" (same singleton in same process, but
-        # in real RQ this would be a different process entirely)
-        # We can't truly test cross-process in a unit test, but we can
-        # document the expected behavior
-
-        # In the real bug scenario:
-        # - Worker process has EventBus with events in memory
-        # - Server process has EventBus with NO events in memory
-        # - Only persistence (file/db) bridges the gap
-        # - If persistence fails or isn't read, status stays "running"
-
-        EventBus.reset_instance()
-
-    def test_server_eventbus_stale_cache_bug(self, tmp_path):
-        """
-        FAILING TEST: Server EventBus doesn't reload events from persistence.
-
-        This is the actual bug:
-        1. Server starts, EventBus loads events from disk (empty)
-        2. Worker starts simulation, emits events to disk
-        3. Worker completes, events are persisted
-        4. Server queries status - uses stale in-memory cache
-        5. Status shows "running" because completion event not in cache
-
-        The EventBus only loads from persistence at __init__, never refreshes.
-        """
-        from server.event_bus import EventBus, SimulationEvent
-        import json
-
-        persist_path = tmp_path / "stale_cache_test.jsonl"
-
-        # Step 1: Server starts with empty EventBus
-        EventBus._test_persist_path = persist_path
-        EventBus.reset_instance()
-        server_bus = EventBus.get_instance()
-
-        # Verify no events yet
-        assert len(server_bus.get_history("stale-run")) == 0
-
-        # Step 2: Simulate worker writing events DIRECTLY to persistence file
-        # (This is what happens when a worker process emits events)
-        events_to_write = [
-            SimulationEvent.create("simulation_started", "stale-run", step=0, max_steps=3),
-            SimulationEvent.create("step_completed", "stale-run", step=1),
-            SimulationEvent.create("step_completed", "stale-run", step=2),
-            SimulationEvent.create("step_completed", "stale-run", step=3),
-            SimulationEvent.create("simulation_completed", "stale-run", step=3, total_steps=3),
-        ]
-
-        with open(persist_path, "w") as f:
-            for event in events_to_write:
-                f.write(event.to_json() + "\n")
-
-        # Step 3: Server queries status - BUG: still uses stale cache
-        history = server_bus.get_history("stale-run")
-
-        # This assertion SHOULD pass but currently FAILS due to stale cache
-        assert len(history) == 5, (
-            f"Expected 5 events from persistence, got {len(history)}. "
-            "EventBus is using stale in-memory cache instead of reloading from disk. "
-            "This is why runs stay stuck in 'running' status."
-        )
-
-        event_types = [e.event_type for e in history]
-        assert "simulation_completed" in event_types, (
-            "simulation_completed not found in history. "
-            "Server is not seeing events written by worker process."
-        )
-
-        # Cleanup
-        EventBus._test_persist_path = None
-        EventBus.reset_instance()
-
-    def test_server_should_reload_events_for_active_runs(self, tmp_path):
-        """
-        FAILING TEST: Server should refresh events from persistence for active runs.
-
-        Proposed fix: When querying a run that's in 'running' state, the server
-        should check persistence for newer events to detect completion/failure.
-        """
-        from server.event_bus import EventBus, SimulationEvent
-
-        persist_path = tmp_path / "reload_test.jsonl"
-
-        # Server starts, a run is marked as started
-        EventBus._test_persist_path = persist_path
-        EventBus.reset_instance()
-        server_bus = EventBus.get_instance()
-
-        # Emit start event through server
-        start_event = SimulationEvent.create(
-            "simulation_started", "reload-run", step=0, max_steps=2
-        )
-        server_bus.emit(start_event)
-
-        # Verify run is "running"
-        history = server_bus.get_history("reload-run")
-        assert len(history) == 1
-        assert history[0].event_type == "simulation_started"
-
-        # Worker completes and writes completion event to disk
-        # (Appending to existing file)
-        complete_event = SimulationEvent.create(
-            "simulation_completed", "reload-run", step=2, total_steps=2
-        )
-
-        # Small delay to ensure file mtime changes (filesystem resolution can be 1s)
-        import time
-        time.sleep(0.1)
-
-        with open(persist_path, "a") as f:
-            f.write(complete_event.to_json() + "\n")
-
-        # Force file mtime to be different by touching it with a future time
-        import os
-        future_time = time.time() + 1
-        os.utime(persist_path, (future_time, future_time))
-
-        # Server should be able to see the completion event
-        history_after = server_bus.get_history("reload-run")
-
-        assert len(history_after) == 2, (
-            f"Expected 2 events after worker completion, got {len(history_after)}. "
-            "Server EventBus is not detecting new events from worker."
-        )
-
-        # Cleanup
-        EventBus._test_persist_path = None
-        EventBus.reset_instance()
+        RunStateManager.reset_instance()
