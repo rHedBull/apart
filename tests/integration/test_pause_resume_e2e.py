@@ -244,9 +244,19 @@ class TestStoppingToPausedTransition:
         redis = FakeRedis()
         state_manager = RunStateManager.initialize(redis)
 
+        # Mock EventBus Redis functions to avoid blocking subscriber
+        def mock_init_event_bus_redis():
+            event_bus = EventBus.get_instance()
+            event_bus.set_redis_connection(redis)
+
+        async def mock_start_event_bus_subscriber():
+            pass
+
         # Initialize job queue mock
         with patch("server.job_queue._redis_conn", redis), \
-             patch("server.job_queue._queues", {"normal": MagicMock()}):
+             patch("server.job_queue._queues", {"normal": MagicMock()}), \
+             patch('server.app._initialize_event_bus_redis', mock_init_event_bus_redis), \
+             patch('server.app._start_event_bus_subscriber', mock_start_event_bus_subscriber):
 
             # Create a running simulation
             state_manager.create_run("stopping-test", "scenario.yaml", "test-scenario")
