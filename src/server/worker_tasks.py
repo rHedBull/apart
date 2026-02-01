@@ -69,28 +69,33 @@ class HeartbeatThread:
 
 
 def _ensure_state_manager_initialized():
-    """Ensure RunStateManager is initialized in worker process.
+    """Ensure RunStateManager and job queue are initialized in worker process.
 
-    The state manager is a singleton that must be initialized once per process.
+    The state manager and job queue module need the Redis connection to be set.
     In the API server, this happens in lifespan. In worker processes, we need
-    to initialize it here using the RQ worker's Redis connection.
+    to initialize here using the RQ worker's Redis connection.
     """
     from server.run_state import get_state_manager, RunStateManager
-
-    if get_state_manager() is not None:
-        return  # Already initialized
+    import server.job_queue as jq
 
     # Get Redis connection from RQ's current job context
     try:
         from rq import get_current_job
         job = get_current_job()
         if job and job.connection:
-            RunStateManager.initialize(job.connection)
-            logger.info("RunStateManager initialized in worker process")
+            # Initialize RunStateManager if needed
+            if get_state_manager() is None:
+                RunStateManager.initialize(job.connection)
+                logger.info("RunStateManager initialized in worker process")
+
+            # Initialize job queue module's Redis connection for pause signals
+            if jq._redis_conn is None:
+                jq._redis_conn = job.connection
+                logger.info("Job queue Redis connection initialized in worker process")
         else:
             logger.warning("Could not get Redis connection from RQ job")
     except Exception as e:
-        logger.warning(f"Could not initialize RunStateManager in worker: {e}")
+        logger.warning(f"Could not initialize worker Redis connections: {e}")
 
 
 def run_simulation_task(

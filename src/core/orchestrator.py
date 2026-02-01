@@ -480,6 +480,14 @@ Example of a BAD response: "I think about going to the market" (this is just int
         if pause_info is None:
             return False
 
+        force = pause_info.get("force", False)
+        self.logger.info(
+            MessageCode.SIM002,
+            "Pause signal detected",
+            step=step,
+            force=force,
+            run_id=self.persistence.run_id
+        )
         clear_pause_signal(self.persistence.run_id)
         emit(EventTypes.SIMULATION_PAUSED, step=step)
         return True
