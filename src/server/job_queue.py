@@ -58,6 +58,7 @@ def enqueue_simulation(
     run_id: str,
     scenario_path: str,
     priority: str = "normal",
+    resume_from_step: int | None = None,
 ) -> str:
     """
     Enqueue a simulation job for worker processing.
@@ -66,6 +67,7 @@ def enqueue_simulation(
         run_id: Unique simulation ID
         scenario_path: Path to scenario YAML file
         priority: Queue priority - "high", "normal", or "low"
+        resume_from_step: If set, resume simulation from this step
 
     Returns:
         Job ID for tracking
@@ -85,13 +87,24 @@ def enqueue_simulation(
     # Import here to avoid circular imports
     from server.worker_tasks import run_simulation_task
 
+    # Build job args - include resume_from_step if resuming
+    job_args = (run_id, scenario_path)
+    job_kwargs = {}
+    if resume_from_step is not None:
+        job_kwargs["resume_from_step"] = resume_from_step
+
     job = queue.enqueue(
         run_simulation_task,
-        args=(run_id, scenario_path),
+        args=job_args,
+        kwargs=job_kwargs,
         job_id=run_id,
         job_timeout=3600,  # 1 hour max
         retry=Retry(max=3, interval=[10, 30, 60]),  # Retry with backoff
-        meta={"scenario_path": scenario_path, "priority": priority},
+        meta={
+            "scenario_path": scenario_path,
+            "priority": priority,
+            "resume_from_step": resume_from_step,
+        },
     )
 
     logger.info("Simulation enqueued", extra={
@@ -99,6 +112,7 @@ def enqueue_simulation(
         "job_id": job.id,
         "priority": priority,
         "scenario": scenario_path,
+        "resume_from_step": resume_from_step,
     })
     return job.id
 

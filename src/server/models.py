@@ -81,3 +81,18 @@ class DangerSummary(BaseModel):
     total_signals: int
     by_category: dict[str, int] = Field(default_factory=dict)
     signals: list[DangerSignal] = Field(default_factory=list)
+
+
+class PauseSimulationResponse(BaseModel):
+    """Response after requesting simulation pause."""
+    run_id: str
+    status: str  # "pause_requested"
+    message: str
+
+
+class ResumeSimulationResponse(BaseModel):
+    """Response after resuming a simulation."""
+    run_id: str
+    status: str  # "resumed"
+    resuming_from_step: int
+    message: str

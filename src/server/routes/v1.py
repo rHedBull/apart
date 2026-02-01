@@ -20,6 +20,8 @@ from server.models import (
     StartSimulationRequest,
     StartSimulationResponse,
     SimulationStatus,
+    PauseSimulationResponse,
+    ResumeSimulationResponse,
 )
 from utils.ops_logger import get_ops_logger
 
@@ -638,3 +640,78 @@ async def delete_runs_bulk(request: Request):
         "skipped_running": skipped_running,
         "results": results,
     }
+
+
+@router.post("/{run_id}/pause", response_model=PauseSimulationResponse)
+async def pause_simulation(run_id: str, force: bool = False):
+    """Pause a running simulation.
+
+    Args:
+        run_id: The simulation run ID to pause
+        force: If True, pause immediately (drop current step)
+
+    Returns:
+        PauseSimulationResponse with pause request status
+    """
+    from server.job_queue import publish_pause_signal
+
+    status = _get_run_status(run_id)
+    if status is None:
+        raise HTTPException(status_code=404, detail=f"Run {run_id} not found")
+    if status != "running":
+        raise HTTPException(status_code=409, detail=f"Cannot pause simulation with status '{status}'")
+
+    publish_pause_signal(run_id, force=force)
+
+    return PauseSimulationResponse(
+        run_id=run_id,
+        status="pause_requested",
+        message=f"Pause signal sent to simulation {run_id}"
+    )
+
+
+@router.post("/{run_id}/resume", response_model=ResumeSimulationResponse)
+async def resume_simulation(run_id: str):
+    """Resume a paused simulation.
+
+    Args:
+        run_id: The simulation run ID to resume
+
+    Returns:
+        ResumeSimulationResponse with resume status
+    """
+    from server.job_queue import enqueue_simulation
+    from server.event_bus import emit_event
+
+    status = _get_run_status(run_id)
+    if status is None:
+        raise HTTPException(status_code=404, detail=f"Run {run_id} not found")
+    if status != "paused":
+        raise HTTPException(status_code=409, detail=f"Cannot resume simulation with status '{status}'")
+
+    # Load state to find scenario path and current step
+    results_dir = Path("results") / run_id
+    state_file = results_dir / "state.json"
+
+    if not state_file.exists():
+        raise HTTPException(status_code=500, detail=f"State file not found for run {run_id}")
+
+    with open(state_file, "r") as f:
+        state = json.load(f)
+
+    scenario_path = state.get("scenario_path")
+    snapshots = state.get("snapshots", [])
+    last_step = snapshots[-1]["step"] if snapshots else 0
+
+    # Emit resumed event
+    emit_event("simulation_resumed", run_id, step=last_step)
+
+    # Enqueue resume job
+    enqueue_simulation(run_id, scenario_path, resume_from_step=last_step + 1)
+
+    return ResumeSimulationResponse(
+        run_id=run_id,
+        status="resumed",
+        resuming_from_step=last_step + 1,
+        message=f"Simulation {run_id} resumed from step {last_step + 1}"
+    )
