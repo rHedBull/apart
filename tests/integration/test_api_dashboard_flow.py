@@ -22,8 +22,12 @@ class TestSimulationLifecycleViaAPI:
     def test_simulation_events_flow_to_api(self, test_client, event_bus_reset):
         """Test that simulation events are accessible via API."""
         from server.event_bus import emit_event
+        from tests.integration.conftest import create_test_run
 
         run_id = "api-flow-test-1"
+
+        # Create run in state manager
+        create_test_run(run_id, max_steps=3, current_step=1)
 
         # Simulate simulation lifecycle events
         emit_event("simulation_started", run_id=run_id, max_steps=3, scenario_name="test_scenario")
@@ -49,10 +53,14 @@ class TestSimulationLifecycleViaAPI:
     def test_simulation_completion_reflected_in_api(self, test_client, event_bus_reset):
         """Test that completed simulation shows correct status in API."""
         from server.event_bus import emit_event
+        from tests.integration.conftest import create_test_run
 
         run_id = "api-complete-test"
 
-        # Full simulation lifecycle
+        # Create run and transition to completed
+        create_test_run(run_id, status="completed", max_steps=2)
+
+        # Full simulation lifecycle events
         emit_event("simulation_started", run_id=run_id, max_steps=2)
         emit_event("step_completed", run_id=run_id, step=1)
         emit_event("step_completed", run_id=run_id, step=2)
@@ -70,8 +78,12 @@ class TestSimulationLifecycleViaAPI:
     def test_simulation_failure_reflected_in_api(self, test_client, event_bus_reset):
         """Test that failed simulation shows correct status in API."""
         from server.event_bus import emit_event
+        from tests.integration.conftest import create_test_run
 
         run_id = "api-failed-test"
+
+        # Create run and transition to failed
+        create_test_run(run_id, status="failed", max_steps=5)
 
         emit_event("simulation_started", run_id=run_id, max_steps=5)
         emit_event("step_completed", run_id=run_id, step=1)
@@ -90,10 +102,12 @@ class TestRunsEndpoint:
     """Tests for /api/v1/runs endpoint."""
 
     def test_runs_endpoint_returns_event_based_runs(self, test_client, event_bus_reset):
-        """Test that /api/v1/runs includes runs from EventBus."""
+        """Test that /api/v1/runs includes runs from state manager."""
         from server.event_bus import emit_event
+        from tests.integration.conftest import create_test_run
 
         run_id = "runs-endpoint-test"
+        create_test_run(run_id, max_steps=3, current_step=1)
         emit_event("simulation_started", run_id=run_id, max_steps=3, scenario_name="test_scenario")
         emit_event("step_completed", run_id=run_id, step=1)
 
@@ -113,10 +127,18 @@ class TestRunsEndpoint:
         assert our_run is not None or run_id in str(data), f"Run {run_id} not found in response: {data}"
 
     def test_runs_endpoint_shows_danger_count(self, test_client, event_bus_reset):
-        """Test that /api/v1/runs shows danger signal count."""
+        """Test that /api/v1/runs shows danger signal count from state manager."""
         from server.event_bus import emit_event
+        from tests.integration.conftest import create_test_run
+        from server.run_state import get_state_manager
 
         run_id = "danger-count-test"
+        create_test_run(run_id, max_steps=3, current_step=2)
+
+        # Update danger count in state manager
+        state_manager = get_state_manager()
+        state_manager.update_progress(run_id, current_step=2, danger_count=2)
+
         emit_event("simulation_started", run_id=run_id, max_steps=3)
         emit_event("danger_signal", run_id=run_id, step=1, category="manipulation")
         emit_event("danger_signal", run_id=run_id, step=2, category="deception")
@@ -138,8 +160,11 @@ class TestSimulationDetailsEndpoint:
     def test_get_simulation_details(self, test_client, event_bus_reset):
         """Test getting detailed simulation information."""
         from server.event_bus import emit_event
+        from tests.integration.conftest import create_test_run
 
         run_id = "details-test"
+        create_test_run(run_id, max_steps=5, current_step=3)
+
         emit_event(
             "simulation_started",
             run_id=run_id,
@@ -169,21 +194,21 @@ class TestMultipleSimulationsFlow:
     def test_multiple_simulations_tracked_independently(self, test_client, event_bus_reset):
         """Test that multiple simulations are tracked independently."""
         from server.event_bus import emit_event
+        from tests.integration.conftest import create_test_run
 
-        # Start multiple simulations
+        # Start multiple simulations with different states
+        create_test_run("multi-sim-0", status="completed", max_steps=5)
+        create_test_run("multi-sim-1", status="failed", max_steps=5)
+        create_test_run("multi-sim-2", status="running", max_steps=5, current_step=3)
+
         for i in range(3):
             run_id = f"multi-sim-{i}"
             emit_event("simulation_started", run_id=run_id, max_steps=5)
             emit_event("step_completed", run_id=run_id, step=i + 1)
 
-        # Complete one
+        # Events for different statuses
         emit_event("simulation_completed", run_id="multi-sim-0")
-
-        # Fail one
         emit_event("simulation_failed", run_id="multi-sim-1", error="Test failure")
-
-        # Leave one running
-        # (multi-sim-2 is still running)
 
         response = test_client.get("/api/v1/runs")
         data = response.json()
@@ -205,8 +230,12 @@ class TestEventConsistency:
     def test_step_count_consistent_across_endpoints(self, test_client, event_bus_reset):
         """Test that step count is consistent across endpoints."""
         from server.event_bus import emit_event
+        from tests.integration.conftest import create_test_run
+        from server.run_state import get_state_manager
 
         run_id = "consistency-step-test"
+        create_test_run(run_id, max_steps=10, current_step=5)
+
         emit_event("simulation_started", run_id=run_id, max_steps=10)
 
         for step in range(1, 6):
@@ -229,8 +258,11 @@ class TestEventConsistency:
     def test_agent_events_tracked_correctly(self, test_client, event_bus_reset):
         """Test that agent events are properly tracked."""
         from server.event_bus import emit_event, get_event_bus
+        from tests.integration.conftest import create_test_run
 
         run_id = "agent-events-test"
+        create_test_run(run_id, max_steps=3)
+
         emit_event("simulation_started", run_id=run_id, max_steps=3)
         emit_event("agent_message_sent", run_id=run_id, step=1, agent_name="AgentA", message="Hello")
         emit_event("agent_response_received", run_id=run_id, step=1, agent_name="AgentA", response="Hi")
@@ -316,11 +348,11 @@ class TestHealthWithSimulations:
 
     def test_health_shows_active_runs(self, test_client, event_bus_reset):
         """Test that health endpoint shows active run count."""
-        from server.event_bus import emit_event
+        from tests.integration.conftest import create_test_run
 
-        # Start some simulations
-        emit_event("simulation_started", run_id="health-test-1", max_steps=5)
-        emit_event("simulation_started", run_id="health-test-2", max_steps=5)
+        # Create runs in state manager
+        create_test_run("health-test-1", max_steps=5)
+        create_test_run("health-test-2", max_steps=5)
 
         response = test_client.get("/api/health/detailed")
         assert response.status_code == 200
@@ -335,10 +367,13 @@ class TestEventBusPersistenceIntegration:
     def test_events_persist_across_requests(self, test_client, event_bus_reset):
         """Test that events persist across multiple API requests."""
         from server.event_bus import emit_event
+        from tests.integration.conftest import create_test_run
+        from server.run_state import get_state_manager
 
         run_id = "persistence-test"
 
         # First request: start simulation
+        create_test_run(run_id, max_steps=5, current_step=0)
         emit_event("simulation_started", run_id=run_id, max_steps=5)
 
         response1 = test_client.get("/api/v1/runs")
@@ -346,9 +381,11 @@ class TestEventBusPersistenceIntegration:
         runs1 = data1.get("runs", [])
         assert any(s["runId"] == run_id for s in runs1)
 
-        # Second request: add more events
+        # Second request: add more events and update state
         emit_event("step_completed", run_id=run_id, step=1)
         emit_event("step_completed", run_id=run_id, step=2)
+        state_manager = get_state_manager()
+        state_manager.update_progress(run_id, current_step=2)
 
         response2 = test_client.get("/api/v1/runs")
         data2 = response2.json()
@@ -365,12 +402,16 @@ class TestDangerSignalFlow:
     def test_danger_signals_visible_in_runs(self, test_client, event_bus_reset):
         """Test that danger signals are visible in runs list."""
         from server.event_bus import emit_event
+        from tests.integration.conftest import create_test_run
+        from server.run_state import get_state_manager
 
         run_id = "danger-flow-test"
+        create_test_run(run_id, max_steps=5, current_step=1)
+
         emit_event("simulation_started", run_id=run_id, max_steps=5)
         emit_event("step_completed", run_id=run_id, step=1)
 
-        # Emit danger signals
+        # Emit danger signals and update state manager
         emit_event(
             "danger_signal",
             run_id=run_id,
@@ -387,6 +428,9 @@ class TestDangerSignalFlow:
             agent_name="Agent2",
             severity="medium"
         )
+
+        state_manager = get_state_manager()
+        state_manager.update_progress(run_id, current_step=1, danger_count=2)
 
         response = test_client.get("/api/v1/runs")
         data = response.json()

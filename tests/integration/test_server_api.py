@@ -38,10 +38,14 @@ class TestSimulationEndpoints:
         assert data["runs"] == []
 
     def test_list_simulations_with_events(self, test_client, event_bus_reset):
-        """List simulations should return runs that have events."""
+        """List simulations should return runs tracked in state manager."""
         from server.event_bus import emit_event
+        from tests.integration.conftest import create_test_run
 
-        # Emit some events for a run
+        # Create run in state manager (required for new architecture)
+        create_test_run("test-run-1", scenario_name="test-scenario", max_steps=5)
+
+        # Emit events for additional detail
         emit_event("simulation_started", run_id="test-run-1", max_steps=5, num_agents=2)
         emit_event("step_completed", run_id="test-run-1", step=1)
 
@@ -63,7 +67,12 @@ class TestSimulationEndpoints:
     def test_get_simulation_details(self, test_client, event_bus_reset):
         """Get simulation details should return event-derived info."""
         from server.event_bus import emit_event
+        from tests.integration.conftest import create_test_run
 
+        # Create run in state manager first
+        create_test_run("detail-test", scenario_name="detail-scenario", max_steps=10, current_step=3)
+
+        # Emit events for additional detail (agent names, etc.)
         emit_event(
             "simulation_started",
             run_id="detail-test",
@@ -134,8 +143,10 @@ class TestPauseResumeEndpoints:
     def test_pause_simulation_endpoint(self, test_client, event_bus_reset):
         """Test POST /api/v1/runs/{run_id}/pause endpoint."""
         from server.event_bus import emit_event
+        from tests.integration.conftest import create_test_run
 
-        # Simulate a running simulation
+        # Create a running simulation in state manager
+        create_test_run("pause_test", max_steps=10)
         emit_event("simulation_started", run_id="pause_test", max_steps=10)
 
         response = test_client.post("/api/v1/runs/pause_test/pause")
@@ -153,8 +164,10 @@ class TestPauseResumeEndpoints:
     def test_pause_completed_simulation(self, test_client, event_bus_reset):
         """Test that pausing a completed simulation fails with 409."""
         from server.event_bus import emit_event
+        from tests.integration.conftest import create_test_run
 
-        # Create a completed simulation
+        # Create a completed simulation in state manager
+        create_test_run("completed_sim", status="completed", max_steps=5)
         emit_event("simulation_started", run_id="completed_sim", max_steps=5)
         emit_event("simulation_completed", run_id="completed_sim")
 
@@ -164,13 +177,15 @@ class TestPauseResumeEndpoints:
     def test_resume_simulation_endpoint(self, test_client, event_bus_reset, tmp_path):
         """Test POST /api/v1/runs/{run_id}/resume endpoint."""
         from server.event_bus import emit_event
+        from tests.integration.conftest import create_test_run
         from unittest.mock import patch, MagicMock
         import json
         import os
 
         run_id = "resume_test"
 
-        # Simulate a paused simulation
+        # Create a paused simulation in state manager
+        create_test_run(run_id, status="paused", max_steps=10)
         emit_event("simulation_started", run_id=run_id, max_steps=10)
         emit_event("simulation_paused", run_id=run_id, step=5)
 
@@ -205,8 +220,10 @@ class TestPauseResumeEndpoints:
     def test_resume_non_paused_simulation(self, test_client, event_bus_reset):
         """Test that resuming a non-paused simulation fails with 409."""
         from server.event_bus import emit_event
+        from tests.integration.conftest import create_test_run
 
         # Create a running (not paused) simulation
+        create_test_run("running_sim", status="running", max_steps=10)
         emit_event("simulation_started", run_id="running_sim", max_steps=10)
 
         response = test_client.post("/api/v1/runs/running_sim/resume")
