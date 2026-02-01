@@ -17,6 +17,8 @@ dependencies = [
     "sse-starlette>=2.0.0",
     "rq>=1.16.0",
     "redis>=5.0.0",
+    "typer>=0.9.0",
+    "rich>=13.0.0",
 ]
 
 [project.optional-dependencies]
@@ -27,6 +29,7 @@ dev = [
 
 [project.scripts]
 apart-server = "server.app:main"
+apart = "cli:main"
 
 [tool.pytest.ini_options]
 markers = [
