@@ -228,3 +228,41 @@ class TestEventEmitter:
 
         # Cleanup
         disable_event_emitter()
+
+
+class TestGetRunStatus:
+    """Tests for the _get_run_status function."""
+
+    def setup_method(self):
+        """Reset singleton before each test."""
+        from server.event_bus import EventBus
+        EventBus.reset_instance()
+
+    def test_get_run_status_paused(self):
+        """Test that _get_run_status returns paused for simulation_paused event."""
+        from server.event_bus import EventBus, SimulationEvent
+        from server.routes.v1 import _get_run_status
+
+        bus = EventBus.get_instance()
+
+        # Emit started then paused events
+        bus.emit(SimulationEvent.create("simulation_started", run_id="test_paused"))
+        bus.emit(SimulationEvent.create("simulation_paused", run_id="test_paused", step=5))
+
+        status = _get_run_status("test_paused")
+        assert status == "paused"
+
+    def test_get_run_status_resumed(self):
+        """Test that _get_run_status returns running after simulation_resumed event."""
+        from server.event_bus import EventBus, SimulationEvent
+        from server.routes.v1 import _get_run_status
+
+        bus = EventBus.get_instance()
+
+        # Emit started -> paused -> resumed events
+        bus.emit(SimulationEvent.create("simulation_started", run_id="test_resumed"))
+        bus.emit(SimulationEvent.create("simulation_paused", run_id="test_resumed", step=5))
+        bus.emit(SimulationEvent.create("simulation_resumed", run_id="test_resumed", step=5))
+
+        status = _get_run_status("test_resumed")
+        assert status == "running"

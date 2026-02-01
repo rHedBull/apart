@@ -47,6 +47,10 @@ def _get_run_status(run_id: str) -> str | None:
     for event in history:
         if event.event_type == "simulation_started":
             status = "running"
+        elif event.event_type == "simulation_paused":
+            status = "paused"
+        elif event.event_type == "simulation_resumed":
+            status = "running"
         elif event.event_type == "simulation_completed":
             status = "completed"
         elif event.event_type == "simulation_failed":
@@ -139,6 +143,10 @@ async def list_runs():
                 started_at = event.timestamp
                 total_steps = event.data.get("max_steps")
                 scenario_name = event.data.get("scenario_name")
+            elif event.event_type == "simulation_paused":
+                status = "paused"
+            elif event.event_type == "simulation_resumed":
+                status = "running"
             elif event.event_type == "step_completed":
                 current_step = event.step or 0
             elif event.event_type == "danger_signal":
@@ -225,6 +233,10 @@ async def get_run_detail(run_id: str):
                 agent_names = event.data.get("agent_names", [])
                 spatial_graph = event.data.get("spatial_graph")
                 geojson = event.data.get("geojson")
+            elif event.event_type == "simulation_paused":
+                status = "paused"
+            elif event.event_type == "simulation_resumed":
+                status = "running"
             elif event.event_type == "step_started":
                 current_step = event.step or 0
             elif event.event_type == "step_completed":
@@ -365,6 +377,10 @@ async def get_run_detail(run_id: str):
         status = "completed"  # Default for disk-only runs
         for event in history:
             if event.event_type == "simulation_started":
+                status = "running"
+            elif event.event_type == "simulation_paused":
+                status = "paused"
+            elif event.event_type == "simulation_resumed":
                 status = "running"
             elif event.event_type == "simulation_completed":
                 status = "completed"
