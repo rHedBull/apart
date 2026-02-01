@@ -4,6 +4,8 @@ Redis Queue (RQ) integration for distributed job processing.
 Enables horizontal scaling by offloading simulation jobs to Redis-backed workers.
 """
 
+import json
+
 from rq import Queue, Retry
 from rq.job import Job
 from redis import Redis
@@ -16,6 +18,9 @@ logger = get_ops_logger("queue")
 # Module-level connections (initialized once)
 _redis_conn: Optional[Redis] = None
 _queues: dict[str, Queue] = {}
+
+# Pause signal key prefix
+PAUSE_SIGNAL_PREFIX = "apart:pause:"
 
 
 def init_job_queue(redis_url: str = "redis://localhost:6379") -> None:
@@ -211,3 +216,66 @@ def cancel_job(job_id: str) -> bool:
             return False
     except Exception:
         return False
+
+
+def publish_pause_signal(run_id: str, force: bool = False) -> bool:
+    """
+    Publish a pause signal for a running simulation.
+
+    Args:
+        run_id: The simulation run ID to pause
+        force: If True, pause immediately (drop current step)
+
+    Returns:
+        True if signal was published successfully
+    """
+    if _redis_conn is None:
+        raise RuntimeError("Job queue not initialized. Call init_job_queue() first.")
+
+    signal_data = json.dumps({"force": force})
+    key = f"{PAUSE_SIGNAL_PREFIX}{run_id}"
+
+    # Set with expiry (5 minutes - plenty of time for worker to see it)
+    _redis_conn.setex(key, 300, signal_data)
+
+    logger.info("Pause signal published", extra={"run_id": run_id, "force": force})
+    return True
+
+
+def check_pause_requested(run_id: str) -> dict | None:
+    """
+    Check if a pause has been requested for a simulation.
+
+    Args:
+        run_id: The simulation run ID to check
+
+    Returns:
+        Dict with pause info if requested, None otherwise
+    """
+    if _redis_conn is None:
+        raise RuntimeError("Job queue not initialized. Call init_job_queue() first.")
+
+    key = f"{PAUSE_SIGNAL_PREFIX}{run_id}"
+    data = _redis_conn.get(key)
+
+    if data:
+        return json.loads(data)
+    return None
+
+
+def clear_pause_signal(run_id: str) -> bool:
+    """
+    Clear the pause signal for a simulation (after handling it).
+
+    Args:
+        run_id: The simulation run ID
+
+    Returns:
+        True if signal was cleared
+    """
+    if _redis_conn is None:
+        raise RuntimeError("Job queue not initialized. Call init_job_queue() first.")
+
+    key = f"{PAUSE_SIGNAL_PREFIX}{run_id}"
+    _redis_conn.delete(key)
+    return True
