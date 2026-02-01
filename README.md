@@ -44,6 +44,12 @@ uv run src/main.py scenarios/my_scenario.yaml
 - **[Scenario Creation Guide](docs/scenario-creation.md)** - How to create custom scenarios with modules
 - **[Danger Detection](docs/danger-detection.md)** - Behavioral safety analysis
 
+### Reference Documentation
+- **[API Reference](docs/api-reference.md)** - REST API endpoints, SSE streaming, job queue
+- **[LLM Providers](docs/llm-providers.md)** - Configuring Gemini, OpenAI, Anthropic, Ollama
+- **[Spatial System](docs/spatial-system.md)** - Graph-based geography, pathfinding, movement
+- **[Dashboard](docs/dashboard.md)** - React frontend, components, real-time updates
+
 ### Example Scenarios
 
 All scenarios use the module system for composable, realistic simulations:
