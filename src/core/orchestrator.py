@@ -671,6 +671,10 @@ Example of a BAD response: "I think about going to the market" (this is just int
             else:
                 agent_messages = self._initialize_simulation()
 
+            # Check for pause after initialization
+            if self._check_and_handle_pause(0):
+                return {"status": "paused", "paused_at_step": 0}
+
             for step in range(start_step, self.max_steps + 1):
                 # Check for pause signal at start of each step
                 if self._check_and_handle_pause(step):
@@ -684,6 +688,13 @@ Example of a BAD response: "I think about going to the market" (this is just int
                     print(f"\n=== Step {step}/{self.max_steps} ===")
 
                     agent_responses, step_messages = self._collect_agent_responses(step, agent_messages)
+
+                    # Check for pause after agent responses (more responsive to pause requests)
+                    if self._check_and_handle_pause(step):
+                        paused_at_step = step
+                        print(f"\nSimulation paused at step {step} (after agent responses)")
+                        break
+
                     agent_messages = self._process_step_results(step, agent_responses, step_messages)
 
             # Only save final state if completed (not paused)

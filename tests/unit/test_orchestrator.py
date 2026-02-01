@@ -555,10 +555,11 @@ class TestPauseSignalHandling:
         orch._process_step_results = Mock(return_value={"Agent1": "msg"})
         orch._save_final_state = Mock()
 
-        # Mock the pause check to return a pause signal on step 2
-        mock_check.side_effect = [None, {"force": False}]  # Step 1: no pause, Step 2: pause
+        # Mock pause check: None for init, None for step 1 start, None for step 1 after responses,
+        # then pause at step 2 start
+        mock_check.side_effect = [None, None, None, {"force": False}]
 
-        # Run simulation - should pause after step 1
+        # Run simulation - should pause at step 2
         orch.run()
 
         # Verify pause was checked
@@ -596,8 +597,8 @@ class TestPauseSignalHandling:
 
         orch.run()
 
-        # Pause check should be called for each step
-        assert mock_check.call_count == 3  # max_steps = 3
+        # Pause checks: 1 after init + 2 per step (at start + after agent responses) = 1 + 3*2 = 7
+        assert mock_check.call_count == 7  # 1 after init + 3 steps * 2 checks per step
 
         # Clear should not be called (no pause)
         mock_clear.assert_not_called()
@@ -627,12 +628,12 @@ class TestPauseSignalHandling:
         orch._process_step_results = Mock(return_value={"Agent1": "msg"})
         orch._save_final_state = Mock()
 
-        # Force pause on step 1
-        mock_check.return_value = {"force": True}
+        # Force pause: None for init check, then force pause at step 1 start
+        mock_check.side_effect = [None, {"force": True}]
 
         orch.run()
 
-        # Should pause immediately at step 1
+        # Should pause at step 1
         pause_calls = [c for c in mock_emit.call_args_list
                        if c[0][0] == EventTypes.SIMULATION_PAUSED]
         assert len(pause_calls) == 1

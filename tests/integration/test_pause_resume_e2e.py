@@ -96,8 +96,8 @@ class TestOrchestratorRunReturnValue:
         orch._process_step_results = MagicMock(return_value={"Agent1": "msg"})
         orch._save_final_state = MagicMock()
 
-        # Pause on step 3
-        mock_check.side_effect = [None, None, {"force": False}]
+        # Pause on step 3: checks are after init, step1 start, step1 after, step2 start, step2 after, step3 start
+        mock_check.side_effect = [None, None, None, None, None, {"force": False}]
 
         result = orch.run()
 
@@ -143,8 +143,8 @@ class TestOrchestratorRunReturnValue:
         orch._process_step_results = MagicMock(return_value={"Agent1": "msg"})
         orch._save_final_state = MagicMock()
 
-        # Pause immediately on step 1
-        mock_check.return_value = {"force": False}
+        # Pause at step 1 start: None for init check, then pause
+        mock_check.side_effect = [None, {"force": False}]
 
         result = orch.run()
 
@@ -328,8 +328,9 @@ class TestSnapshotOnPause:
                  patch('core.orchestrator.check_pause_requested') as mock_check, \
                  patch('core.orchestrator.clear_pause_signal'):
 
-                # Run steps 1 and 2, then pause at step 3
-                mock_check.side_effect = [None, None, {"force": False}]
+                # Run steps 1 and 2, then pause at step 3 start
+                # Checks: init, step1 start, step1 after, step2 start, step2 after, step3 start
+                mock_check.side_effect = [None, None, None, None, None, {"force": False}]
 
                 result = orch.run()
 
