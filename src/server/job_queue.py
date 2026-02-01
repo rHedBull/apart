@@ -5,6 +5,7 @@ Enables horizontal scaling by offloading simulation jobs to Redis-backed workers
 """
 
 import json
+from pathlib import Path
 
 from rq import Queue, Retry
 from rq.job import Job
@@ -83,6 +84,29 @@ def enqueue_simulation(
         raise ValueError(f"Invalid priority: {priority}. Must be one of: high, normal, low")
 
     queue = _queues[priority]
+
+    # Create run state entry (if state manager is initialized)
+    from server.run_state import get_state_manager
+    state_manager = get_state_manager()
+    if state_manager is not None and resume_from_step is None:
+        # Only create new state for new runs, not resumes
+        try:
+            scenario_name = Path(scenario_path).stem
+            state_manager.create_run(
+                run_id=run_id,
+                scenario_path=scenario_path,
+                scenario_name=scenario_name,
+                priority=priority,
+            )
+        except ValueError:
+            # Run already exists (e.g., resume scenario) - that's fine
+            pass
+    elif state_manager is not None and resume_from_step is not None:
+        # For resumes, transition back to running
+        try:
+            state_manager.transition(run_id, "running")
+        except Exception as e:
+            logger.warning(f"Could not transition {run_id} to running: {e}")
 
     # Import here to avoid circular imports
     from server.worker_tasks import run_simulation_task

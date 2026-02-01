@@ -23,6 +23,7 @@ from server.models import (
     PauseSimulationResponse,
     ResumeSimulationResponse,
 )
+from server.run_state import get_state_manager, RunState
 from utils.ops_logger import get_ops_logger
 
 logger = get_ops_logger("api.v1")
@@ -56,12 +57,20 @@ def _has_active_workers() -> bool:
 def _get_run_status(run_id: str) -> str | None:
     """Get the current status of a simulation run.
 
-    Combines event-based status with RQ job status for robustness.
-    If worker dies mid-run, RQ job status will show 'failed' even if
-    no failure event was emitted.
+    Priority:
+    1. RunStateManager (if available) - authoritative source
+    2. Fallback to EventBus + RQ job status for robustness
 
     Returns None if the run doesn't exist.
     """
+    # Try state manager first (authoritative source)
+    state_manager = get_state_manager()
+    if state_manager:
+        state = state_manager.get_state(run_id)
+        if state is not None:
+            return state.status
+
+    # Fallback to legacy logic
     event_bus = get_event_bus()
     history = event_bus.get_history(run_id)
 
@@ -112,14 +121,22 @@ def _get_run_status(run_id: str) -> str | None:
 
 @router.get("")
 async def list_runs():
-    """List all simulation runs by scanning results/ directory and merging with EventBus data.
+    """List all simulation runs.
 
-    Returns runs from both:
-    - results/ directory (completed/historical runs)
-    - EventBus (in-memory, currently active runs)
+    Data sources (in priority order):
+    1. RunStateManager (if available) - authoritative for active runs
+    2. results/ directory - completed/historical runs
+    3. EventBus - real-time status updates
+    4. RQ job queue - queued jobs not yet started
     """
     event_bus = get_event_bus()
     runs_by_id: dict[str, dict] = {}
+
+    # 0. First, get runs from state manager (authoritative for active runs)
+    state_manager = get_state_manager()
+    if state_manager:
+        for state in state_manager.list_runs(limit=1000):
+            runs_by_id[state.run_id] = state.to_api_dict()
 
     # 1. Scan results/ directory for persisted runs
     results_dir = Path("results")
@@ -625,6 +642,7 @@ async def delete_run(run_id: str, force: bool = False):
     deleted_results = False
     deleted_events = False
     deleted_db = False
+    deleted_state = False
 
     # 1. Delete results directory
     if results_dir.exists():
@@ -647,7 +665,14 @@ async def delete_run(run_id: str, force: bool = False):
         deleted_db = True
         logger.info(f"Deleted database records for {run_id}")
 
-    if not (deleted_results or deleted_events or deleted_db):
+    # 4. Delete from state manager
+    state_manager = get_state_manager()
+    if state_manager:
+        deleted_state = state_manager.delete_run(run_id)
+        if deleted_state:
+            logger.info(f"Deleted state manager entry for {run_id}")
+
+    if not (deleted_results or deleted_events or deleted_db or deleted_state):
         raise HTTPException(status_code=404, detail=f"Run {run_id} not found")
 
     return {
@@ -656,6 +681,7 @@ async def delete_run(run_id: str, force: bool = False):
         "deleted_results": deleted_results,
         "deleted_events": deleted_events,
         "deleted_database": deleted_db,
+        "deleted_state": deleted_state,
     }
 
 
@@ -712,6 +738,12 @@ async def delete_runs_bulk(request: Request):
                 db.delete_simulation(run_id)
                 deleted_any = True
 
+            # Delete from state manager
+            state_manager = get_state_manager()
+            if state_manager:
+                if state_manager.delete_run(run_id):
+                    deleted_any = True
+
             result["deleted"] = deleted_any
             if not deleted_any:
                 result["error"] = "Not found"
@@ -746,12 +778,22 @@ async def pause_simulation(run_id: str, force: bool = False):
     """
     from server.job_queue import publish_pause_signal
 
-    status = _get_run_status(run_id)
-    if status is None:
-        raise HTTPException(status_code=404, detail=f"Run {run_id} not found")
-    if status != "running":
-        raise HTTPException(status_code=409, detail=f"Cannot pause simulation with status '{status}'")
+    # Check status via state manager or fallback
+    state_manager = get_state_manager()
+    if state_manager:
+        state = state_manager.get_state(run_id)
+        if state is None:
+            raise HTTPException(status_code=404, detail=f"Run {run_id} not found")
+        if state.status != "running":
+            raise HTTPException(status_code=409, detail=f"Cannot pause simulation with status '{state.status}'")
+    else:
+        status = _get_run_status(run_id)
+        if status is None:
+            raise HTTPException(status_code=404, detail=f"Run {run_id} not found")
+        if status != "running":
+            raise HTTPException(status_code=409, detail=f"Cannot pause simulation with status '{status}'")
 
+    # Publish pause signal (worker will transition state when it sees the signal)
     publish_pause_signal(run_id, force=force)
 
     return PauseSimulationResponse(
@@ -763,7 +805,7 @@ async def pause_simulation(run_id: str, force: bool = False):
 
 @router.post("/{run_id}/resume", response_model=ResumeSimulationResponse)
 async def resume_simulation(run_id: str):
-    """Resume a paused simulation.
+    """Resume a paused or interrupted simulation.
 
     Args:
         run_id: The simulation run ID to resume
@@ -774,11 +816,22 @@ async def resume_simulation(run_id: str):
     from server.job_queue import enqueue_simulation
     from server.event_bus import emit_event
 
-    status = _get_run_status(run_id)
-    if status is None:
-        raise HTTPException(status_code=404, detail=f"Run {run_id} not found")
-    if status != "paused":
-        raise HTTPException(status_code=409, detail=f"Cannot resume simulation with status '{status}'")
+    # Check status - allow resuming paused or interrupted runs
+    state_manager = get_state_manager()
+    resumable_states = ("paused", "interrupted")
+
+    if state_manager:
+        state = state_manager.get_state(run_id)
+        if state is None:
+            raise HTTPException(status_code=404, detail=f"Run {run_id} not found")
+        if state.status not in resumable_states:
+            raise HTTPException(status_code=409, detail=f"Cannot resume simulation with status '{state.status}'")
+    else:
+        status = _get_run_status(run_id)
+        if status is None:
+            raise HTTPException(status_code=404, detail=f"Run {run_id} not found")
+        if status not in resumable_states:
+            raise HTTPException(status_code=409, detail=f"Cannot resume simulation with status '{status}'")
 
     # Load state to find scenario path and current step
     results_dir = Path("results") / run_id

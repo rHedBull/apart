@@ -86,6 +86,20 @@ def _initialize_job_queue():
     init_job_queue(redis_url)
 
 
+def _initialize_state_manager():
+    """Initialize the RunStateManager with Redis backend."""
+    if os.environ.get("SKIP_REDIS", "").lower() in ("1", "true", "yes"):
+        logger.info("Skipping RunStateManager (SKIP_REDIS=1)")
+        return
+    from server.job_queue import get_redis_connection
+    from server.run_state import RunStateManager
+    try:
+        redis_conn = get_redis_connection()
+        RunStateManager.initialize(redis_conn)
+    except RuntimeError:
+        logger.warning("Could not initialize RunStateManager (job queue not initialized)")
+
+
 class RequestLoggingMiddleware(BaseHTTPMiddleware):
     """Middleware to log HTTP requests and responses."""
 
@@ -118,6 +132,7 @@ async def lifespan(app: FastAPI):
     logger.info("API server starting")
     _initialize_database()
     _initialize_job_queue()
+    _initialize_state_manager()
     _generate_mock_data_if_empty()
     logger.info("API server ready")
     yield
