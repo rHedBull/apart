@@ -17,6 +17,7 @@ import threading
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
+import logging
 from typing import Any, AsyncIterator, Callable, TYPE_CHECKING
 from collections import defaultdict
 import json
@@ -160,6 +161,8 @@ class EventBus:
         # Redis Pub/Sub for cross-process event delivery
         self._redis: "Redis | None" = None
         self._redis_subscriber_task: asyncio.Task | None = None
+        self._redis_pubsub: Any = None  # Store pubsub for cleanup
+        self._subscriber_stop_flag: bool = False
 
         # Persistence (JSONL mode)
         if persist_path is None:
@@ -311,8 +314,10 @@ class EventBus:
         try:
             self._redis.publish(EVENTS_CHANNEL, event.to_json())
         except Exception:
-            # Don't let Redis errors break event emission
-            pass
+            # Don't let Redis errors break event emission, but log for debugging
+            logging.getLogger("event_bus").debug(
+                "Failed to publish event to Redis", exc_info=True
+            )
 
     def dispatch_event(self, event: SimulationEvent) -> None:
         """Dispatch an event to local subscribers (called by Redis subscriber).
@@ -360,60 +365,42 @@ class EventBus:
         if self._redis is None:
             return
 
-        import logging
-        logger = logging.getLogger("event_bus")
+        # Reset stop flag
+        self._subscriber_stop_flag = False
 
-        async def subscriber_loop():
-            """Run Redis Pub/Sub subscription in a thread."""
-            try:
-                # Create a separate connection for subscription
-                # (Redis requires dedicated connection for Pub/Sub)
-                pubsub = self._redis.pubsub()
-                pubsub.subscribe(EVENTS_CHANNEL)
-
-                logger.info(f"Redis subscriber started on channel: {EVENTS_CHANNEL}")
-
-                # Process messages in a thread to avoid blocking
-                for message in pubsub.listen():
-                    if message["type"] == "message":
-                        try:
-                            event = SimulationEvent.from_json(message["data"])
-                            self.dispatch_event(event)
-                        except (json.JSONDecodeError, KeyError) as e:
-                            logger.warning(f"Failed to parse event from Redis: {e}")
-
-                    # Yield control to allow cancellation
-                    await asyncio.sleep(0)
-
-            except asyncio.CancelledError:
-                logger.info("Redis subscriber cancelled")
-                pubsub.unsubscribe()
-                pubsub.close()
-                raise
-            except Exception as e:
-                logger.error(f"Redis subscriber error: {e}")
-
-        # Run subscriber in background
+        # Run subscriber in background thread
         self._redis_subscriber_task = asyncio.create_task(
             asyncio.to_thread(self._run_redis_subscriber)
         )
 
     def _run_redis_subscriber(self) -> None:
-        """Synchronous Redis subscriber loop (runs in thread)."""
+        """Synchronous Redis subscriber loop (runs in thread).
+
+        Uses polling with timeout to allow graceful shutdown when
+        stop_redis_subscriber() sets the stop flag.
+        """
         if self._redis is None:
             return
 
-        import logging
         logger = logging.getLogger("event_bus")
+        pubsub = None
 
         try:
             # Create a separate connection for subscription
+            # (Redis requires dedicated connection for Pub/Sub)
             pubsub = self._redis.pubsub()
+            self._redis_pubsub = pubsub  # Store for cleanup
             pubsub.subscribe(EVENTS_CHANNEL)
 
             logger.info(f"Redis subscriber started on channel: {EVENTS_CHANNEL}")
 
-            for message in pubsub.listen():
+            # Use polling loop with timeout for graceful shutdown
+            while not self._subscriber_stop_flag:
+                # get_message with timeout allows checking stop flag
+                message = pubsub.get_message(timeout=1.0)
+                if message is None:
+                    continue  # Timeout, check stop flag and loop
+
                 if message["type"] == "message":
                     try:
                         data = message["data"]
@@ -425,15 +412,37 @@ class EventBus:
                     except (json.JSONDecodeError, KeyError) as e:
                         logger.warning(f"Failed to parse event from Redis: {e}")
 
-        except Exception as e:
-            logger.error(f"Redis subscriber error: {e}")
+            logger.info("Redis subscriber stopped gracefully")
+
+        except Exception:
+            logger.exception("Redis subscriber error")
+
+        finally:
+            # Clean up pubsub connection
+            if pubsub is not None:
+                try:
+                    pubsub.unsubscribe()
+                    pubsub.close()
+                except Exception:
+                    pass
+            self._redis_pubsub = None
 
     async def stop_redis_subscriber(self) -> None:
-        """Stop the Redis subscriber task."""
+        """Stop the Redis subscriber task gracefully."""
+        # Signal the subscriber loop to stop
+        self._subscriber_stop_flag = True
+
         if self._redis_subscriber_task:
-            self._redis_subscriber_task.cancel()
             try:
-                await self._redis_subscriber_task
+                # Wait for the subscriber to finish (with timeout)
+                await asyncio.wait_for(self._redis_subscriber_task, timeout=5.0)
+            except asyncio.TimeoutError:
+                # Force cancel if it doesn't stop gracefully
+                self._redis_subscriber_task.cancel()
+                try:
+                    await self._redis_subscriber_task
+                except asyncio.CancelledError:
+                    pass
             except asyncio.CancelledError:
                 pass
             self._redis_subscriber_task = None

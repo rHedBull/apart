@@ -9,7 +9,7 @@ modules:
 
 engine:
   provider: ollama
-  model: phi4-reasoning:plus
+  model: phi4-reasoning
   system_prompt: |
     You are the simulation engine for a Taiwan Strait crisis scenario.
 
@@ -110,7 +110,7 @@ agents:
   - name: "China"
     llm:
       provider: ollama
-      model: phi4-reasoning:plus
+      model: phi4-reasoning
     system_prompt: |
       You are the Chinese government's crisis decision-making apparatus.
 
@@ -147,7 +147,7 @@ agents:
   - name: "Taiwan"
     llm:
       provider: ollama
-      model: phi4-reasoning:plus
+      model: phi4-reasoning
     system_prompt: |
       You are Taiwan's National Security Council during the blockade crisis.
 
@@ -184,7 +184,7 @@ agents:
   - name: "United States"
     llm:
       provider: ollama
-      model: phi4-reasoning:plus
+      model: phi4-reasoning
     system_prompt: |
       You are the US National Security Council during the Taiwan Strait crisis.
 
@@ -221,7 +221,7 @@ agents:
   - name: "Japan"
     llm:
       provider: ollama
-      model: phi4-reasoning:plus
+      model: phi4-reasoning
     system_prompt: |
       You are Japan's National Security Secretariat during the Taiwan crisis.
 
