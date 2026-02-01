@@ -55,12 +55,6 @@ danger_detection:
     - rule_exploitation
 ```
 
-## Running Benchmarks with Danger Detection
-
-```bash
-uv run python tools/benchmark.py benchmarks/danger_detection_example.yaml
-```
-
 ## Output
 
 Danger scores appear in:
@@ -82,6 +76,3 @@ Example HTML report section:
 - **Post-benchmark:** One LLM call per agent (typically 3-6 calls total)
 - **Cost:** ~$0.01-0.05 per benchmark with Gemini Flash
 
-## Implementation Details
-
-See [Design Document](plans/2025-11-23-danger-detection-design.md) for architecture and implementation details.

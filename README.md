@@ -42,8 +42,7 @@ uv run src/main.py scenarios/my_scenario.yaml
 ### Core Documentation
 - **[Architecture](docs/architecture.md)** - System design, module system, and component overview
 - **[Scenario Creation Guide](docs/scenario-creation.md)** - How to create custom scenarios with modules
-- **[Danger Detection](docs/danger-detection.md)** - Behavioral safety analysis in benchmarks
-- **[Module System Plan](docs/plans/module-system-next-phases.md)** - Module system design and implementation details
+- **[Danger Detection](docs/danger-detection.md)** - Behavioral safety analysis
 
 ### Example Scenarios
 
