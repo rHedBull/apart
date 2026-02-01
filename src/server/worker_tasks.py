@@ -68,6 +68,28 @@ class HeartbeatThread:
             self._stop_event.wait(self.interval)
 
 
+def _ensure_state_manager_initialized():
+    """Ensure RunStateManager is initialized in worker process.
+
+    The state manager is a singleton that must be initialized once per process.
+    In the API server, this happens in lifespan. In worker processes, we need
+    to initialize it here.
+    """
+    from server.run_state import get_state_manager, RunStateManager
+
+    if get_state_manager() is not None:
+        return  # Already initialized
+
+    # Initialize with Redis connection
+    try:
+        from server.job_queue import get_redis_connection
+        redis_conn = get_redis_connection()
+        RunStateManager.initialize(redis_conn)
+        logger.info("RunStateManager initialized in worker process")
+    except Exception as e:
+        logger.warning(f"Could not initialize RunStateManager in worker: {e}")
+
+
 def run_simulation_task(
     run_id: str,
     scenario_path: str,
@@ -91,6 +113,9 @@ def run_simulation_task(
     from core.event_emitter import enable_event_emitter
     from server.event_bus import emit_event
     from server.run_state import get_state_manager
+
+    # Ensure state manager is initialized in this worker process
+    _ensure_state_manager_initialized()
 
     scenario_path = Path(scenario_path)
     worker_id = _get_worker_id()
