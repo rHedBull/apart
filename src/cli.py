@@ -526,7 +526,7 @@ def status() -> None:
                 totals = queue_stats.get("total", queue_stats)
                 console.print(f"\n[bold]Job Queue:[/bold]")
                 console.print(f"  Queued: {totals.get('queued', 0)}")
-                console.print(f"  Started: {totals.get('started', 0)}")
+                console.print(f"  Running: {totals.get('started', 0)}")
                 console.print(f"  Finished: {totals.get('finished', 0)}")
                 console.print(f"  Failed: {totals.get('failed', 0)}")
 
