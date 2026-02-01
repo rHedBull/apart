@@ -1,6 +1,6 @@
 """Unit tests for the APART CLI."""
 
-import json
+import re
 import sys
 from pathlib import Path
 from unittest.mock import Mock, patch
@@ -16,6 +16,12 @@ from cli import app, get_api_url, DEFAULT_API_URL
 runner = CliRunner()
 
 
+def strip_ansi(text: str) -> str:
+    """Remove ANSI escape codes from text."""
+    ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
+    return ansi_escape.sub('', text)
+
+
 class TestCLIHelp:
     """Tests for CLI help commands."""
 
@@ -29,49 +35,56 @@ class TestCLIHelp:
     def test_cli_run_help(self):
         """Test run command help."""
         result = runner.invoke(app, ["run", "--help"])
+        output = strip_ansi(result.output)
         assert result.exit_code == 0
-        assert "scenario" in result.output.lower()
-        assert "--name" in result.output
-        assert "--priority" in result.output
+        assert "scenario" in output.lower()
+        assert "--name" in output
+        assert "--priority" in output
 
     def test_cli_pause_help(self):
         """Test pause command help."""
         result = runner.invoke(app, ["pause", "--help"])
+        output = strip_ansi(result.output)
         assert result.exit_code == 0
-        assert "run_id" in result.output.lower()
-        assert "--force" in result.output
+        assert "run_id" in output.lower()
+        assert "--force" in output
 
     def test_cli_resume_help(self):
         """Test resume command help."""
         result = runner.invoke(app, ["resume", "--help"])
+        output = strip_ansi(result.output)
         assert result.exit_code == 0
-        assert "run_id" in result.output.lower()
-        assert "paused" in result.output.lower()
+        assert "run_id" in output.lower()
+        assert "paused" in output.lower()
 
     def test_cli_list_help(self):
         """Test list command help."""
         result = runner.invoke(app, ["list", "--help"])
+        output = strip_ansi(result.output)
         assert result.exit_code == 0
-        assert "--status" in result.output
+        assert "--status" in output
 
     def test_cli_show_help(self):
         """Test show command help."""
         result = runner.invoke(app, ["show", "--help"])
+        output = strip_ansi(result.output)
         assert result.exit_code == 0
-        assert "run_id" in result.output.lower()
+        assert "run_id" in output.lower()
 
     def test_cli_delete_help(self):
         """Test delete command help."""
         result = runner.invoke(app, ["delete", "--help"])
+        output = strip_ansi(result.output)
         assert result.exit_code == 0
-        assert "--force" in result.output
-        assert "--yes" in result.output
+        assert "--force" in output
+        assert "--yes" in output
 
     def test_cli_status_help(self):
         """Test status command help."""
         result = runner.invoke(app, ["status", "--help"])
+        output = strip_ansi(result.output)
         assert result.exit_code == 0
-        assert "server" in result.output.lower()
+        assert "server" in output.lower()
 
 
 class TestAPIURL:
