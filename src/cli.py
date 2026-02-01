@@ -270,6 +270,7 @@ def list_runs(
                 "paused": "[yellow]paused[/yellow]",
                 "completed": "[blue]completed[/blue]",
                 "failed": "[red]failed[/red]",
+                "interrupted": "[magenta]interrupted[/magenta]",
             }.get(run_status, run_status)
 
             # Format progress
@@ -337,6 +338,7 @@ def show(
             "paused": "[yellow]paused[/yellow]",
             "completed": "[blue]completed[/blue]",
             "failed": "[red]failed[/red]",
+            "interrupted": "[magenta]interrupted[/magenta]",
         }.get(status, status)
 
         console.print(f"  Scenario: {data.get('scenario', 'unknown')}")

@@ -17,6 +17,7 @@ class SimulationStatus(str, Enum):
     COMPLETED = "completed"
     FAILED = "failed"
     STOPPED = "stopped"
+    INTERRUPTED = "interrupted"  # Worker died mid-run, job back in queue
 
 
 class AgentInfo(BaseModel):

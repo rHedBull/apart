@@ -87,6 +87,9 @@ def _get_run_status(run_id: str) -> str | None:
             results_dir = Path("results") / run_id
             if results_dir.exists():
                 status = "completed"
+        elif job_status in ("scheduled", "queued"):
+            # Job was running but is now back in queue (worker died mid-job)
+            status = "interrupted"
 
     return status
 
@@ -213,6 +216,45 @@ async def list_runs():
                 "completedAt": completed_at,
                 "dangerCount": danger_count,
             }
+
+    # 3. Add queued jobs from RQ that haven't started yet
+    try:
+        from server.job_queue import _queues, _redis_conn
+        from rq.job import Job
+
+        if _redis_conn and _queues:
+            for priority, queue in _queues.items():
+                for job_id in queue.job_ids:
+                    if job_id not in runs_by_id:
+                        try:
+                            job = Job.fetch(job_id, connection=_redis_conn)
+                            scenario_path = job.meta.get("scenario_path", "")
+                            scenario_name = Path(scenario_path).stem if scenario_path else job_id
+                            runs_by_id[job_id] = {
+                                "runId": job_id,
+                                "scenario": scenario_name,
+                                "status": "pending",
+                                "currentStep": 0,
+                                "totalSteps": None,
+                                "startedAt": job.enqueued_at.isoformat() if job.enqueued_at else None,
+                                "completedAt": None,
+                                "dangerCount": 0,
+                            }
+                        except Exception:
+                            pass  # Skip jobs we can't fetch
+    except (ImportError, RuntimeError):
+        pass  # Job queue not initialized
+
+    # 4. Update status for "running" runs using RQ job status (detect crashes)
+    for run_id, run_data in runs_by_id.items():
+        if run_data["status"] == "running":
+            job_status = _get_job_status(run_id)
+            if job_status == "failed":
+                run_data["status"] = "failed"
+            elif job_status in ("scheduled", "queued"):
+                # Job was running but is now back in queue (worker died mid-job)
+                # RQ reschedules failed jobs, but without a worker they stay in limbo
+                run_data["status"] = "interrupted"
 
     # Sort by start time (most recent first)
     runs_list = sorted(

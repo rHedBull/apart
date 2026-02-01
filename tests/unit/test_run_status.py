@@ -195,3 +195,19 @@ class TestStatusTransitions:
             mock_bus.return_value.get_history.return_value = events
             status = _get_run_status("completed_after_resume")
             assert status == "completed"
+
+    def test_worker_crash_shows_interrupted_when_rescheduled(self):
+        """Test that job back in queue after crash shows as interrupted.
+
+        When a worker dies mid-job, RQ reschedules it. If events show
+        "running" but RQ shows "scheduled", the run is interrupted.
+        """
+        started_event = Mock()
+        started_event.event_type = "simulation_started"
+
+        with patch("server.routes.v1.get_event_bus") as mock_bus:
+            mock_bus.return_value.get_history.return_value = [started_event]
+            # RQ rescheduled the job after worker death
+            with patch("server.routes.v1._get_job_status", return_value="scheduled"):
+                status = _get_run_status("rescheduled_run")
+                assert status == "interrupted"
