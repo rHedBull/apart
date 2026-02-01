@@ -1,0 +1,30 @@
+# LLM example scenario for integration tests
+max_steps: 3
+orchestrator_message: "What is your strategy?"
+
+engine:
+  provider: "gemini"
+  model: "gemini-1.5-flash"
+  system_prompt: "You are a test simulation engine."
+  simulation_plan: "Simple LLM test simulation."
+
+game_state:
+  initial_resources: 100
+
+global_vars:
+  turn_number:
+    type: int
+    default: 0
+
+agent_vars:
+  resources:
+    type: float
+    default: 100.0
+    min: 0.0
+
+agents:
+  - name: "LLM Agent"
+    llm:
+      provider: "gemini"
+      model: "gemini-1.5-flash"
+    system_prompt: "You are a strategic agent. Keep responses brief."

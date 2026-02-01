@@ -1,0 +1,56 @@
+# Minimal test scenario for integration tests
+max_steps: 5
+orchestrator_message: "Please proceed with the next action"
+
+engine:
+  provider: "gemini"
+  model: "gemini-1.5-flash"
+  system_prompt: "You are a test simulation engine."
+  simulation_plan: "Simple test simulation."
+
+game_state:
+  initial_resources: 150
+  difficulty: "normal"
+
+global_vars:
+  interest_rate:
+    type: float
+    default: 0.05
+    min: 0.0
+    max: 1.0
+
+  market_volatility:
+    type: float
+    default: 0.1
+    min: 0.0
+    max: 1.0
+
+  simulation_active:
+    type: bool
+    default: true
+
+agent_vars:
+  economic_strength:
+    type: float
+    default: 1000.0
+    min: 0.0
+
+  risk_tolerance:
+    type: float
+    default: 0.5
+    min: 0.0
+    max: 1.0
+
+  action_count:
+    type: int
+    default: 0
+    min: 0
+
+agents:
+  - name: "Agent Alpha"
+    response_template: "Alpha response"
+    variables:
+      economic_strength: 2500.0
+      risk_tolerance: 0.8
+  - name: "Agent Beta"
+    response_template: "Beta response"
