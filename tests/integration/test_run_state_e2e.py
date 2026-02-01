@@ -40,6 +40,7 @@ def test_client_with_state_manager(fake_redis, state_manager):
     """Create test client with state manager initialized."""
     import server.job_queue as job_queue_module
     from server.app import app
+    from server.event_bus import EventBus
 
     def mock_init_job_queue(redis_url: str):
         from rq import Queue
@@ -50,9 +51,19 @@ def test_client_with_state_manager(fake_redis, state_manager):
             "low": Queue("simulations-low", connection=fake_redis),
         }
 
+    # Mock EventBus Redis functions to avoid blocking subscriber
+    def mock_init_event_bus_redis():
+        event_bus = EventBus.get_instance()
+        event_bus.set_redis_connection(fake_redis)
+
+    async def mock_start_event_bus_subscriber():
+        pass
+
     with patch.object(job_queue_module, 'init_job_queue', mock_init_job_queue):
-        with TestClient(app) as client:
-            yield client
+        with patch('server.app._initialize_event_bus_redis', mock_init_event_bus_redis):
+            with patch('server.app._start_event_bus_subscriber', mock_start_event_bus_subscriber):
+                with TestClient(app) as client:
+                    yield client
 
     job_queue_module._redis_conn = None
     job_queue_module._queues = {}
