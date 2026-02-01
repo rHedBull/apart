@@ -512,17 +512,19 @@ def status() -> None:
             data = detailed.json()
 
             console.print(f"\n[bold]Server Status:[/bold]")
-            console.print(f"  Active runs: {data.get('total_run_ids', 0)}")
+            console.print(f"  Tracked runs: {data.get('total_run_ids', 0)}")
             console.print(f"  Event subscribers: {data.get('event_bus_subscribers', 0)}")
             console.print(f"  Persistence mode: {data.get('persistence_mode', 'unknown')}")
 
             queue_stats = data.get("queue_stats", {})
             if queue_stats:
+                # Stats are nested by priority, get totals
+                totals = queue_stats.get("total", queue_stats)
                 console.print(f"\n[bold]Job Queue:[/bold]")
-                console.print(f"  Queued: {queue_stats.get('queued', 0)}")
-                console.print(f"  Started: {queue_stats.get('started', 0)}")
-                console.print(f"  Finished: {queue_stats.get('finished', 0)}")
-                console.print(f"  Failed: {queue_stats.get('failed', 0)}")
+                console.print(f"  Queued: {totals.get('queued', 0)}")
+                console.print(f"  Started: {totals.get('started', 0)}")
+                console.print(f"  Finished: {totals.get('finished', 0)}")
+                console.print(f"  Failed: {totals.get('failed', 0)}")
 
         except Exception:
             # Detailed health not available, that's fine

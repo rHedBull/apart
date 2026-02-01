@@ -30,8 +30,22 @@ logger = get_ops_logger("api.v1")
 router = APIRouter(prefix="/runs", tags=["runs"])
 
 
+def _get_job_status(run_id: str) -> str | None:
+    """Get RQ job status for a run. Returns None if job doesn't exist."""
+    try:
+        from server.job_queue import get_job_status
+        job_info = get_job_status(run_id)
+        return job_info.get("status")
+    except (ValueError, RuntimeError):
+        return None
+
+
 def _get_run_status(run_id: str) -> str | None:
     """Get the current status of a simulation run.
+
+    Combines event-based status with RQ job status for robustness.
+    If worker dies mid-run, RQ job status will show 'failed' even if
+    no failure event was emitted.
 
     Returns None if the run doesn't exist.
     """
@@ -43,6 +57,10 @@ def _get_run_status(run_id: str) -> str | None:
         results_dir = Path("results") / run_id
         if results_dir.exists():
             return "completed"
+        # Check if there's a queued job
+        job_status = _get_job_status(run_id)
+        if job_status == "queued":
+            return "pending"
         return None
 
     status = "pending"
@@ -57,6 +75,18 @@ def _get_run_status(run_id: str) -> str | None:
             status = "completed"
         elif event.event_type == "simulation_failed":
             status = "failed"
+
+    # If event-based status says "running", verify with RQ job status
+    # This catches cases where worker died without emitting failure event
+    if status == "running":
+        job_status = _get_job_status(run_id)
+        if job_status == "failed":
+            status = "failed"
+        elif job_status == "finished":
+            # Job finished but no completion event - check if actually completed
+            results_dir = Path("results") / run_id
+            if results_dir.exists():
+                status = "completed"
 
     return status
 

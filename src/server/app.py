@@ -15,7 +15,8 @@ from typing import Optional
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.staticfiles import StaticFiles
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from server.event_bus import get_event_bus
@@ -250,12 +251,40 @@ async def cancel_job(job_id: str):
         )
 
 
+# ============================================================================
+# Dashboard Static Files
+# ============================================================================
+
+# Find dashboard dist directory (relative to project root)
+_dashboard_dist = Path(__file__).parent.parent.parent / "dashboard" / "dist"
+
+if _dashboard_dist.exists():
+    # Serve static assets (JS, CSS, images)
+    app.mount("/assets", StaticFiles(directory=_dashboard_dist / "assets"), name="assets")
+
+    @app.get("/")
+    async def dashboard_root():
+        """Serve dashboard index.html."""
+        return FileResponse(_dashboard_dist / "index.html")
+
+    @app.get("/{path:path}")
+    async def dashboard_spa(path: str):
+        """Serve dashboard for SPA routing (catch-all for non-API routes)."""
+        # Don't intercept API routes
+        if path.startswith("api/"):
+            raise HTTPException(status_code=404, detail="Not found")
+        # Serve index.html for SPA routing
+        return FileResponse(_dashboard_dist / "index.html")
+
+
 def main():
     """Entry point for the apart-server command."""
     import uvicorn
     host = os.environ.get("APART_HOST", "127.0.0.1")
     port = int(os.environ.get("APART_PORT", "8000"))
-    print(f"Starting APART server v0.1.2 on {host}:{port}")
+    print(f"Starting APART server v0.1.3 on http://{host}:{port}")
+    if _dashboard_dist.exists():
+        print(f"Dashboard available at http://{host}:{port}/")
     uvicorn.run(
         "server.app:app",
         host=host,
