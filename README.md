@@ -2,7 +2,7 @@
 
 Multi-agent orchestration framework for running configurable simulation scenarios.
 
-**Note:** As of v2.0, all scenarios require an LLM-powered simulation engine. See [Design Documentation](docs/plans/2025-11-22-llm-simulation-engine-design.md) for details.
+**Note:** As of v2.0, all scenarios require an LLM-powered simulation engine. See [Scenario Creation Guide](docs/scenario-creation.md) for details.
 
 **Recommended LLM Providers:**
 - **Google Gemini** (gemini-1.5-flash): Fast, reliable, excellent JSON compliance (requires API key)
