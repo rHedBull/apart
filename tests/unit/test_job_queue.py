@@ -492,13 +492,13 @@ class TestPauseSignaling:
 
         assert result == {"force": True}
 
-    def test_check_pause_requested_raises_when_not_initialized(self):
-        """Test check_pause_requested raises when not initialized."""
+    def test_check_pause_requested_returns_none_when_not_initialized(self):
+        """Test check_pause_requested returns None gracefully when not initialized."""
         import server.job_queue as jq
         jq._redis_conn = None
 
-        with pytest.raises(RuntimeError, match="not initialized"):
-            jq.check_pause_requested("test_run")
+        result = jq.check_pause_requested("test_run")
+        assert result is None
 
     def test_clear_pause_signal(self):
         """Test clearing pause signal."""
@@ -509,10 +509,10 @@ class TestPauseSignaling:
         assert result is True
         self.mock_redis.delete.assert_called_once_with("apart:pause:test_run_123")
 
-    def test_clear_pause_signal_raises_when_not_initialized(self):
-        """Test clear_pause_signal raises when not initialized."""
+    def test_clear_pause_signal_returns_false_when_not_initialized(self):
+        """Test clear_pause_signal returns False gracefully when not initialized."""
         import server.job_queue as jq
         jq._redis_conn = None
 
-        with pytest.raises(RuntimeError, match="not initialized"):
-            jq.clear_pause_signal("test_run")
+        result = jq.clear_pause_signal("test_run")
+        assert result is False

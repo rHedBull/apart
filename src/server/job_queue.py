@@ -288,10 +288,12 @@ def check_pause_requested(run_id: str) -> dict | None:
         run_id: The simulation run ID to check
 
     Returns:
-        Dict with pause info if requested, None otherwise
+        Dict with pause info if requested, None otherwise.
+        Returns None if job queue is not initialized (e.g., running without workers).
     """
     if _redis_conn is None:
-        raise RuntimeError("Job queue not initialized. Call init_job_queue() first.")
+        # No job queue = no pause signals, return None gracefully
+        return None
 
     key = f"{PAUSE_SIGNAL_PREFIX}{run_id}"
     data = _redis_conn.get(key)
@@ -309,10 +311,11 @@ def clear_pause_signal(run_id: str) -> bool:
         run_id: The simulation run ID
 
     Returns:
-        True if signal was cleared
+        True if signal was cleared, False if job queue not initialized
     """
     if _redis_conn is None:
-        raise RuntimeError("Job queue not initialized. Call init_job_queue() first.")
+        # No job queue = no pause signals to clear
+        return False
 
     key = f"{PAUSE_SIGNAL_PREFIX}{run_id}"
     _redis_conn.delete(key)
