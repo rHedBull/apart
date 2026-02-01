@@ -222,10 +222,19 @@ app.add_middleware(
 app.include_router(v1_router, prefix="/api/v1")
 
 
+def _get_version() -> str:
+    """Get package version from pyproject.toml."""
+    try:
+        from importlib.metadata import version
+        return version("apart")
+    except Exception:
+        return "unknown"
+
+
 @app.get("/api/health")
 async def health_check():
     """Health check endpoint."""
-    return {"status": "healthy"}
+    return {"status": "healthy", "version": _get_version()}
 
 
 @app.get("/api/health/detailed")
@@ -233,13 +242,16 @@ async def detailed_health():
     """Detailed health check with system metrics."""
     from server.event_bus import EventBus
     from server.job_queue import get_queue_stats
+    from server.run_state import get_state_manager
 
     event_bus = get_event_bus()
+    state_manager = get_state_manager()
 
     result = {
         "status": "healthy",
+        "version": _get_version(),
         "event_bus_subscribers": len(event_bus._subscribers),
-        "total_run_ids": len(event_bus.get_all_run_ids()),
+        "total_run_ids": state_manager.count_runs() if state_manager else 0,
         "persistence_mode": "database" if EventBus._use_database else "jsonl",
         "queue_stats": get_queue_stats(),
     }
@@ -259,14 +271,26 @@ async def detailed_health():
 @app.get("/api/events/stream")
 async def event_stream(run_id: Optional[str] = None, history: bool = False):
     """SSE event stream for real-time updates."""
+    from server.run_state import get_state_manager
+
     event_bus = get_event_bus()
+    state_manager = get_state_manager()
+
+    # Get valid run IDs from RunStateManager to filter stale history events
+    valid_run_ids: set[str] | None = None
+    if history and state_manager:
+        valid_run_ids = {s.run_id for s in state_manager.list_runs(limit=1000)}
 
     async def generate():
         # Send connection event
         yield f"data: {{\"event_type\": \"connected\", \"message\": \"Connected to event stream\"}}\n\n"
 
         # Use the async iterator subscribe method
-        async for event in event_bus.subscribe(run_id=run_id, include_history=history):
+        async for event in event_bus.subscribe(
+            run_id=run_id,
+            include_history=history,
+            history_run_ids=valid_run_ids,
+        ):
             yield event.to_sse()
 
     return StreamingResponse(
@@ -355,7 +379,7 @@ def main():
     import uvicorn
     host = os.environ.get("APART_HOST", "127.0.0.1")
     port = int(os.environ.get("APART_PORT", "8000"))
-    print(f"Starting APART server v0.1.3 on http://{host}:{port}")
+    print(f"Starting APART server v{_get_version()} on http://{host}:{port}")
     if _dashboard_dist.exists():
         print(f"Dashboard available at http://{host}:{port}/")
     uvicorn.run(

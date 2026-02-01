@@ -435,6 +435,10 @@ class RunStateManager:
 
         return states
 
+    def count_runs(self) -> int:
+        """Return total number of tracked runs."""
+        return self._redis.zcard(INDEX_KEY)
+
     def delete_run(self, run_id: str) -> bool:
         """
         Delete a run's state.

@@ -504,8 +504,10 @@ def status() -> None:
         # Basic health check
         response = requests.get(f"{api_url}/api/health", timeout=10)
         response.raise_for_status()
+        health_data = response.json()
+        version = health_data.get("version", "unknown")
 
-        console.print("[green]Server is healthy[/green]")
+        console.print(f"[green]Server is healthy[/green] (v{version})")
 
         # Detailed health
         try:
