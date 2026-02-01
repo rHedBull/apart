@@ -248,3 +248,17 @@ async def cancel_job(job_id: str):
             status_code=409,
             detail=f"Job {job_id} cannot be cancelled (may be running or completed)"
         )
+
+
+def main():
+    """Entry point for the apart-server command."""
+    import uvicorn
+    host = os.environ.get("APART_HOST", "127.0.0.1")
+    port = int(os.environ.get("APART_PORT", "8000"))
+    print(f"Starting APART server v0.1.2 on {host}:{port}")
+    uvicorn.run(
+        "server.app:app",
+        host=host,
+        port=port,
+        reload=os.environ.get("APART_RELOAD", "").lower() in ("1", "true", "yes"),
+    )
