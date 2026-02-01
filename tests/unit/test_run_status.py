@@ -75,8 +75,9 @@ class TestGetRunStatus:
         with patch("server.routes.v1.get_event_bus") as mock_bus:
             mock_bus.return_value.get_history.return_value = [mock_event]
             with patch("server.routes.v1._get_job_status", return_value="started"):
-                status = _get_run_status("running_run")
-                assert status == "running"
+                with patch("server.routes.v1._has_active_workers", return_value=True):
+                    status = _get_run_status("running_run")
+                    assert status == "running"
 
     def test_returns_paused_from_events(self):
         """Test that paused status is derived from simulation_paused event."""
@@ -159,8 +160,9 @@ class TestGetRunStatus:
                 started_event, paused_event, resumed_event
             ]
             with patch("server.routes.v1._get_job_status", return_value="started"):
-                status = _get_run_status("resumed_run")
-                assert status == "running"
+                with patch("server.routes.v1._has_active_workers", return_value=True):
+                    status = _get_run_status("resumed_run")
+                    assert status == "running"
 
 
 class TestStatusTransitions:
@@ -179,8 +181,9 @@ class TestStatusTransitions:
         with patch("server.routes.v1.get_event_bus") as mock_bus:
             mock_bus.return_value.get_history.return_value = events
             with patch("server.routes.v1._get_job_status", return_value="started"):
-                status = _get_run_status("multi_cycle_run")
-                assert status == "running"
+                with patch("server.routes.v1._has_active_workers", return_value=True):
+                    status = _get_run_status("multi_cycle_run")
+                    assert status == "running"
 
     def test_final_status_wins(self):
         """Test that the final event determines status."""
@@ -211,3 +214,20 @@ class TestStatusTransitions:
             with patch("server.routes.v1._get_job_status", return_value="scheduled"):
                 status = _get_run_status("rescheduled_run")
                 assert status == "interrupted"
+
+    def test_worker_crash_shows_interrupted_when_no_workers(self):
+        """Test that job shows interrupted when no workers are running.
+
+        If RQ shows job as "started" but there are no active workers,
+        the worker must have died without RQ detecting it yet.
+        """
+        started_event = Mock()
+        started_event.event_type = "simulation_started"
+
+        with patch("server.routes.v1.get_event_bus") as mock_bus:
+            mock_bus.return_value.get_history.return_value = [started_event]
+            with patch("server.routes.v1._get_job_status", return_value="started"):
+                # No workers running
+                with patch("server.routes.v1._has_active_workers", return_value=False):
+                    status = _get_run_status("orphaned_run")
+                    assert status == "interrupted"

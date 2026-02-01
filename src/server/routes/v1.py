@@ -40,6 +40,19 @@ def _get_job_status(run_id: str) -> str | None:
         return None
 
 
+def _has_active_workers() -> bool:
+    """Check if there are any active RQ workers."""
+    try:
+        from rq import Worker
+        from server.job_queue import _redis_conn
+        if _redis_conn is None:
+            return False
+        workers = Worker.all(connection=_redis_conn)
+        return len(workers) > 0
+    except Exception:
+        return False
+
+
 def _get_run_status(run_id: str) -> str | None:
     """Get the current status of a simulation run.
 
@@ -89,6 +102,9 @@ def _get_run_status(run_id: str) -> str | None:
                 status = "completed"
         elif job_status in ("scheduled", "queued"):
             # Job was running but is now back in queue (worker died mid-job)
+            status = "interrupted"
+        elif job_status == "started" and not _has_active_workers():
+            # Job shows as started but no workers are running - worker died
             status = "interrupted"
 
     return status
@@ -246,6 +262,7 @@ async def list_runs():
         pass  # Job queue not initialized
 
     # 4. Update status for "running" runs using RQ job status (detect crashes)
+    has_workers = _has_active_workers()
     for run_id, run_data in runs_by_id.items():
         if run_data["status"] == "running":
             job_status = _get_job_status(run_id)
@@ -253,7 +270,9 @@ async def list_runs():
                 run_data["status"] = "failed"
             elif job_status in ("scheduled", "queued"):
                 # Job was running but is now back in queue (worker died mid-job)
-                # RQ reschedules failed jobs, but without a worker they stay in limbo
+                run_data["status"] = "interrupted"
+            elif job_status == "started" and not has_workers:
+                # Job shows as started but no workers are running - worker died
                 run_data["status"] = "interrupted"
 
     # Sort by start time (most recent first)
