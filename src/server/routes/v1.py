@@ -23,7 +23,7 @@ from server.models import (
     PauseSimulationResponse,
     ResumeSimulationResponse,
 )
-from server.run_state import get_state_manager, RunState
+from server.run_state import get_state_manager
 from utils.ops_logger import get_ops_logger
 
 logger = get_ops_logger("api.v1")
@@ -31,305 +31,68 @@ logger = get_ops_logger("api.v1")
 router = APIRouter(prefix="/runs", tags=["runs"])
 
 
-def _get_job_status(run_id: str) -> str | None:
-    """Get RQ job status for a run. Returns None if job doesn't exist."""
-    try:
-        from server.job_queue import get_job_status
-        job_info = get_job_status(run_id)
-        return job_info.get("status")
-    except (ValueError, RuntimeError):
-        return None
-
-
-def _has_active_workers() -> bool:
-    """Check if there are any active RQ workers."""
-    try:
-        from rq import Worker
-        from server.job_queue import _redis_conn
-        if _redis_conn is None:
-            return False
-        workers = Worker.all(connection=_redis_conn)
-        return len(workers) > 0
-    except Exception:
-        return False
-
-
 def _get_run_status(run_id: str) -> str | None:
     """Get the current status of a simulation run.
 
-    Priority:
-    1. RunStateManager (if available) - authoritative source
-    2. Fallback to EventBus + RQ job status for robustness
+    Uses RunStateManager as the single source of truth.
 
     Returns None if the run doesn't exist.
     """
-    # Try state manager first (authoritative source)
     state_manager = get_state_manager()
-    if state_manager:
-        state = state_manager.get_state(run_id)
-        if state is not None:
-            return state.status
+    if state_manager is None:
+        raise RuntimeError("RunStateManager not initialized")
 
-    # Fallback to legacy logic
-    event_bus = get_event_bus()
-    history = event_bus.get_history(run_id)
-
-    if not history:
-        # Check results directory for completed runs
-        results_dir = Path("results") / run_id
-        if results_dir.exists():
-            return "completed"
-        # Check if there's a queued job
-        job_status = _get_job_status(run_id)
-        if job_status == "queued":
-            return "pending"
-        return None
-
-    status = "pending"
-    for event in history:
-        if event.event_type == "simulation_started":
-            status = "running"
-        elif event.event_type == "simulation_paused":
-            status = "paused"
-        elif event.event_type == "simulation_resumed":
-            status = "running"
-        elif event.event_type == "simulation_completed":
-            status = "completed"
-        elif event.event_type == "simulation_failed":
-            status = "failed"
-
-    # If event-based status says "running", verify with RQ job status
-    # This catches cases where worker died without emitting failure event
-    if status == "running":
-        job_status = _get_job_status(run_id)
-        if job_status == "failed":
-            status = "failed"
-        elif job_status == "finished":
-            # Job finished but no completion event - check if actually completed
-            results_dir = Path("results") / run_id
-            if results_dir.exists():
-                status = "completed"
-        elif job_status in ("scheduled", "queued"):
-            # Job was running but is now back in queue (worker died mid-job)
-            status = "interrupted"
-        elif job_status == "started" and not _has_active_workers():
-            # Job shows as started but no workers are running - worker died
-            status = "interrupted"
-
-    return status
+    state = state_manager.get_state(run_id)
+    return state.status if state else None
 
 
 @router.get("")
 async def list_runs():
-    """List all simulation runs.
-
-    Data sources (in priority order):
-    1. RunStateManager (if available) - authoritative for active runs
-    2. results/ directory - completed/historical runs
-    3. EventBus - real-time status updates
-    4. RQ job queue - queued jobs not yet started
-    """
-    event_bus = get_event_bus()
-    runs_by_id: dict[str, dict] = {}
-
-    # 0. First, get runs from state manager (authoritative for active runs)
+    """List all simulation runs from RunStateManager."""
     state_manager = get_state_manager()
-    if state_manager:
-        for state in state_manager.list_runs(limit=1000):
-            runs_by_id[state.run_id] = state.to_api_dict()
+    if state_manager is None:
+        raise RuntimeError("RunStateManager not initialized")
 
-    # 1. Scan results/ directory for persisted runs
-    results_dir = Path("results")
-    if results_dir.exists():
-        for run_dir in results_dir.iterdir():
-            if not run_dir.is_dir():
-                continue
-            # Support both real runs (run_*) and mock runs (mock_run_*)
-            if not (run_dir.name.startswith("run_") or run_dir.name.startswith("mock_run_")):
-                continue
-
-            state_file = run_dir / "state.json"
-            if not state_file.exists():
-                continue
-
-            try:
-                with open(state_file, "r") as f:
-                    state = json.load(f)
-
-                run_id = state.get("run_id", run_dir.name)
-                scenario = state.get("scenario", "Unknown")
-                started_at = state.get("started_at")
-                snapshots = state.get("snapshots", [])
-
-                # Determine status and step from snapshots
-                current_step = 0
-                total_steps = None
-                danger_count = 0
-
-                if snapshots:
-                    last_snapshot = snapshots[-1]
-                    current_step = last_snapshot.get("step", 0)
-                    # Check for danger signals in snapshots
-                    for snapshot in snapshots:
-                        game_state = snapshot.get("game_state", {})
-                        if isinstance(game_state, dict):
-                            dangers = game_state.get("danger_signals", [])
-                            danger_count += len(dangers) if isinstance(dangers, list) else 0
-
-                # Default to completed if we have snapshots
-                status = "completed" if snapshots else "pending"
-
-                runs_by_id[run_id] = {
-                    "runId": run_id,
-                    "scenario": scenario,
-                    "status": status,
-                    "currentStep": current_step,
-                    "totalSteps": total_steps,
-                    "startedAt": started_at,
-                    "completedAt": None,  # Not tracked in state.json
-                    "dangerCount": danger_count,
-                }
-            except (json.JSONDecodeError, KeyError, TypeError):
-                # Skip corrupted files
-                continue
-
-    # 2. Merge with EventBus data (for real-time status updates)
-    for run_id in event_bus.get_all_run_ids():
-        history = event_bus.get_history(run_id)
-
-        status = "pending"
-        current_step = 0
-        total_steps = None
-        started_at = None
-        completed_at = None
-        scenario_name = None
-        danger_count = 0
-
-        for event in history:
-            if event.event_type == "simulation_started":
-                status = "running"
-                started_at = event.timestamp
-                total_steps = event.data.get("max_steps")
-                scenario_name = event.data.get("scenario_name")
-            elif event.event_type == "simulation_paused":
-                status = "paused"
-            elif event.event_type == "simulation_resumed":
-                status = "running"
-            elif event.event_type == "step_completed":
-                current_step = event.step or 0
-            elif event.event_type == "danger_signal":
-                danger_count += 1
-            elif event.event_type == "simulation_completed":
-                status = "completed"
-                completed_at = event.timestamp
-            elif event.event_type == "simulation_failed":
-                status = "failed"
-                completed_at = event.timestamp
-
-        # Update or create entry (EventBus has more recent data)
-        if run_id in runs_by_id:
-            # Merge: EventBus has live status info
-            runs_by_id[run_id].update({
-                "status": status,
-                "currentStep": current_step,
-                "totalSteps": total_steps or runs_by_id[run_id].get("totalSteps"),
-                "completedAt": completed_at,
-                "dangerCount": max(danger_count, runs_by_id[run_id].get("dangerCount", 0)),
-            })
-            if scenario_name:
-                runs_by_id[run_id]["scenario"] = scenario_name
-        else:
-            runs_by_id[run_id] = {
-                "runId": run_id,
-                "scenario": scenario_name or run_id,
-                "status": status,
-                "currentStep": current_step,
-                "totalSteps": total_steps,
-                "startedAt": started_at,
-                "completedAt": completed_at,
-                "dangerCount": danger_count,
-            }
-
-    # 3. Add queued jobs from RQ that haven't started yet
-    try:
-        from server.job_queue import _queues, _redis_conn
-        from rq.job import Job
-
-        if _redis_conn and _queues:
-            for priority, queue in _queues.items():
-                for job_id in queue.job_ids:
-                    if job_id not in runs_by_id:
-                        try:
-                            job = Job.fetch(job_id, connection=_redis_conn)
-                            scenario_path = job.meta.get("scenario_path", "")
-                            scenario_name = Path(scenario_path).stem if scenario_path else job_id
-                            runs_by_id[job_id] = {
-                                "runId": job_id,
-                                "scenario": scenario_name,
-                                "status": "pending",
-                                "currentStep": 0,
-                                "totalSteps": None,
-                                "startedAt": job.enqueued_at.isoformat() if job.enqueued_at else None,
-                                "completedAt": None,
-                                "dangerCount": 0,
-                            }
-                        except Exception:
-                            pass  # Skip jobs we can't fetch
-    except (ImportError, RuntimeError):
-        pass  # Job queue not initialized
-
-    # 4. Update status for "running" runs using RQ job status (detect crashes)
-    has_workers = _has_active_workers()
-    for run_id, run_data in runs_by_id.items():
-        if run_data["status"] == "running":
-            job_status = _get_job_status(run_id)
-            if job_status == "failed":
-                run_data["status"] = "failed"
-            elif job_status in ("scheduled", "queued"):
-                # Job was running but is now back in queue (worker died mid-job)
-                run_data["status"] = "interrupted"
-            elif job_status == "started" and not has_workers:
-                # Job shows as started but no workers are running - worker died
-                run_data["status"] = "interrupted"
+    runs = [state.to_api_dict() for state in state_manager.list_runs(limit=1000)]
 
     # Sort by start time (most recent first)
-    runs_list = sorted(
-        runs_by_id.values(),
-        key=lambda r: r.get("startedAt") or "",
-        reverse=True
-    )
+    runs.sort(key=lambda r: r.get("startedAt") or "", reverse=True)
 
-    return {"runs": runs_list}
+    return {"runs": runs}
 
 
 @router.get("/{run_id}")
 async def get_run_detail(run_id: str):
     """Get full state data for a specific run.
 
-    First checks EventBus for live run data, then falls back to state.json
-    on disk for historical data.
+    Uses RunStateManager for status, EventBus for real-time event data,
+    and state.json for persisted simulation data.
     """
+    # Get status from state manager (authoritative)
+    state_manager = get_state_manager()
+    if state_manager is None:
+        raise RuntimeError("RunStateManager not initialized")
+
+    run_state = state_manager.get_state(run_id)
+    if run_state is None:
+        raise HTTPException(status_code=404, detail=f"Run {run_id} not found")
+
     results_dir = Path("results")
     run_dir = results_dir / run_id
     state_file = run_dir / "state.json"
 
-    # Check EventBus first for live/recent run data
+    # Get detailed event data from EventBus (for live runs)
     event_bus = get_event_bus()
     history = event_bus.get_history(run_id)
 
-    # If state.json doesn't exist, try to build response from EventBus
+    # If state.json doesn't exist, build response from EventBus events
     if not state_file.exists():
-        if not history:
-            raise HTTPException(status_code=404, detail=f"Run {run_id} not found")
-
-        # Build response from EventBus events only
-        status = "pending"
-        current_step = 0
-        max_steps = None
+        current_step = run_state.current_step
+        max_steps = run_state.total_steps
         agent_names = []
         spatial_graph = None
         geojson = None
-        started_at = None
+        started_at = run_state.started_at
         messages = []
         danger_signals = []
         global_vars_history = []
@@ -337,20 +100,12 @@ async def get_run_detail(run_id: str):
 
         for event in history:
             if event.event_type == "simulation_started":
-                status = "running"
-                started_at = event.timestamp
-                max_steps = event.data.get("max_steps")
                 agent_names = event.data.get("agent_names", [])
                 spatial_graph = event.data.get("spatial_graph")
                 geojson = event.data.get("geojson")
-            elif event.event_type == "simulation_paused":
-                status = "paused"
-            elif event.event_type == "simulation_resumed":
-                status = "running"
-            elif event.event_type == "step_started":
-                current_step = event.step or 0
+                if not max_steps:
+                    max_steps = event.data.get("max_steps")
             elif event.event_type == "step_completed":
-                current_step = event.step or 0
                 if event.data.get("global_vars"):
                     global_vars_history.append({
                         "step": event.step or 0,
@@ -390,15 +145,11 @@ async def get_run_detail(run_id: str):
                     "value": event.data.get("value", 0),
                     "threshold": event.data.get("threshold"),
                 })
-            elif event.event_type == "simulation_completed":
-                status = "completed"
-            elif event.event_type == "simulation_failed":
-                status = "failed"
 
         return {
             "runId": run_id,
-            "scenario": run_id,
-            "status": status,
+            "scenario": run_state.scenario_name,
+            "status": run_state.status,
             "currentStep": current_step,
             "maxSteps": max_steps,
             "startedAt": started_at,
@@ -480,22 +231,8 @@ async def get_run_detail(run_id: str):
                         "values": vars,
                     })
 
-        # Determine status
-        current_step = snapshots[-1]["step"] if snapshots else 0
-
-        # Check EventBus for live status (reuse already-fetched history)
-        status = "completed"  # Default for disk-only runs
-        for event in history:
-            if event.event_type == "simulation_started":
-                status = "running"
-            elif event.event_type == "simulation_paused":
-                status = "paused"
-            elif event.event_type == "simulation_resumed":
-                status = "running"
-            elif event.event_type == "simulation_completed":
-                status = "completed"
-            elif event.event_type == "simulation_failed":
-                status = "failed"
+        # Get step from snapshots (state manager has authoritative status)
+        current_step = snapshots[-1]["step"] if snapshots else run_state.current_step
 
         # Try to get spatial graph and geojson from EventBus
         spatial_graph = None
@@ -575,11 +312,11 @@ async def get_run_detail(run_id: str):
 
         return {
             "runId": run_id,
-            "scenario": state.get("scenario", run_id),
-            "status": status,
+            "scenario": run_state.scenario_name,
+            "status": run_state.status,
             "currentStep": current_step,
-            "maxSteps": len(snapshots) if snapshots else None,
-            "startedAt": state.get("started_at"),
+            "maxSteps": run_state.total_steps or len(snapshots) if snapshots else None,
+            "startedAt": run_state.started_at,
             "agentNames": list(agent_names),
             "spatialGraph": spatial_graph,
             "geojson": geojson,
