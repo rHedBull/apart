@@ -267,6 +267,7 @@ def list_runs(
             status_style = {
                 "pending": "[dim]pending[/dim]",
                 "running": "[green]running[/green]",
+                "stopping": "[yellow bold]stopping[/yellow bold]",
                 "paused": "[yellow]paused[/yellow]",
                 "completed": "[blue]completed[/blue]",
                 "failed": "[red]failed[/red]",
@@ -335,6 +336,7 @@ def show(
         status_style = {
             "pending": "[dim]pending[/dim]",
             "running": "[green]running[/green]",
+            "stopping": "[yellow bold]stopping[/yellow bold]",
             "paused": "[yellow]paused[/yellow]",
             "completed": "[blue]completed[/blue]",
             "failed": "[red]failed[/red]",

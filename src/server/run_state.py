@@ -32,7 +32,8 @@ HEARTBEAT_TTL = 30
 # Valid state transitions
 VALID_TRANSITIONS = {
     "pending": ["running", "cancelled"],
-    "running": ["paused", "completed", "failed", "interrupted"],
+    "running": ["stopping", "paused", "completed", "failed", "interrupted"],
+    "stopping": ["paused", "failed", "interrupted"],  # warm stop in progress
     "paused": ["running", "cancelled", "interrupted"],
     "completed": [],  # terminal
     "failed": [],  # terminal

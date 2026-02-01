@@ -525,22 +525,31 @@ async def pause_simulation(run_id: str, force: bool = False):
         state = state_manager.get_state(run_id)
         if state is None:
             raise HTTPException(status_code=404, detail=f"Run {run_id} not found")
-        if state.status != "running":
+        if state.status not in ("running", "stopping"):
             raise HTTPException(status_code=409, detail=f"Cannot pause simulation with status '{state.status}'")
     else:
         status = _get_run_status(run_id)
         if status is None:
             raise HTTPException(status_code=404, detail=f"Run {run_id} not found")
-        if status != "running":
+        if status not in ("running", "stopping"):
             raise HTTPException(status_code=409, detail=f"Cannot pause simulation with status '{status}'")
 
     # Publish pause signal (worker will transition state when it sees the signal)
     publish_pause_signal(run_id, force=force)
 
+    # Transition to "stopping" to indicate pause is in progress (warm stop)
+    # Force pauses also go through stopping briefly before worker pauses
+    if state_manager and state_manager.get_state(run_id).status == "running":
+        try:
+            state_manager.transition(run_id, "stopping")
+        except Exception as e:
+            logger.warning(f"Could not transition {run_id} to stopping: {e}")
+
+    status_msg = "stopping" if not force else "stopping (force)"
     return PauseSimulationResponse(
         run_id=run_id,
-        status="pause_requested",
-        message=f"Pause signal sent to simulation {run_id}"
+        status=status_msg,
+        message=f"Pause signal sent to simulation {run_id}" + (" (force)" if force else " (will pause after current step)")
     )
 
 

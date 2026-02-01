@@ -153,7 +153,7 @@ class TestPauseResumeEndpoints:
 
         assert response.status_code == 200
         data = response.json()
-        assert data["status"] == "pause_requested"
+        assert data["status"] == "stopping"  # State transitions to "stopping" when pause requested
         assert data["run_id"] == "pause_test"
 
     def test_pause_non_running_simulation(self, test_client, event_bus_reset):

@@ -167,7 +167,7 @@ class TestPauseCommand:
         mock_response.status_code = 200
         mock_response.json.return_value = {
             "run_id": "test123",
-            "status": "pause_requested",
+            "status": "stopping",
             "message": "Pause signal sent",
         }
         mock_response.raise_for_status = Mock()
@@ -184,7 +184,7 @@ class TestPauseCommand:
         mock_response.status_code = 200
         mock_response.json.return_value = {
             "run_id": "test123",
-            "status": "pause_requested",
+            "status": "stopping (force)",
             "message": "Force pause signal sent",
         }
         mock_response.raise_for_status = Mock()

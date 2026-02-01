@@ -7,7 +7,7 @@ import { useState, useEffect, useCallback } from 'react';
 export interface RunSummary {
   runId: string;
   scenario: string;
-  status: 'pending' | 'running' | 'completed' | 'failed';
+  status: 'pending' | 'running' | 'stopping' | 'paused' | 'completed' | 'failed' | 'interrupted';
   currentStep: number;
   totalSteps: number | null;
   startedAt: string | null;
