@@ -12,7 +12,11 @@ from utils.ops_logger import get_ops_logger
 logger = get_ops_logger("worker")
 
 
-def run_simulation_task(run_id: str, scenario_path: str) -> dict:
+def run_simulation_task(
+    run_id: str,
+    scenario_path: str,
+    resume_from_step: int | None = None
+) -> dict:
     """
     Execute a simulation as an RQ task.
 
@@ -22,6 +26,7 @@ def run_simulation_task(run_id: str, scenario_path: str) -> dict:
     Args:
         run_id: Unique simulation ID
         scenario_path: Path to scenario YAML file
+        resume_from_step: If set, resume simulation from this step
 
     Returns:
         Dictionary with simulation result summary
@@ -36,6 +41,7 @@ def run_simulation_task(run_id: str, scenario_path: str) -> dict:
         "run_id": run_id,
         "scenario": scenario_path.stem,
         "scenario_path": str(scenario_path),
+        "resume_from_step": resume_from_step,
     })
 
     try:
@@ -49,17 +55,27 @@ def run_simulation_task(run_id: str, scenario_path: str) -> dict:
             save_frequency=1,
             run_id=run_id,
         )
-        orchestrator.run()
+
+        if resume_from_step is not None:
+            orchestrator.run(start_step=resume_from_step)
+        else:
+            orchestrator.run()
 
         logger.info("Simulation completed", extra={
             "run_id": run_id,
             "scenario": scenario_path.stem,
+            "resumed_from": resume_from_step,
         })
-        return {
+
+        result = {
             "run_id": run_id,
             "status": "completed",
             "scenario": scenario_path.stem,
         }
+        if resume_from_step is not None:
+            result["resumed_from"] = resume_from_step
+
+        return result
 
     except Exception as e:
         logger.error("Simulation failed", extra={

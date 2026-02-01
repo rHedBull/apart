@@ -147,3 +147,104 @@ class TestWorkerTaskErrorHandling:
 
                 with pytest.raises(FileNotFoundError):
                     run_simulation_task("missing-scenario", "/nonexistent/path.yaml")
+
+
+class TestRunSimulationTaskWithResume:
+    """Tests for resume functionality in run_simulation_task."""
+
+    def test_run_simulation_task_with_resume(self, tmp_path):
+        """Test running a simulation task that resumes from a saved state."""
+        from server.worker_tasks import run_simulation_task
+
+        # Create a dummy scenario file
+        scenario_path = tmp_path / "resume_scenario.yaml"
+        scenario_path.write_text("name: test\nmax_steps: 10\n")
+
+        with patch("core.orchestrator.Orchestrator") as mock_orch_class, \
+             patch("core.event_emitter.enable_event_emitter") as mock_enable:
+
+            mock_orchestrator = MagicMock()
+            mock_orch_class.return_value = mock_orchestrator
+
+            result = run_simulation_task(
+                "resume-run-123",
+                str(scenario_path),
+                resume_from_step=5
+            )
+
+            # Verify orchestrator.run was called with start_step
+            mock_orchestrator.run.assert_called_once_with(start_step=5)
+
+            # Verify result includes resume information
+            assert result["run_id"] == "resume-run-123"
+            assert result["status"] == "completed"
+            assert result["scenario"] == "resume_scenario"
+            assert result["resumed_from"] == 5
+
+    def test_run_simulation_task_without_resume_no_start_step(self, tmp_path):
+        """Test that run without resume_from_step calls run() without start_step."""
+        from server.worker_tasks import run_simulation_task
+
+        scenario_path = tmp_path / "normal_scenario.yaml"
+        scenario_path.write_text("name: test\nmax_steps: 5\n")
+
+        with patch("core.orchestrator.Orchestrator") as mock_orch_class, \
+             patch("core.event_emitter.enable_event_emitter"):
+
+            mock_orchestrator = MagicMock()
+            mock_orch_class.return_value = mock_orchestrator
+
+            result = run_simulation_task("normal-run", str(scenario_path))
+
+            # Verify orchestrator.run was called without start_step
+            mock_orchestrator.run.assert_called_once_with()
+
+            # Result should not have resumed_from key
+            assert "resumed_from" not in result
+
+    def test_resume_from_step_zero_passes_start_step(self, tmp_path):
+        """Test that resume_from_step=0 still passes start_step to orchestrator."""
+        from server.worker_tasks import run_simulation_task
+
+        scenario_path = tmp_path / "step_zero_scenario.yaml"
+        scenario_path.write_text("name: test\n")
+
+        with patch("core.orchestrator.Orchestrator") as mock_orch_class, \
+             patch("core.event_emitter.enable_event_emitter"):
+
+            mock_orchestrator = MagicMock()
+            mock_orch_class.return_value = mock_orchestrator
+
+            # resume_from_step=0 is explicitly set, so should pass start_step=0
+            result = run_simulation_task(
+                "step-zero-run",
+                str(scenario_path),
+                resume_from_step=0
+            )
+
+            # Even with 0, should call run(start_step=0) since it's not None
+            mock_orchestrator.run.assert_called_once_with(start_step=0)
+            assert result["resumed_from"] == 0
+
+    def test_resume_from_step_one_passes_start_step(self, tmp_path):
+        """Test that resume_from_step=1 passes start_step to orchestrator."""
+        from server.worker_tasks import run_simulation_task
+
+        scenario_path = tmp_path / "step_one_scenario.yaml"
+        scenario_path.write_text("name: test\n")
+
+        with patch("core.orchestrator.Orchestrator") as mock_orch_class, \
+             patch("core.event_emitter.enable_event_emitter"):
+
+            mock_orchestrator = MagicMock()
+            mock_orch_class.return_value = mock_orchestrator
+
+            result = run_simulation_task(
+                "step-one-run",
+                str(scenario_path),
+                resume_from_step=1
+            )
+
+            # resume_from_step=1 is truthy, should pass start_step
+            mock_orchestrator.run.assert_called_once_with(start_step=1)
+            assert result["resumed_from"] == 1
