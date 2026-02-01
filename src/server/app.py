@@ -5,8 +5,10 @@ Provides:
 - REST API for simulation management
 - SSE event streaming for real-time updates
 - Redis job queue for distributed simulation processing
+- Background stale run detection
 """
 
+import asyncio
 import os
 import time
 from contextlib import asynccontextmanager
@@ -100,6 +102,48 @@ def _initialize_state_manager():
         logger.warning("Could not initialize RunStateManager (job queue not initialized)")
 
 
+async def _stale_run_checker(interval_seconds: int = 30):
+    """Background task that detects and marks stale runs as interrupted.
+
+    A run is considered stale if:
+    - Status is "running"
+    - Worker heartbeat has expired (no heartbeat for 30+ seconds)
+
+    This handles the case where a worker crashes without gracefully
+    transitioning the run to a terminal state.
+    """
+    from server.run_state import get_state_manager
+
+    logger.info("Stale run checker started", extra={"interval": interval_seconds})
+
+    while True:
+        try:
+            await asyncio.sleep(interval_seconds)
+
+            state_manager = get_state_manager()
+            if state_manager is None:
+                continue
+
+            stale_run_ids = state_manager.check_stale_runs()
+
+            for run_id in stale_run_ids:
+                state = state_manager.mark_interrupted(
+                    run_id,
+                    reason="Worker heartbeat expired"
+                )
+                if state:
+                    logger.warning("Marked stale run as interrupted", extra={
+                        "run_id": run_id,
+                        "previous_worker": state.worker_id,
+                    })
+
+        except asyncio.CancelledError:
+            logger.info("Stale run checker stopped")
+            raise
+        except Exception as e:
+            logger.error(f"Error in stale run checker: {e}")
+
+
 class RequestLoggingMiddleware(BaseHTTPMiddleware):
     """Middleware to log HTTP requests and responses."""
 
@@ -134,9 +178,23 @@ async def lifespan(app: FastAPI):
     _initialize_job_queue()
     _initialize_state_manager()
     _generate_mock_data_if_empty()
+
+    # Start background tasks
+    stale_checker_task = None
+    if os.environ.get("SKIP_REDIS", "").lower() not in ("1", "true", "yes"):
+        stale_checker_task = asyncio.create_task(_stale_run_checker(interval_seconds=30))
+
     logger.info("API server ready")
     yield
-    # Shutdown
+
+    # Shutdown - cancel background tasks
+    if stale_checker_task:
+        stale_checker_task.cancel()
+        try:
+            await stale_checker_task
+        except asyncio.CancelledError:
+            pass
+
     logger.info("API server shutting down")
 
 
